@@ -2,7 +2,7 @@
 title: "PCS Registry Fold-In — Architectural Decision Record"
 doc_type: planning-canonical
 status: validated
-version: v1.2
+version: v1.3
 authors:
   - judge
   - einstein
@@ -129,6 +129,47 @@ For the KI7MT Sovereign AI Lab specifically (the canonical Slim Enterprise Org d
 This is the hybrid substrate option from the earlier Implementation substrate table, instantiated with concrete lab hardware. Other operators with different infrastructure shapes pick the same logical components mapped to their own hardware (single-host fleet may collapse all of this to one machine; multi-tenant deployments may split per-tenant).
 
 **What's not in scope for this section**: scaling discipline (how does PCS-Registry handle 100+ plugins and 50+ MCP servers under concurrent dispatch?) and HA topology (does the Forge node need a hot standby? snapshot replication to TrueNAS?). Those land as the registry matures past Phase 1.
+
+### Deployment Flow Sketch (preliminary; detailed spec spins out to its own doc when implementation starts)
+
+The end-to-end flow for getting an MCP server or plugin from dev work into mesh dispatch:
+
+```
+Dev work (any host)
+    ↓ git push
+GitHub (KI7MT/* and qso-graph/* repos — public source of truth, dev distribution)
+    ↓ PCS-Lifecycle Daemon (pending) detects new tag / release candidate
+    ↓ Daemon pulls source, invokes pcs-control-plane Harness (validate + lint + compile)
+    ↓ PGE compliance check against MCP-SECURITY-FRAMEWORK
+    ↓ IBX action-priority message to Judge for approval
+    ↓ on approval: artifact published to PCS-Registry over DAC
+        (Proxmox VM on EPYC, 10.60.2.0/24)
+PCS-Registry
+    ↑ agents pull plugins / MCP-server manifests at dispatch time
+    ↑ DNS resolution through PiHole on TrueNAS (internal-only domains —
+      e.g., `registry.lab.local`, `pcs.internal` — never resolve via public DNS)
+    ↑ MCP-server invocations route through IBX with PGE intent gate
+Mesh dispatch
+    ↓ agent loads plugin / invokes MCP server
+    ↓ ACT logs every invocation; pcs.* tables log every dispatch decision
+```
+
+**Operational implications**:
+
+| Component | Behavior |
+|---|---|
+| **GitHub** | Stays as the dev source of truth; PyPI publishing stays as the dev distribution channel. Both are *dev artifacts*, not production releases per the trust-boundary framing — they don't carry the PCS-Lifecycle stamp until promoted into PCS-Registry. |
+| **DNS via PiHole on TrueNAS** | Internal-only domain resolution (e.g., `registry.lab.local`, `pcs.internal`). DNS queries never leave the lab's trust boundary. Critical for air-gap-hostile-to-exfiltration architecture — name resolution itself is sovereign. |
+| **DAC topology constraint** | The DAC mesh is a star centered on 9975WX (M3, Proxmox, TrueNAS each have one DAC link to 9975WX; no direct Proxmox↔TrueNAS DAC). DNS-from-PiHole reaches the Proxmox-hosted Registry either via the LAN bridge (fine — DNS payloads are tiny) or via 9975WX-routed DAC traffic. Plugin/MCP pull traffic between Proxmox and compute hosts uses the direct DAC links (9975WX↔Proxmox at `10.60.2.0/24`; M3↔Proxmox via 9975WX-routed DAC). Worth being explicit because the topology shape affects where bottlenecks could surface. |
+| **Config updates** | Once an MCP server is in PCS-Registry, agent configurations (Claude Code `~/.claude.json`, Claude Desktop config, future plugin configs) update to point at the internal registry endpoint rather than at PyPI-installed paths. This is the per-host configuration propagation step; it can be Ansible-driven once PORTABILITY-AUDIT.md → Ansible-adoption work lands. |
+
+**What this sketch leaves open** (for the implementation doc):
+- Exact endpoint shape: REST? gRPC? Filesystem pull via SSHFS/NFS?
+- Authentication between agents and registry: mTLS? Bearer token from OS keyring? Trust-on-first-use?
+- Retry / fallback behavior when DAC link is degraded (LAN fallback? Cached local copy of last-known-good Registry state?)
+- Rollback semantics in production: if a freshly-promoted version surfaces a regression, what's the operator command to roll back?
+
+These are all real questions but they belong in `PCS-REGISTRY-DEPLOYMENT.md` (or similar) when the implementation work actually starts — not in this ADR.
 
 ## Dogfooding — Lab as Both Developer and Consumer
 
@@ -268,6 +309,17 @@ Worth being explicit about the order, because the pattern is load-bearing for ho
 **The operator-as-architect pattern is intentional, not accidental.** Agents formalize well once given a clear architectural prompt; agents do not reliably identify operational-sovereignty gaps from first principles because they have no operational-sovereignty experience to draw from. The lab's discipline is to keep Judge in the architecture-identification loop and use agents for formalization, structural reconciliation, and dialectical-falsification review. This fold-in is a clean instance of that pattern.
 
 Four reasoning paths — one operator's identification + three independent agent reviews — landing on the same architectural commitment. Same epistemic property as the PCT-in-IBX convergence: a commitment that survives multiple independent derivations from different priors is invariant under the reasoning substrate. The dialectical engine produces durable outputs when each agent contributes from a distinct reasoning vantage.
+
+### v1.2 → v1.3 sharpening (2026-05-20)
+
+Judge sketched the end-to-end deployment flow for PCS-Registry: GitHub source → PCS-Lifecycle Daemon → PCS-Registry over DAC → agent dispatch with PiHole-mediated DNS for internal-only domains. Watson surfaced the DAC topology constraint (star mesh centered on 9975WX; Proxmox↔TrueNAS not directly DAC-linked) so the operational implications are visible.
+
+v1.3 corrections:
+- New subsection "Deployment Flow Sketch" inside the Lab Deployment Plan: captures the end-to-end push-to-mesh-dispatch flow, names the PiHole/TrueNAS DNS choice for internal-only domains (`registry.lab.local`, `pcs.internal`), and surfaces the DAC topology star-mesh constraint
+- Explicit "what this sketch leaves open" list — endpoint shape, auth model, retry/fallback, rollback semantics — all queued for the implementation doc when build work starts
+- Note that detailed implementation spec will likely spin out to its own doc (`PCS-REGISTRY-DEPLOYMENT.md` or similar) rather than continuing to grow the ADR
+
+The architectural commitment is still unchanged — v1.3 just adds operational sketch + scoping note for what belongs in this ADR vs a future implementation doc.
 
 ### v1.1 → v1.2 sharpening (2026-05-20)
 
