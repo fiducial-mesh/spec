@@ -2,7 +2,7 @@
 title: "SOM Problem Statement — Design Drivers from Operational Practice"
 doc_type: planning-canonical
 status: draft
-version: v0.2
+version: v0.3
 authors:
   - watson
   - patton
@@ -38,6 +38,24 @@ references:
 
 SOM is the seven-pillar platform that orchestrates the lab's multi-agent fleet on sovereign substrate. Its design drivers come from running an actual lab — single operator (KI7MT), five active agent roles (Watson, Bob, Patton, Einstein, Newton), four hosts (M3, 9975WX, EPYC, TrueNAS), four concurrent project workstreams (IONIS-AI, QSO-Graph, PCS, AKB), all on owned hardware with no cloud dependencies. The drivers below are the operational reality that shapes the seven pillars. Section 6 catalogs drivers that are surfaced but not yet committed to a pillar specification.
 
+## 0. Architecture Overview — Three Planes
+
+SOM organizes its seven pillars into three structural planes (see [`diagrams/som-architecture.png`](diagrams/som-architecture.png) for the visual contract):
+
+| Plane | Concern | Pillars |
+|---|---|---|
+| **Control Plane** | Governance, scheduling, message routing, human approval gate | PCS, PGE, CRB, IBX, plus **Judge** as the human-in-the-loop element |
+| **Compute Plane** | Where agent work executes; sandboxed isolation for generated code | **Workforce** (the five-callsign cluster — Watson, Bob, Patton, Einstein, Newton) + DPG |
+| **State Plane** | Append-mostly persistent substrates that other planes write into and read from | AKB (bidirectional, role-projected retrieval), ACT (unidirectional telemetry emission) |
+
+Two structural observations follow from this shape:
+
+1. **IBX is the hub.** Every Control-Plane pillar (PCS, PGE, CRB) and Judge route to Workforce *through* IBX. That's why PCT (Principal Control Token — the message-from-Principal-to-Singleton artifact) lives in IBX rather than expanding PCS scope: PCT is a message; IBX is the message system. The layer distinction is load-bearing — PCS is plugin schema/governance, MCP is the wire protocol agents use to invoke plugins, IBX is the message-routing substrate. Bob and Patton converged on PCT-in-IBX independently from different priors; Section 6.8 discusses why that convergence is itself a structural property worth naming.
+
+2. **Workforce is a first-class named container** for the five-callsign cluster, not a loose aggregation. The naming makes explicit that singletons (Patton, Einstein, Newton) and anchored personas (Watson, Bob) belong to one bounded set, which is the structural object the Singleton/Instance Asymmetry (Section 2) operates on.
+
+The whole stack rests on **Customer Infrastructure (Sovereign / Air-gapped)** — owned hardware, no cloud dependencies, no managed-service substrate. The architecture is air-gapped ready and **exfiltration hostile** by construction, not by configuration.
+
 ## 1. The Sovereign Trust Model
 
 **Driver**: Trust in this architecture derives from **architectural ownership**, not vendor SLA. Einstein's framing — *"Architecture is Sovereignty"* — captures the principle: the lab's confidence that its workloads will run correctly tomorrow comes from owning every layer that those workloads touch, not from a service contract that could be terminated, modified, or politically affected.
@@ -45,6 +63,8 @@ SOM is the seven-pillar platform that orchestrates the lab's multi-agent fleet o
 The Sovereign Trust Model is a refusal to delegate the trust-bearing layer of an architecture to a counterparty whose incentives are misaligned. AWS optimizes for hyperscale consumption; Anthropic for Claude-fleet usage; OpenAI for API revenue. None of those vendors has any structural reason to make a sovereign deployment cheaper, more durable, or easier to migrate. **A vendor cannot credibly build vendor-neutral infrastructure** because doing so erodes their own moat.
 
 Trust derived from ownership is also trust derived from **demonstrated reproducibility**. The lab's Feb 2026 full-pipeline rebuild from scratch was the receipt that the substrate is rebuilable; it proved that a "sovereign" claim wasn't theoretical. SOM's pillars are the formalization of that property at the agent-coordination layer.
+
+A stronger framing: the architecture is **air-gapped ready and exfiltration hostile**. Sovereignty is not just where the workloads run (on-premises deployment); it is whether the architecture can be operated without trust-bearing paths to a counterparty. Every pillar is engineered to satisfy this — credentials never leave the host that owns them, telemetry stays in lab-controlled storage, vector retrieval queries never reach an external service. The bet is not that any single layer is impenetrable; it is that no layer creates an exfiltration path *by design*.
 
 ## 2. Singleton/Instance Asymmetry
 
@@ -80,6 +100,8 @@ For Slim Enterprise Orgs (Section 6), this matters disproportionately because si
 The structural property that makes SOM defensible is that the seven pillars are **necessary AND sufficient**: drop one and the lab is fragile in a predictable way (no plugin contracts → no PCS → schema drift across the fleet; no inbox → no IBX → reasoning context dissipates between sessions; etc.). Necessary-AND-sufficient decompositions are rare in software architecture, and SOM hits both.
 
 Layer A / Layer B framing applies to this driver directly: VMA-mediated architectures expose the trust-bearing surface to the vendor (Layer B = vendor's control plane). SOM keeps Layer B internal — pillars *consume* commodity substrate (ClickHouse, Linux, Mish activation, BGE embeddings) but their semantic contracts are the lab's. The defensible IP lives in the private control plane; the public consumable (papers, methods, dataset outputs) is Layer A.
+
+**Note on PGE's double-guardrail enforcement**: PGE acts at two distinct enforcement points — **agent-action policy** *before* messages reach IBX (catches non-compliant intent at submission time, before downstream work is wasted) and **sandbox-execution policy** *inside* DPG (catches non-compliant code at runtime, before it touches production state). The two-point enforcement is structurally important because intent-side and execution-side compliance gaps are different failure classes; either gate alone misses one class. VMA models typically enforce at one point (vendor safety filter on the LLM input/output) and miss the execution-side surface entirely.
 
 ## 4. The Exit Test
 
@@ -178,11 +200,15 @@ Open question: is credential management an eighth pillar, or is it absorbed into
 
 Open: how is CLCA codified as a SOM-level primitive vs. operational discipline? Each pillar spec already references CLCA review gates; whether CLCA is itself a pillar or a cross-cutting discipline is not yet committed.
 
-### 6.8 The "prove us wrong" epistemological stance
+### 6.8 The "prove us wrong" epistemological stance (and the dialectical engine)
 
 **Driver**: The lab operates from *academic rigor, not academic claim*. The discipline is: we use real data, real workloads, real failure modes; we publish what we learn; we expect external falsification; **we'd rather be wrong cleanly than right by claim**. Eight architectural dead ends (V23-V27) are documented because the failures matter as much as the successes.
 
 This stance shapes paper authorship, documentation style, and validation framing. It is not (yet) a pillar — it is the cultural substrate underneath all seven pillars. Open: does this discipline need formalization, or is it best left as an unwritten norm? Two-layer IP framing (Layer A public outputs, Layer B private control plane) gives it operational structure; whether it needs further codification is open.
+
+**The dialectical engine — and Independence of Error Distributions**: Multi-agent systems only generate novel insight when agents reason *independently*. VMA models break this property because all agents share the same corporate safety filter and upstream training bias — their errors are correlated, and agreement between them carries less information than it appears to. SOM agents run on operator-controlled models with **mathematically independent error distributions**, which is what permits genuine dialectical falsification rather than shared-blind-spot consensus. Independence is not an aspiration — it is a measurable structural property of the agent fleet.
+
+The dialectical engine's value follows from this: catching errors is one half of what it does; the other half is **producing high-confidence architectural commitments through independent reasoning**. When Bob and Patton converged on PCT-in-IBX from different priors — Bob from "PCS owns syntactic meta-rules, not specific schemas," Patton from "PCT is a message; IBX is the message system" — the conclusion carried more weight than either reasoning path alone, because two independent priors cannot share a blind spot. That convergence is the same epistemic property as scientific reproducibility: an architectural commitment that survives multiple independent derivations is invariant under the reasoning substrate. Worth marking explicitly because it is the load-bearing reason the dialectical engine produces durable outputs, not just clean reviews.
 
 ## Sequencing and Forward Look
 
