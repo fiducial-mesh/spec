@@ -1,8 +1,8 @@
 ---
 title: "SOM Production Validation — The First Proving Grounds"
 doc_type: planning-canonical
-status: draft
-version: v1.0-draft
+status: validated
+version: v1.0
 authors:
   - einstein
   - watson
@@ -28,7 +28,7 @@ references:
 
 # SOM Production Validation — The First Proving Grounds
 
-> **Status — draft only.** This document is canonical only after all three of Patton's verification passes have been committed (Pass 1 numerical fact-check, Pass 2 pillar-name resolution, Pass 3 validation evidence audit). Until then, do not share externally, cite in papers, or include in pitches. The strength of the production-validation framing is checkability; that checkability is the moat.
+> **Status — v1.0, three verification passes complete.** All three of Patton's verification passes are committed: Pass 1 (numerical fact-check) in `4cf5aa5`, Pass 2 (pillar-name resolution) in `c995ffa`, Pass 3 (validation evidence audit) in this commit. The document is canonical for internal use. Per Patton's guidance, surface any newly-discovered inconsistency for arbitration before publishing externally; the strength of this framing is checkability, and that checkability is the moat.
 
 ## Scope
 
@@ -46,11 +46,15 @@ Pillar bindings used throughout this document are the names of record from [`SOM
 
 **Evidence**: Successfully coordinates the lifecycle, registry synchronization, and versioning of **13 active servers** and **96 tools** across the lab. It enforces strict schema compliance across the distributed mesh, with schema drift actively caught and corrected by the agent review gates.
 
+**Verifier path**: `gh repo list qso-graph --limit 100` enumerates the 12 qso-graph MCP repos; each repo's `README.md` lists its tool count, and each server exposes a `get_version_info` MCP tool that returns the live tool-set. The internal `agent-inbox-mcp` is documented in `CLAUDE.md` § Agent Message Queue. Two-person PR-control discipline is documented in `CLAUDE.md` § Release Workflow.
+
 ### 2. IBX (Inbox Exchange)
 
 **Validation**: Manages asynchronous cognitive hand-offs and state without race conditions.
 
 **Evidence**: Successfully routed multi-agent workflows between Watson, Bob, Patton, and Einstein during the development of both the IONIS and QSO-Graph codebases, ensuring action-priority messages were held for final human-in-the-loop (Judge) approval.
+
+**Verifier path**: ClickHouse `SELECT count() FROM messages.inbox WHERE priority IN ('action','urgent') AND status='approved'` returns the historical count of approved action-priority messages. The Judge-approval gate is enforced at the schema layer — the `inbox` ClickHouse user has grants limited to `messages.inbox` only and cannot set `approved` status. The `inbox-ui` repo (Wails/Go/Svelte) holds the approval-gate implementation.
 
 ### 3. PGE (Policy Guardrail Engine)
 
@@ -58,29 +62,50 @@ Pillar bindings used throughout this document are the names of record from [`SOM
 
 **Evidence**: Enforces the strict MCP-SECURITY-FRAMEWORK across the entire fleet. It programmatically guarantees keyring-only credentials, parameterized SQL, and no unauthorized subprocesses, catching non-compliant agent code before execution.
 
+**Verifier path**: `cat .claude/hooks/subagent-guard.sh` shows the runtime hook that blocks force-push, gates PyPI publish, and blocks credential-file writes; `grep -r "test_security" qso-graph/*/tests/` enumerates the per-server compliance tests; `inbox_search` for `security audit` messages surfaces the documented Watson PASS gates that precede every PyPI release. The framework itself is canonical in `planning/MCP-SECURITY-FRAMEWORK.md`.
+
 ### 4. DPG (Deterministic Proving Ground)
 
 **Validation**: Ephemeral isolation for complex code execution.
 
 **Evidence**: During Phase 4.0, agents wrote complex "High-Heat" CUDA kernels (Maidenhead-to-LatLon, Haversine, and Solar Join). These were securely compiled and tested within the DPG boundary to ensure deterministic stability before ever touching the production ClickHouse database.
 
+**Verifier path**: `ionis-cuda/src/` commit history shows isolated kernel-validation commits before integration into the production embedding pipeline; `planning/CUDA-PREFLIGHT.md` documents the 10-epoch 9975WX validation SOP that runs before any M3 full-training commit. Subagent worktree isolation (`isolation: "worktree"` per Anthropic Agent SDK) provides per-task OS-level Git isolation when agents draft code that needs write access.
+
 ### 5. CRB (Compute Resource Broker)
 
 **Validation**: Hardware-aware workload dispatch.
 
-**Evidence**: Dynamically routed infrastructure and management state to the M3 Ultra (unified memory), while dispatching heavy 10.8B-row ClickHouse queries and neural network tensor workloads to the Threadripper 9975WX Compute node.
+**Evidence**: Dynamically routes infrastructure and management state to the M3 Ultra (unified memory), while dispatching heavy 10.8B-row ClickHouse queries and neural network tensor workloads to the Threadripper 9975WX Compute node.
 
-## Phase-1 Deployment Pillars (Active Engineering)
+**Verifier path**: `CLAUDE.md` § Infrastructure + DAC Network tables document the 10 Gbps point-to-point topology (`10.60.1.0/24` Thunderbolt 4, MTU 9000) between M3 Ultra and 9975WX; `ip addr` on either host confirms the link state; `CLAUDE.md` § Release Workflow documents the dispatch convention (Bob runs CUDA pre-flight on 9975WX, Watson runs full training on M3, Bob owns RPM packaging).
 
-To maintain absolute architectural honesty, two pillars are currently transitioning from design to active Phase-1 deployment to support Phase 5.0 distributed orchestration:
+**Honest framing**: CRB is operationally codified by convention, not yet automated by a broker daemon. Workload assignment lives in `CLAUDE.md` and the per-agent execution context, and is reliable in practice today; a future CRB spec will land daemon-process automation. Until that lands, the pillar's "validation" claim is that the dispatch *discipline* is in production, not that a CRB-daemon is.
+
+## Phase-1 Deployment & Specification-Phase Pillars
+
+To maintain absolute architectural honesty, two pillars are at earlier maturity stages. Status framing here distinguishes what is specified, what is built, and what is still in spec.
 
 ### 6. AKB (Agent Knowledge Base)
 
-**Status**: Phase-1 Deployment. Transitioning the lab's documentation, schemas, and historical decisions into an isolated, role-projected ClickHouse vector store to provide agents with persistent, localized context without third-party database exposure.
+**Status**: Specification complete (three-spec gate at v0.3, validated through five rounds of dialectical-engine review). **Phase-1 build is active with substantial code on `main`.**
+
+**Evidence**:
+- Specifications: `planning/akb-awareness-layer.md`, `planning/akb-reasoning-independence.md`, `planning/akb-lifecycle.md` (all v0.3)
+- Five-round review trajectory: `planning/akb-review-trajectory.md`
+- Migration plan: `planning/akb-migration-plan.md` (Phase A.1.1 skill taxonomy)
+- Pre-bootstrap audit: `planning/akb-cross-role-audit.md` (33/50 cross-role chunk utilization, comfortable headroom)
+- Implementation: `KI7MT/akb` repo on `main` at commit `7ec8ea4` — DDL schema for 7 `akb.*` tables, `apply_ddl.sh` wrapper with env/file-based password resolution, `inference.py` + `chunker.py` + `embedder.py` ingest pipeline, plus the `akb-mcp` server (`akb_mcp/retrieval.py`, `akb_mcp/tools.py`, `akb_mcp/server.py`) implementing the six-step Tier-1 query flow with four tools.
+
+**Verifier path**: `git -C ~/workspace/akb log --oneline origin/main` shows the build progression; `pytest tests/` runs 31 unit tests (mock-driven, no live deps).
+
+**What's not in production yet**: live ClickHouse + GPU integration smoke test; hooks/bootstrap/Tier-0-generator infrastructure (P1.6+). The MCP server is implemented and unit-tested; production deployment requires the live integration test and curator workflow.
 
 ### 7. ACT (Agent Cognitive Telemetry)
 
-**Status**: Phase-1 Deployment. Implementing the standardized span and token-tracking schemas into the ClickHouse storage backend to provide an immutable, locally hosted audit trail for all multi-agent cognitive loops.
+**Status**: Specification phase. The pillar is named and scoped (standardized span and token-tracking schemas for an immutable locally hosted audit trail of multi-agent cognitive loops). No code shipped.
+
+**Honest framing**: ACT has neither a dedicated spec nor an implementation yet. The intent is concrete enough that ACT is a pillar of record (see `SOM-PILLAR-NAMES.md`), but the spec gate has not been built. Spec work follows AKB Phase-1 completion.
 
 ## Workload Benchmarks
 
@@ -94,9 +119,9 @@ The SOM substrate has successfully supported the following verifiable data const
 
 Until Patton's three verification passes are all committed, this document is **draft-only**. Specifically:
 
-- Pass 1 (Numerical fact-check) — applied in this commit.
+- Pass 1 (Numerical fact-check) — committed in `4cf5aa5`.
 - Pass 2 (Pillar-name resolution) — committed in `c995ffa`; see `SOM-PILLAR-NAMES.md`.
-- Pass 3 (Validation evidence audit) — pending.
+- Pass 3 (Validation evidence audit) — applied in this commit.
 
 Do not share, cite, or include in pitches until status changes to validated.
 
