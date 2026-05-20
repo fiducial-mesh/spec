@@ -95,11 +95,15 @@ To maintain absolute architectural honesty, two pillars are at earlier maturity 
 - Five-round review trajectory: `planning/akb-review-trajectory.md`
 - Migration plan: `planning/akb-migration-plan.md` (Phase A.1.1 skill taxonomy)
 - Pre-bootstrap audit: `planning/akb-cross-role-audit.md` (33/50 cross-role chunk utilization, comfortable headroom)
-- Implementation: `KI7MT/akb` repo on `main` at commit `7ec8ea4` — DDL schema for 7 `akb.*` tables, `apply_ddl.sh` wrapper with env/file-based password resolution, `inference.py` + `chunker.py` + `embedder.py` ingest pipeline, plus the `akb-mcp` server (`akb_mcp/retrieval.py`, `akb_mcp/tools.py`, `akb_mcp/server.py`) implementing the six-step Tier-1 query flow with four tools.
+- Implementation: `KI7MT/akb` repo on `main` at commit `2474cf5` — DDL schema for 7 `akb.*` tables, `apply_ddl.sh` wrapper with env/file-based password resolution, `inference.py` + `chunker.py` + `embedder.py` ingest pipeline, the `akb-mcp` server (`akb_mcp/retrieval.py`, `akb_mcp/tools.py`, `akb_mcp/server.py`) implementing the six-step Tier-1 query flow with four tools, and the Tier-0 generator (`tier0/extractor.py`, `tier0/snapshot.py`, `akb-tier0` CLI, `scripts/verify-tier0.sh`) with strict fence-sentinel matching, atomic snapshot symlink replacement, and `akb.curation_events` provenance logging.
 
-**Verifier path**: `git -C ~/workspace/akb log --oneline origin/main` shows the build progression; `pytest tests/` runs 31 unit tests (mock-driven, no live deps).
+**Live integration verified**: PR #4 (commit `8f7b7bc`) — 7/7 live smoke tests pass in 5.35s on real ClickHouse + BGE-large GPU embeddings on the 9975WX. Tests cover happy-path retrieval, substrate-trap pre-filter on `violates_invariant`, historical-query `invariant_class` surfacing, role projection isolation, Patton+review exemption gate, self-review filter, and `get_version_info` identity. Marked `@pytest.mark.live` and skipped by default; `pytest -m live` runs them.
 
-**What's not in production yet**: live ClickHouse + GPU integration smoke test; hooks/bootstrap/Tier-0-generator infrastructure (P1.6+). The MCP server is implemented and unit-tested; production deployment requires the live integration test and curator workflow.
+**Tier-0 generator verified**: PR #5 (commit `2474cf5`) — real-data run of `akb-tier0 build` against the canonical Watson W2 source produced a 740/1024-byte snapshot (28% headroom), captured source git commit in the provenance header, wrote atomic `latest.md` symlink, and logged a `tier0_snapshot` event to `akb.curation_events`. Headroom safeguard test asserts ≤ 95% of cap.
+
+**Verifier path**: `git -C ~/workspace/akb log --oneline origin/main` shows the build progression; `pytest tests/` runs 40/40 unit tests in the default mock-driven suite (12 retrieval + 19 inference + 9 tier0); `pytest -m live` runs the 7-test live smoke suite against real CH + GPU.
+
+**What's not in production yet**: P1.6 hooks (planned, not yet built); P2.8 bootstrap orchestrator (`scripts/bootstrap.py` — next on Bob's queue, walks the canonical doc directories and exercises the full ingest pipeline on the ~442-markdown corpus); `akb.exemptions` curator-population workflow (Phase-2+; the table is schema-first per Patton's `b36289e` discipline, with hard-coded fallback rules applying when empty); reranker model integration (deferred until `akb.queries` outcome flags justify activation).
 
 ### 7. ACT (Agent Cognitive Telemetry)
 

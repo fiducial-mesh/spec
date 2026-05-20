@@ -36,7 +36,7 @@ references:
 |-------|-------------------|-------|------|----------------|
 | **PCS** | Plugin Control System | Lifecycle, registry sync, versioning, and schema compliance for plugins (MCP servers, skills, runbooks) consumed by the agent fleet | `planning/PCS-ADOPTION-PLAN.md` | `qso-graph/*-mcp` fleet (13 servers); skills under `.claude/skills/` |
 | **IBX** | Inbox Exchange | Asynchronous message routing and cognitive hand-off between agents, with action-priority messages held for Judge approval | (pending pillar spec) | `agent-inbox-mcp` (server) + `inbox-ui` (Judge desktop app) backed by `messages.inbox` (ClickHouse) |
-| **AKB** | Agent Knowledge Base | Vector-indexed, role-projected, tier-stratified persistent context substrate with curation gates and self-review independence | `planning/akb-awareness-layer.md`, `planning/akb-reasoning-independence.md`, `planning/akb-lifecycle.md` | `KI7MT/akb` repo (Phase-1 build active; schema landed at `f29516f` on `main`) |
+| **AKB** | Agent Knowledge Base | Vector-indexed, role-projected, tier-stratified persistent context substrate with curation gates and self-review independence | `planning/akb-awareness-layer.md`, `planning/akb-reasoning-independence.md`, `planning/akb-lifecycle.md` | `KI7MT/akb` repo on `main` at `2474cf5` — DDL + ingest pipeline + akb-mcp server + Tier-0 generator; live integration smoke test verified (7/7 on real CH+GPU) |
 | **ACT** | Agent Cognitive Telemetry | Standardized span and token-tracking schemas providing an immutable, locally hosted audit trail for multi-agent cognitive loops | (pending pillar spec) | (pending; planned target — ClickHouse storage) |
 | **DPG** | Deterministic Proving Ground | Ephemeral isolation boundary for complex code execution (build, test, validate) before code touches production state | (pending pillar spec) | Phase-4 "High-Heat" CUDA kernel validation flow (precedent) |
 | **CRB** | Compute Resource Broker | Hardware-aware workload dispatch — routes between unified-memory hosts (Apple M3) and compute-host GPU (RTX PRO 6000) | (pending pillar spec) | DAC-link (`10.60.1.0/24`) routing + per-host venv + manual dispatch convention (codified, not yet automated) |
@@ -58,7 +58,7 @@ references:
 |--------|------|----------------------|
 | PCS | ✓ `PCS-ADOPTION-PLAN.md` | Production — governs 13-server MCP fleet |
 | IBX | Pending dedicated spec; behaviors documented in CLAUDE.md "Agent Message Queue" + agent-inbox-mcp README | Production — used daily for Watson/Bob/Patton/Einstein hand-offs and Judge approvals |
-| AKB | ✓ Three-spec gate (awareness, reasoning-independence, lifecycle) at v0.3, validated | Phase-1 build active — DDL landed; MCP server P1.5 next |
+| AKB | ✓ Three-spec gate (awareness, reasoning-independence, lifecycle) at v0.3, validated | Phase-1 build active — DDL + ingest + akb-mcp + Tier-0 generator landed; live integration verified (`2474cf5`); P1.6 hooks + P2.8 bootstrap outstanding |
 | ACT | Pending pillar spec | Specification phase — schema not yet drafted |
 | DPG | Pending pillar spec | Operational precedent (CUDA kernel validation flow); not yet generalized into reusable substrate |
 | CRB | Pending pillar spec | Codified-but-manual — DAC topology + dispatch conventions live in CLAUDE.md; no broker daemon yet |
