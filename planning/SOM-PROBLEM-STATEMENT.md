@@ -2,7 +2,7 @@
 title: "SOM Problem Statement — Design Drivers from Operational Practice"
 doc_type: planning-canonical
 status: draft
-version: v0.3
+version: v0.4
 authors:
   - watson
   - patton
@@ -89,7 +89,7 @@ For Slim Enterprise Orgs (Section 6), this matters disproportionately because si
 
 | Vendor-Mediated Architecture (VMA) provides | SOM pillar replaces it with |
 |---|---|
-| OpenAI / Anthropic tool registries → plugin contracts | **PCS** |
+| OpenAI plugin store / MS Copilot extension registry / Anthropic MCP catalog → plugin governance + storage + lifecycle | **PCS** (Syntax + Registry + Lifecycle) |
 | Slack / Discord / vendor inboxes → async hand-off | **IBX** |
 | Pinecone / OpenAI Vector Store → retrieval | **AKB** |
 | Datadog / Honeycomb → cognitive telemetry | **ACT** |
@@ -98,6 +98,8 @@ For Slim Enterprise Orgs (Section 6), this matters disproportionately because si
 | Anthropic safety filters / vendor RBAC → policy enforcement | **PGE** |
 
 The structural property that makes SOM defensible is that the seven pillars are **necessary AND sufficient**: drop one and the lab is fragile in a predictable way (no plugin contracts → no PCS → schema drift across the fleet; no inbox → no IBX → reasoning context dissipates between sessions; etc.). Necessary-AND-sufficient decompositions are rare in software architecture, and SOM hits both.
+
+**On PCS specifically** — PCS replaces vendor app stores and proprietary plugin registries (OpenAI's plugin store, Microsoft Copilot extension registry, ChatGPT GPT marketplace, Anthropic's MCP catalog) with a customer-owned, air-gapped plugin governance and storage system. The customer's plugins live in the customer's PCS-Registry, validated by the customer's PCS-Syntax, promoted through the customer's PCS-Lifecycle. No external network surface required for agents to discover, retrieve, or invoke production plugins. This is the sovereignty argument's strongest pillar-level claim — vendor app stores are the single most legible lock-in mechanism in agentics today, and PCS-as-sovereign-registry is the architectural answer. See [`PCS-REGISTRY-FOLD-IN.md`](PCS-REGISTRY-FOLD-IN.md) for the three-layer anatomy and the dev/prod trust-boundary framing.
 
 Layer A / Layer B framing applies to this driver directly: VMA-mediated architectures expose the trust-bearing surface to the vendor (Layer B = vendor's control plane). SOM keeps Layer B internal — pillars *consume* commodity substrate (ClickHouse, Linux, Mish activation, BGE embeddings) but their semantic contracts are the lab's. The defensible IP lives in the private control plane; the public consumable (papers, methods, dataset outputs) is Layer A.
 

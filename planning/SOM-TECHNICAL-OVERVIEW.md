@@ -54,7 +54,12 @@ The Control Plane is the authoritative governing body of the mesh. It manages wo
 
 - **CRB (Compute Resource Broker)** — hardware-aware scheduler. Dynamically maps compute workloads (neural network inference, heavy data processing, ClickHouse query execution) across the physical infrastructure (Mac Studio M3 Ultra unified memory; Threadripper 9975WX GPU lanes; EPYC replica node) to optimize parallelization and cost-efficient dispatch.
 
-- **PCS (Plugin Control System)** — strict, declarative grammar and schema specification for all plugins consumed by the agent fleet (MCP servers, skills, runbooks). PCS governs *plugin lifecycle, schema compliance, registry synchronization, and skill-based access control*. The wire protocol agents use to invoke plugins (MCP — Model Context Protocol) is an external standard PCS does not own; PCS sits above MCP and governs what plugins riding that protocol must look like.
+- **PCS (Plugin Control System)** — closed-loop plugin governance with three operational layers:
+  - **PCS-Syntax** — declarative law: schemas, required fields, `trust_tier` metadata, security flags, capability declarations. Defines what an MCP server, skill, or runbook must look like.
+  - **PCS-Registry** — air-gapped artifact substrate: physical storage for plugin binaries, schema declarations, version history, and signing attestations. The single source of truth that agents query at dispatch time. Substrate is operator-selectable (local Git, OCI distribution-spec registry, dedicated ClickHouse dataset, or hybrid) per the Exit Test discipline.
+  - **PCS-Lifecycle** — promotion and enforcement gate: handles submission → Syntax validation → PGE compliance check → Judge approval → Registry ingest, plus the full software-asset-management cycle (versioning, deprecation, retirement, trust-tier mutation, rollback, audit trail).
+  
+  Crossing the PCS-Lifecycle gate is the **dev-to-production trust transition**. Plugins in source repos or on PyPI are dev artifacts; only after Lifecycle promotion into Registry are they "released" in the sovereign sense. This mirrors OCI / container-registry semantics. The wire protocol agents use to invoke plugins (MCP — Model Context Protocol) is an external standard PCS does not own; PCS sits above MCP and governs what plugins riding that protocol must look like. See [`PCS-REGISTRY-FOLD-IN.md`](PCS-REGISTRY-FOLD-IN.md) for the architectural decision record.
 
 - **Judge (Human Approval Gate)** — mandatory, human-in-the-loop approval interface intercepting "Judge-gated action-priority messages" flagged by IBX. The Judge retains final authority over critical actions. Operator approval is a first-class architectural element, not a side concern.
 
