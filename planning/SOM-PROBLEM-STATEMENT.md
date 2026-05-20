@@ -2,7 +2,7 @@
 title: "SOM Problem Statement — Design Drivers from Operational Practice"
 doc_type: planning-canonical
 status: draft
-version: v0.1
+version: v0.2
 authors:
   - watson
   - patton
@@ -56,6 +56,8 @@ Trust derived from ownership is also trust derived from **demonstrated reproduci
 The asymmetry is not just about retry. Singletons cannot be **load-balanced**: Bob cannot fill in for Patton on a failure-mode review, Watson cannot substitute for Einstein on physics falsification. Singletons aren't interchangeable; that's what makes them singletons.
 
 The operational consequence: PCT (Principal Control Token — the message-from-Principal-to-Singleton artifact) accuracy gates *throughput* on instances but gates *correctness of irreplaceable work* on singletons. Bad PCT to an instance produces wasted compute; bad PCT to a singleton produces wrong output that cascades into downstream work that depended on its correctness.
+
+The cascade is not undetected forever — it is corrected by the same dialectical engine that produces it. The next reviewer in the chain notices the bad downstream effect, surfaces the original PCT miscalibration, and a CLCA cycle logs it. The system has self-correction; the cascade framing is about *blast radius before correction*, not about unrecoverable failure.
 
 For Slim Enterprise Orgs (Section 6), this matters disproportionately because singletons are the bottleneck the mesh cannot parallelize away. The mesh can spawn Watson-instances; it cannot spawn Patton-instances. **The discipline of PCT-crafting is therefore a load-bearing operator skill**, not a nice-to-have. PCT formalization (which pillar owns its schema, what fields are required, what validation gates apply) is a Section-6 open driver.
 
@@ -161,6 +163,8 @@ ACT spec work follows AKB Phase-1 completion. Surfacing these questions now keep
 **Driver**: The lab currently has seven credential classes (ClickHouse `default`, ClickHouse `akb`, ClickHouse `inbox`, MCP-server-specific API keys, per-host SSH, ZFS encryption, GitHub PATs) across five different access patterns (env vars, mode-600 files, OS keyring, `~/.ssh/`, out-of-band). No central audit, no rotation policy, no per-agent scoping. **It works for one operator + four hosts; it doesn't scale to multi-project + multi-host + sovereign-customer.**
 
 Open question: is credential management an eighth pillar, or is it absorbed into PGE (policy enforcement) or IBX (auth contract for message routing)? The HashiCorp pattern would suggest a dedicated pillar (Vault is its own product, not part of Consul or Nomad). Not committed.
+
+**Resolution trigger**: resolved when SOM faces a first credential-rotation workload that PGE-as-rule-engine cannot cleanly govern. The decision depends on what credential workloads SOM actually faces at scale — defense IL5/IL6 has different requirements than healthcare PII which has different requirements than financial trading. Forcing the answer in v0.1 would be premature; letting the question stay open until concrete workloads pressure-test it preserves optionality.
 
 ### 6.6 Build-for-self-first → product-for-others strategy
 
