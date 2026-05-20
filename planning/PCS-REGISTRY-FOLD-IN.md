@@ -2,7 +2,7 @@
 title: "PCS Registry Fold-In — Architectural Decision Record"
 doc_type: planning-canonical
 status: validated
-version: v1.1
+version: v1.2
 authors:
   - judge
   - einstein
@@ -96,9 +96,16 @@ If plugin bundles and MCP servers were in separate registries, this resolution w
 | Rollback | Emergency revert to prior version on production defect |
 | Audit trail | Every state transition logged (curation_events-style table in ClickHouse) |
 
-**Status**: ✓ **Specified, not built** — design coverage in `pcs-control-plane` work. The lifecycle discipline is established; the daemon implementation lands as the layer matures.
+**Status**: Layer 3 has two distinct sub-layers, only one of which is "built":
 
-**Why this layer matters**: Lifecycle is the substantive layer. Syntax declares; Registry stores; Lifecycle *operates the gate*. Without Lifecycle, the dev/prod trust boundary is a documentation claim, not an enforceable transition. The lifecycle table above is also where existing pcs-spec v0.2 candidates (resumption semantics, verification_skill, idempotency primitives) find their architectural home.
+| Sub-layer | Form | Status | Implementation |
+|---|---|---|---|
+| **Lifecycle Harness** | CLI + library (validator + compiler + linter + scaffolder + audit harness) | ✓ **Built and operational** | `KI7MT/pcs-control-plane` — `pcs init` / `pcs new` / `pcs validate` / `pcs lint` / `pcs compile --target claude`. Six test files cover models, gates, audit, compiler, end-to-end, audit wiring. Zero coupling to `pcs-registry` — standalone tool, like `cargo check` is standalone from crates.io. Plugin authors and CI pipelines use it today. |
+| **Lifecycle Daemon** | Service that watches PCS-Registry submissions + integrates with IBX/Judge approval gate | ⚠ **Pending** | The Daemon wraps Harness calls into the production trust-boundary flow: watch registry → invoke harness on submission → route validation result + Judge gate through IBX → promote on approval. Daemon doesn't exist yet; Harness is the substantive work that's already done. |
+
+The decoupling between Harness and Daemon matters architecturally: validation logic doesn't need to be invented (Harness has it); the integration surface does. Same pattern as `cargo` / `npm` / `pip` — the validator/build tool is standalone; the registry integration is a separate concern handled by a service layer.
+
+**Why this layer matters**: Lifecycle is the substantive layer. Syntax declares; Registry stores; Lifecycle *operates the gate*. Without Lifecycle, the dev/prod trust boundary is a documentation claim, not an enforceable transition. The lifecycle phase table above is also where existing `pcs-spec` v0.2 candidates (resumption semantics, verification_skill, idempotency primitives) find their architectural home — they encode behaviors the Daemon must implement, building on the validation logic the Harness already exposes.
 
 ## Lab Deployment Plan — PCS-Registry on EPYC Proxmox VM
 
@@ -122,6 +129,30 @@ For the KI7MT Sovereign AI Lab specifically (the canonical Slim Enterprise Org d
 This is the hybrid substrate option from the earlier Implementation substrate table, instantiated with concrete lab hardware. Other operators with different infrastructure shapes pick the same logical components mapped to their own hardware (single-host fleet may collapse all of this to one machine; multi-tenant deployments may split per-tenant).
 
 **What's not in scope for this section**: scaling discipline (how does PCS-Registry handle 100+ plugins and 50+ MCP servers under concurrent dispatch?) and HA topology (does the Forge node need a hot standby? snapshot replication to TrueNAS?). Those land as the registry matures past Phase 1.
+
+## Dogfooding — Lab as Both Developer and Consumer
+
+A structural property of how PCS operates in the KI7MT Sovereign AI Lab specifically, worth naming because it shapes the lifecycle dynamics: **the lab is both the developer of PCS-governed artifacts and the consumer of those artifacts in agent workflows, often within the same session.** That dual role is not incidental; it is the operational reality that produces fast feedback on plugin and MCP-server quality.
+
+Concretely:
+
+- **Watson develops** an MCP server (`akb-mcp` is the canonical recent example — PR #3, PR #4, PR #5 on `KI7MT/akb`); **Bob then consumes it** when his next-day work invokes `akb_query` against the running service to retrieve context for a build task.
+- **Bob develops** a plugin bundle (future state); **Watson consumes it** when a session invokes its declared skills for a documentation task.
+- **The agent fleet consumes** all of the above continuously while developing the next iteration of any of them.
+
+This dual role creates the fastest-possible feedback loop in PCS lifecycle:
+
+| Failure class | Where it surfaces in dual-role mode | Time to detection |
+|---|---|---|
+| Schema violation in plugin manifest | `pcs validate` at dev time | seconds |
+| MCP-server runtime defect (bad SQL, unhandled exception) | next agent invocation in the same session | minutes |
+| Cross-class dependency mismatch (plugin declares MCP version that doesn't exist) | promotion gate before deployment | promotion-time |
+| Plugin behavior regression (works but produces wrong outputs) | next consumer invocation surfaces it via observed wrong behavior | minutes-to-hours |
+| Trust-tier drift (plugin's effective trust no longer matches declared tier) | curator review cycle | days |
+
+A vendor-mediated alternative (Big-8 plugin store) decouples developers from consumers structurally: the developer ships, customers consume, feedback takes weeks-to-quarters via support tickets or bug-tracker noise. SOM's dual-role pattern means the developer feels the consumer's pain immediately. **The lab cannot ship a bad plugin without feeling the consequence within the same workday.** That's the structural argument for why dogfooding produces durable plugins.
+
+This is the build-for-self-first → product-for-others strategy from `SOM-PROBLEM-STATEMENT.md` § 6.6 operating at the artifact-class level — the lab is its own first customer for every plugin and MCP server, and the production-quality feedback loop is tighter than any vendor-mediated alternative can produce.
 
 ## Open Forward Question — Runtime Plugin Distribution
 
@@ -237,6 +268,16 @@ Worth being explicit about the order, because the pattern is load-bearing for ho
 **The operator-as-architect pattern is intentional, not accidental.** Agents formalize well once given a clear architectural prompt; agents do not reliably identify operational-sovereignty gaps from first principles because they have no operational-sovereignty experience to draw from. The lab's discipline is to keep Judge in the architecture-identification loop and use agents for formalization, structural reconciliation, and dialectical-falsification review. This fold-in is a clean instance of that pattern.
 
 Four reasoning paths — one operator's identification + three independent agent reviews — landing on the same architectural commitment. Same epistemic property as the PCT-in-IBX convergence: a commitment that survives multiple independent derivations from different priors is invariant under the reasoning substrate. The dialectical engine produces durable outputs when each agent contributes from a distinct reasoning vantage.
+
+### v1.1 → v1.2 sharpening (2026-05-20)
+
+Judge surfaced that `pcs-control-plane` already exists as the Plugin Test and Validation Harness — v1.1's "PCS-Lifecycle: specified, not built" framing was too pessimistic and missed the fact that the harness layer is operational today. Watson verified the standalone-vs-registry-coupled question via direct inspection: `pcs-control-plane` has zero hard dependency on `pcs-registry` (no package dep, no source imports); it operates on a directory tree of PCS-governed plugins, validating them against `pcs-spec` without any registry roundtrip — same architectural pattern as `cargo check` / `npm pack` / `pip` build tools relative to their registries.
+
+v1.2 corrections:
+- Layer 3 status field updated to reflect the two-sub-layer split: **Lifecycle Harness (✓ built — `pcs-control-plane`) + Lifecycle Daemon (⚠ pending — registry-side service that wraps the harness into the production trust-boundary flow with IBX/Judge integration)**
+- New section "Dogfooding — Lab as Both Developer and Consumer" added: names the structural property that the lab is both developer and consumer of PCS-governed artifacts, with concrete examples (Watson develops akb-mcp → Bob consumes; Bob develops plugins → Watson consumes), the feedback-loop time table, and the connection back to SOM-PROBLEM-STATEMENT.md § 6.6 build-for-self-first driver
+
+The architectural commitment is unchanged at v1.2 — what changes is the accuracy of the "what's built / what's pending" framing and the explicit naming of the dual-role property that shapes how the lifecycle operates in practice.
 
 ### v1.0 → v1.1 sharpening (2026-05-20)
 
