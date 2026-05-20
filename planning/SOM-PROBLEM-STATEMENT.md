@@ -28,6 +28,8 @@ references:
 
 # SOM Problem Statement — Design Drivers from Operational Practice
 
+**Visual reference**: [`diagrams/som-architecture.png`](diagrams/som-architecture.png) — three-plane decomposition showing each pillar's structural position.
+
 > This document captures design drivers for the Sovereign Orchestration Mesh (SOM) as they emerged from operational practice in the KI7MT Sovereign AI Lab. Each driver is sourced from a real workload, decision, or observed pattern. **Drivers are inputs to architecture; they are not themselves commitments.** Architectural commitments are made in pillar-specific spec documents (`PCS-ADOPTION-PLAN.md`, the AKB three-spec gate, and the pending IBX / ACT / DPG / CRB / PGE specs), and gated by CLCA review.
 >
 > Pillar names used throughout this document are the names of record from [`SOM-PILLAR-NAMES.md`](SOM-PILLAR-NAMES.md). Any inconsistency between a pillar reference here and that file is a defect against that file, not against this one.

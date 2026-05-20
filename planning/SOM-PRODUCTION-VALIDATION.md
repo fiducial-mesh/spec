@@ -28,6 +28,8 @@ references:
 
 # SOM Production Validation — The First Proving Grounds
 
+**Visual reference**: [`diagrams/som-architecture.png`](diagrams/som-architecture.png) — three-plane decomposition showing each pillar's structural position.
+
 > **Status — v1.0, three verification passes complete.** All three of Patton's verification passes are committed: Pass 1 (numerical fact-check) in `4cf5aa5`, Pass 2 (pillar-name resolution) in `c995ffa`, Pass 3 (validation evidence audit) in this commit. The document is canonical for internal use. Per Patton's guidance, surface any newly-discovered inconsistency for arbitration before publishing externally; the strength of this framing is checkability, and that checkability is the moat.
 
 ## Scope

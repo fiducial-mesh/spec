@@ -26,6 +26,8 @@ references:
 
 # SOM Pillar Names — Names of Record
 
+**Visual reference**: [`diagrams/som-architecture.png`](diagrams/som-architecture.png) — three-plane decomposition showing where each pillar lives (Control / Compute / State).
+
 **Scope**: Authoritative binding expansions for the seven pillar acronyms used across the Sovereign Orchestration Mesh (SOM). Every SOM document, spec, manifesto, paper, and pitch references this file. Anyone editing pillar names updates this file first.
 
 **Discipline**: this is the names-of-record file in the sense of a manufacturing change-control register — not a wiki, not a draft. A pillar's binding does not change without a CLCA cycle. If a downstream document spells a pillar differently, the document is wrong, not this file.
