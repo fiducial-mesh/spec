@@ -2,11 +2,11 @@
 title: "SOM Pillar Names — Names of Record"
 doc_type: planning-canonical
 status: validated
-version: v1.0
+version: v1.1
 authors:
   - watson
   - patton
-date: "2026-05-19"
+date: "2026-06-01"
 roles:
   - design-intent
   - infrastructure
@@ -22,20 +22,27 @@ references:
   - planning/akb-reasoning-independence.md
   - planning/akb-lifecycle.md
   - planning/akb-migration-plan.md
+  - planning/SOM-IDENTITY-PILLAR-DESIGN.md
+  - planning/SOM-INSTANTIATION-AND-IDP.md
 ---
 
 # SOM Pillar Names — Names of Record
 
-**Visual reference**: [`diagrams/som-architecture.png`](diagrams/som-architecture.png) — three-plane decomposition showing where each pillar lives (Control / Compute / State).
+**Visual reference**: [`diagrams/som-architecture.png`](diagrams/som-architecture.png) (legacy, 7-pillar PNG) and [`diagrams/som_architecture_with_identity_and_arca.svg`](diagrams/som_architecture_with_identity_and_arca.svg) (current, 8-pillar SVG with IAM and ARCA above the dotted line) — three-plane decomposition with the IAM pillar spanning the issuance/runtime boundary.
 
-**Scope**: Authoritative binding expansions for the seven pillar acronyms used across the Sovereign Orchestration Mesh (SOM). Every SOM document, spec, manifesto, paper, and pitch references this file. Anyone editing pillar names updates this file first.
+> **Provisional naming caveat** — "SOM" and "ARCA" are working labels pending external name clearance. If either is renamed, every occurrence propagates across all canonical documents in a single CLCA cycle, never piecemeal. The IAM pillar short code is a *generic-term placeholder*: SOM's IAM pillar is SOM's *implementation* of Identity & Access Management; the term IAM is industry-standard and untrademarked.
+
+**Scope**: Authoritative binding expansions for the pillar acronyms used across the Sovereign Orchestration Mesh (SOM). Every SOM document, spec, manifesto, paper, and pitch references this file. Anyone editing pillar names updates this file first.
 
 **Discipline**: this is the names-of-record file in the sense of a manufacturing change-control register — not a wiki, not a draft. A pillar's binding does not change without a CLCA cycle. If a downstream document spells a pillar differently, the document is wrong, not this file.
 
-## The Seven Pillars
+## The Pillars
+
+The IAM pillar (foundational) was added in v1.1 per the design package landed on 2026-06-01. The other seven entries are unchanged from v1.0.
 
 | Short | Binding Expansion | Scope | Spec | Implementation |
 |-------|-------------------|-------|------|----------------|
+| **IAM** | Identity & Access (foundational) | Per `SOM-IDENTITY-PILLAR-DESIGN.md` and `SOM-INSTANTIATION-AND-IDP.md`: ARCA issuance authority (offline, sovereign, per-organization root) + agent-DNA identity lifecycle (birth, fingerprint, birth-certificate) + runtime services (Vault for credentials, Roster for identity/role/brief, Publish pipeline for onboarding) + pluggable IdP interface for LDAP/AD/OIDC federation. Two non-negotiable Tier-0 invariants: no-bypass and fail-strict. SOM's IAM pillar is SOM's implementation of IAM, not a new category. | `planning/SOM-IDENTITY-PILLAR-DESIGN.md`, `planning/SOM-INSTANTIATION-AND-IDP.md`, `planning/SOM-DESIGN-PHILOSOPHY.md` | **Briefs only — no Vault, no Roster, no ARCA, no login, no credentials, no enforcement exists yet.** The design package describes the build target, not running infrastructure. Current operational state: agents follow briefs cooperatively (identity-by-assertion); the build target is identity-by-control. |
 | **PCS** | Plugin Control System | Three-layer plugin governance: PCS-Syntax declares plugin schemas and required fields; PCS-Registry stores plugin artifacts in air-gapped local storage as single source of truth; PCS-Lifecycle promotes plugins from submission through Syntax validation, PGE compliance, and Judge approval to Registry placement. Closed-loop governance — no plugin reaches Registry without passing all gates. | `planning/PCS-ADOPTION-PLAN.md`, `planning/PCS-REGISTRY-FOLD-IN.md` | `KI7MT/pcs-spec` (Syntax — v0.2-draft), `KI7MT/pcs-registry` (Registry — shell + design), `KI7MT/pcs-control-plane` (Lifecycle — specified); current plugin consumers: `qso-graph/*-mcp` fleet (13 servers), skills under `.claude/skills/` |
 | **IBX** | Inbox Exchange | Asynchronous message routing and cognitive hand-off between agents, with action-priority messages held for Judge approval | (pending pillar spec) | `agent-inbox-mcp` (server) + `inbox-ui` (Judge desktop app) backed by `messages.inbox` (ClickHouse) |
 | **AKB** | Agent Knowledge Base | Vector-indexed, role-projected, tier-stratified persistent context substrate with curation gates and self-review independence | `planning/akb-awareness-layer.md`, `planning/akb-reasoning-independence.md`, `planning/akb-lifecycle.md` | `KI7MT/akb` repo on `main` at `2474cf5` — DDL + ingest pipeline + akb-mcp server + Tier-0 generator; live integration smoke test verified (7/7 on real CH+GPU) |
@@ -46,7 +53,7 @@ references:
 
 ## Binding Rules
 
-1. **The short code is canonical** — `PCS`, `IBX`, `AKB`, `ACT`, `DPG`, `CRB`, `PGE`. Always uppercase, no hyphens, no spaces. Documents may use either short code or full binding on first reference, then short code throughout.
+1. **The short code is canonical** — `IAM`, `PCS`, `IBX`, `AKB`, `ACT`, `DPG`, `CRB`, `PGE`. Always uppercase, no hyphens, no spaces. Documents may use either short code or full binding on first reference, then short code throughout. **For IAM specifically**, in prose use "the IAM pillar" / "SOM's IAM pillar" rather than bare "IAM" floating alone — so it reads as *a pillar that does IAM*, not the bare industry category.
 
 2. **The binding expansion is fixed** — the words "Plugin Control System" map to PCS and only to PCS. Documents must not introduce competing expansions (e.g., "Plugin Container Service") without first updating this file via CLCA.
 
@@ -58,6 +65,7 @@ references:
 
 | Pillar | Spec | Implementation Status |
 |--------|------|----------------------|
+| IAM | ✓ Design (provisional) — `SOM-IDENTITY-PILLAR-DESIGN.md` + `SOM-INSTANTIATION-AND-IDP.md` | **Briefs only — BUILD TARGET, not running.** No Vault, Roster, ARCA, login, or credentials exist yet. Open design items deliberately surfaced (cert lifetime vs air-gap, in-boundary-signing per tier, FIPS/export, bootstrap credential, brief-as-injection-surface, publish-pipeline privilege, POC-scope honesty). |
 | PCS | ✓ `PCS-ADOPTION-PLAN.md` | Production — governs 13-server MCP fleet |
 | IBX | Pending dedicated spec; behaviors documented in CLAUDE.md "Agent Message Queue" + agent-inbox-mcp README | Production — used daily for Watson/Bob/Patton/Einstein hand-offs and Judge approvals |
 | AKB | ✓ Three-spec gate (awareness, reasoning-independence, lifecycle) at v0.3, validated | Phase-1 build active — DDL + ingest + akb-mcp + Tier-0 generator landed; live integration verified (`2474cf5`); P1.6 hooks + P2.8 bootstrap outstanding |
@@ -82,6 +90,9 @@ This file is the registry. Documents reference it. Disagreements resolve to it. 
 
 ## References
 
+- `planning/SOM-DESIGN-PHILOSOPHY.md` — IAM pillar conceptual frame (Agentic Workforce / HR mapping)
+- `planning/SOM-IDENTITY-PILLAR-DESIGN.md` — IAM foundational design (ARCA, agent-DNA lifecycle, containment, trust continuity)
+- `planning/SOM-INSTANTIATION-AND-IDP.md` — IAM onboarding + login flow + pluggable IdP interface; **current state: briefs only — services not yet built**
 - `planning/PCS-ADOPTION-PLAN.md` — current spec for PCS
 - `planning/MCP-SECURITY-FRAMEWORK.md` — operational spec for PGE
 - `planning/akb-*.md` — three-spec gate for AKB

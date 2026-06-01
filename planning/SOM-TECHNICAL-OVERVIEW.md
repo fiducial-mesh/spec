@@ -2,12 +2,12 @@
 title: "Sovereign Orchestration Mesh (SOM) — Technical Overview"
 doc_type: planning-canonical
 status: draft
-version: v0.1
+version: v0.2
 authors:
   - einstein
   - watson
   - judge
-date: "2026-05-20"
+date: "2026-06-01"
 roles:
   - design-intent
   - infrastructure
@@ -22,15 +22,20 @@ references:
   - planning/SOM-PILLAR-NAMES.md
   - planning/SOM-PROBLEM-STATEMENT.md
   - planning/SOM-PRODUCTION-VALIDATION.md
+  - planning/SOM-DESIGN-PHILOSOPHY.md
+  - planning/SOM-IDENTITY-PILLAR-DESIGN.md
+  - planning/SOM-INSTANTIATION-AND-IDP.md
   - planning/PCS-ADOPTION-PLAN.md
   - planning/akb-awareness-layer.md
 ---
 
 # Sovereign Orchestration Mesh (SOM) — Technical Overview
 
-**Visual reference**: [`diagrams/som-architecture.png`](diagrams/som-architecture.png) — three-plane decomposition.
+**Visual reference**: [`diagrams/som-architecture.png`](diagrams/som-architecture.png) (legacy, 7-pillar PNG) and [`diagrams/som_architecture_with_identity_and_arca.svg`](diagrams/som_architecture_with_identity_and_arca.svg) (current, 8-pillar with SOM's IAM pillar and ARCA above the dotted line).
 
-> **Status — v0.1 draft.** External-facing companion to the lab-internal [`SOM-PROBLEM-STATEMENT.md`](SOM-PROBLEM-STATEMENT.md) (design-driver capture) and [`SOM-PRODUCTION-VALIDATION.md`](SOM-PRODUCTION-VALIDATION.md) (v1.0 production-validation record). This document is the paper / pitch / external-readers version of the SOM architecture; classification "External release subject to IP review." Treat the internal documents as authoritative for the validation record and design driver corpus; this document is the synthesis intended for outside audiences.
+> **Status — v0.2 draft.** External-facing companion to the lab-internal [`SOM-PROBLEM-STATEMENT.md`](SOM-PROBLEM-STATEMENT.md) (design-driver capture) and [`SOM-PRODUCTION-VALIDATION.md`](SOM-PRODUCTION-VALIDATION.md) (production-validation record, v1.1 with IAM as design-stage row). v0.2 adds SOM's IAM pillar (foundational, eighth) per the design package landed 2026-06-01. This document is the paper / pitch / external-readers version of the SOM architecture; classification "External release subject to IP review." Treat the internal documents as authoritative for the validation record and design driver corpus; this document is the synthesis intended for outside audiences.
+>
+> **Design-vs-implementation discipline for IAM is load-bearing.** Where this document describes the IAM pillar, it describes the **design** — current implementation is briefs only (no Vault, no Roster, no ARCA, no login, no credentials, no enforcement). The seven other pillars are at the maturity stages cited in `SOM-PRODUCTION-VALIDATION.md`; the IAM pillar is not yet built. External readers should treat the IAM section as the build target and the seven-pillar maturity table in the validation manifesto as the implementation record. Promotion of IAM to "operational" or "validated" requires built services *and* a Patton-signed-off verification pass; neither has occurred.
 
 ## Introduction
 
@@ -40,13 +45,23 @@ The architecture is **air-gapped ready and exfiltration hostile** by constructio
 
 ## Structural Planes of the Mesh
 
-SOM is organized into three distinct, hierarchical planes that enforce logical separation between governing policy, cognitive execution, and persistent state. Pillar bindings used throughout this document are the names of record from [`SOM-PILLAR-NAMES.md`](SOM-PILLAR-NAMES.md).
+SOM is organized into four distinct sections — the Issuance Plane (above the dotted line, sovereign root of trust, offline) and three runtime planes (Control, Compute, State) — that enforce logical separation between issuance, governing policy, cognitive execution, and persistent state. The dotted-line separation between issuance and runtime is a deliberate security property: ARCA is never in the action path, can therefore be kept offline, and an offline authority cannot be attacked over the network during operation. Pillar bindings used throughout this document are the names of record from [`SOM-PILLAR-NAMES.md`](SOM-PILLAR-NAMES.md).
 
-### 1. The Control Plane — Governance Layer
+### 1. The Issuance Plane — Sovereign Root of Trust (above the dotted line)
+
+The Issuance Plane sits **above the dotted line** that separates issuance from runtime. It is offline, sovereign to the deploying organization, and never in the action path. Its only role is to mint identities and step out.
+
+**Core component:**
+
+- **ARCA (Agentic Root CA)** — the per-organization root of trust for agent identity. The "county clerk" of the sovereign deployment: it issues birth certificates (signed keypair bindings) and then has no further operational role. Each customer runs its own ARCA — identity is sovereign to the organization, with no dependency on the vendor or any external root. Runtime verification is local (signature + trust chain), never a callback to ARCA. Separating the issuing authority from the runtime is a deliberate security property: an offline authority cannot be attacked over the network during operation, and "the running mesh cannot issue itself new authority" is segregation of duties applied to the identity infrastructure itself — a control auditors specifically look for. ARCA is the issuance component of **SOM's IAM pillar**; see Section 1a for the runtime half of the same pillar, which sits on the Control Plane. ARCA's naming is provisional pending name clearance. **Current implementation: not built. The dotted-line separation, the offline-root posture, the intermediate-CA scheme, and the agent-DNA lifecycle are all design — no ARCA service or signing infrastructure exists yet.** See `SOM-IDENTITY-PILLAR-DESIGN.md` for the full design.
+
+### 2. The Control Plane — Governance Layer
 
 The Control Plane is the authoritative governing body of the mesh. It manages workflow lifecycle, enforces policy, brokers compute resources, and handles all communication between the mesh and human operators.
 
-**Core components — five elements:**
+**Core components — six elements** (IAM-runtime, IBX, PGE, CRB, PCS, Judge):
+
+- **The IAM pillar (runtime half — identity verification + authorization)** — the runtime half of SOM's IAM pillar; sits **beneath PGE** because authorization consumes verified identity. Every other Control Plane component (PCS, PGE, CRB, IBX) and the Judge gate are *downstream* of IAM and inherit its strength. A flaw in IAM is therefore not a local defect; it is a flaw in every guarantee above it. The runtime services in the design are **Vault** (credentials and secrets — integrate, don't build: HashiCorp Vault, cloud KMS/HSM, PKCS#11), **Roster/Profile** (non-secret identity + role + brief; the "HR system"), and the **Publish pipeline** (the privileged onboarding actor that writes a new agent's identity into Vault and Roster). Two non-negotiable Tier-0 invariants govern the pillar: **no bypass** (no action without an authenticated principal — no "trusted because internal") and **fail strict** (under error, ambiguity, unavailability, or unverifiable state, the system halts). The pillar maps cleanly onto the employee lifecycle — Employee ID = agent fingerprint (public key, immutable), the person themselves = agent DNA (private key, never leaves the agent), job code = authorization policy, badge-in = sign action, manager-approval = Judge gate, personnel file = ACT audit, termination = credential revocation. The HR mapping is exact for **structure** but never for **liability**: accountability terminates in a human, never in the agent. **Current implementation: briefs only.** No Vault, no Roster, no Publish pipeline, no login, no credentials, no enforcement exists yet. Identity in the running lab is asserted via brief (the agent is "Patton" because the briefing says so and cooperatively acts on it), not verified via credential. The whole value of the design over the current state is the move from identity-by-assertion to identity-by-control. See `SOM-IDENTITY-PILLAR-DESIGN.md` and `SOM-INSTANTIATION-AND-IDP.md` for the full design.
 
 - **IBX (Inbox Exchange)** — primary communication hub and message broker. Responsible for asynchronous message queueing, routing, and state management. IBX handles agent-to-agent message routing and is the critical interface for the human-in-the-loop approval gate. It is the substrate where the **PCT (Principal Control Token)** — the message-from-Principal-to-Singleton artifact — is routed and validated. PCT lives in IBX rather than expanding PCS scope: PCT is a message; IBX is the message system.
 
@@ -63,7 +78,7 @@ The Control Plane is the authoritative governing body of the mesh. It manages wo
 
 - **Judge (Human Approval Gate)** — mandatory, human-in-the-loop approval interface intercepting "Judge-gated action-priority messages" flagged by IBX. The Judge retains final authority over critical actions. Operator approval is a first-class architectural element, not a side concern.
 
-### 2. The Compute Plane — Execution Layer
+### 3. The Compute Plane — Execution Layer
 
 The Compute Plane is where the autonomous workforce resides and where generated code is tested. It is structurally decoupled from governance to prevent the shared-bias corruption found in cloud-mediated systems.
 
@@ -73,7 +88,7 @@ The Compute Plane is where the autonomous workforce resides and where generated 
 
 - **DPG (Deterministic Proving Ground)** — secure, ephemeral, isolated sandboxing environment. All agent-generated code (Python, CUDA, Bash) is routed to DPG where it is compiled, tested for deterministic stability, and executed in a single-use container, with all output captured and returned to IBX. DPG **bridges stochastic reasoning and deterministic execution** — agents may reason probabilistically, but the code they emit is validated under deterministic conditions before it touches production state.
 
-### 3. The State Plane — Persistency Layer
+### 4. The State Plane — Persistency Layer
 
 The State Plane is the memory of the SOM. It manages all knowledge retrieval and keeps an immutable record of every action. The State Plane's two pillars are append-mostly substrates that other planes write into and read from.
 
@@ -97,6 +112,7 @@ VMA models require customers to place absolute trust in the vendor's authorizati
 
 | VMA component (vendor-mediated) | SOM pillar (sovereign) |
 |---|---|
+| Cloud IdP (Okta / Auth0 / AWS Cognito / Azure AD) | SOM's IAM pillar (ARCA + Vault + Roster + Publish pipeline + pluggable IdP) — design-stage, briefs-only implementation |
 | Datadog / Honeycomb telemetry | ACT |
 | Pinecone / OpenAI Vector Store | AKB |
 | OpenAI / Anthropic tool registries | PCS |
@@ -105,7 +121,7 @@ VMA models require customers to place absolute trust in the vendor's authorizati
 | AWS Batch / Slurm compute scheduling | CRB |
 | Anthropic safety filters / vendor RBAC | PGE |
 
-The seven-pillar shape is the orthogonal decomposition of architectural concerns that vendors otherwise mediate. The decomposition is **necessary AND sufficient**: drop one and the lab is fragile in a predictable way. Necessary-AND-sufficient decompositions are rare in software architecture, and SOM hits both.
+The eight-pillar shape is the orthogonal decomposition of architectural concerns that vendors otherwise mediate. The decomposition is **necessary AND sufficient**: drop one and the lab is fragile in a predictable way. Necessary-AND-sufficient decompositions are rare in software architecture, and SOM hits both. The IAM pillar is foundational — every other pillar's authorization, isolation, audit, and approval guarantee is downstream of IAM and inherits its strength; the seven validated pillars currently rely on a brief-asserted identity that the IAM design replaces with credential-verified identity once built.
 
 ### 2. Deterministic Proving Ground (the sandbox mandate)
 
@@ -139,16 +155,23 @@ The lab is the canonical Slim Enterprise Org — resource-constrained, sovereign
 
 The Sovereign Orchestration Mesh provides the necessary backend plumbing to run private, autonomous agent workforces on bare metal without sacrificing control of intellectual property. The SOM blueprint transforms agents-at-work from a high-risk probabilistic toy into a manageable, industrial-grade software primitive.
 
-By codifying sovereignty into the architecture itself — Plugin Control System, Inbox Exchange, Agent Knowledge Base, Agent Cognitive Telemetry, Deterministic Proving Ground, Compute Resource Broker, Policy Guardrail Engine — SOM answers the critical question facing regulated industries:
+By codifying sovereignty into the architecture itself — SOM's IAM pillar (foundational; ARCA + Vault + Roster + Publish pipeline; design-stage, briefs-only implementation), Plugin Control System, Inbox Exchange, Agent Knowledge Base, Agent Cognitive Telemetry, Deterministic Proving Ground, Compute Resource Broker, Policy Guardrail Engine — SOM answers the critical question facing regulated industries:
 
 > *How do we own the infrastructure, not just rent the inference?*
 
+The IAM pillar carries the load-bearing answer to the regulated-industries variant of that question — *how do we hold AI to the same standard of identity, authorization, and auditability we already hold our employees to?* — once it is built. Until then, that answer is a design commitment, not a deployed capability.
+
 ## References
 
-- [`SOM-PILLAR-NAMES.md`](SOM-PILLAR-NAMES.md) — pillar bindings (names of record)
-- [`SOM-PROBLEM-STATEMENT.md`](SOM-PROBLEM-STATEMENT.md) — design-driver capture (internal, v0.3)
-- [`SOM-PRODUCTION-VALIDATION.md`](SOM-PRODUCTION-VALIDATION.md) — production-validation record (v1.0, Patton-signed-off)
+- [`SOM-PILLAR-NAMES.md`](SOM-PILLAR-NAMES.md) — pillar bindings (names of record, v1.1)
+- [`SOM-PROBLEM-STATEMENT.md`](SOM-PROBLEM-STATEMENT.md) — design-driver capture (internal, v0.5)
+- [`SOM-PRODUCTION-VALIDATION.md`](SOM-PRODUCTION-VALIDATION.md) — production-validation record (v1.1, IAM pillar added as design-stage row)
+- [`SOM-DESIGN-PHILOSOPHY.md`](SOM-DESIGN-PHILOSOPHY.md) — IAM conceptual frame (provisional, briefs-only implementation)
+- [`SOM-IDENTITY-PILLAR-DESIGN.md`](SOM-IDENTITY-PILLAR-DESIGN.md) — IAM foundational design (provisional, briefs-only implementation)
+- [`SOM-INSTANTIATION-AND-IDP.md`](SOM-INSTANTIATION-AND-IDP.md) — IAM onboarding + login + IdP interface (provisional, briefs-only implementation)
 - [`PCS-ADOPTION-PLAN.md`](PCS-ADOPTION-PLAN.md) — PCS spec lineage
 - [`akb-awareness-layer.md`](akb-awareness-layer.md), [`akb-reasoning-independence.md`](akb-reasoning-independence.md), [`akb-lifecycle.md`](akb-lifecycle.md) — AKB three-spec gate
 - [`MCP-SECURITY-FRAMEWORK.md`](MCP-SECURITY-FRAMEWORK.md) — PGE operational spec
-- `diagrams/som-architecture.png` — three-plane decomposition visual
+- `diagrams/som-architecture.png` — legacy 7-pillar three-plane decomposition visual
+- `diagrams/som_architecture_with_identity_and_arca.svg` — current 8-pillar visual with the IAM pillar and ARCA above the dotted line
+- `diagrams/som_connection_detail_runtime_flows.svg` — runtime data-flow diagram
