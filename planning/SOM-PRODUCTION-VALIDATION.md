@@ -48,7 +48,7 @@ Pillar bindings used throughout this document are the names of record from [`SOM
 
 **Validation**: Governs the entire local MCP (Model Context Protocol) fleet.
 
-**Evidence**: Successfully coordinates the lifecycle, registry synchronization, and versioning of **13 active servers** and **96 tools** across the lab. It enforces strict schema compliance across the distributed mesh, with schema drift actively caught and corrected by the agent review gates.
+**Evidence**: Successfully coordinates the lifecycle, registry synchronization, and versioning of **13 active servers** and **97 tools** across the lab. It enforces strict schema compliance across the distributed mesh, with schema drift actively caught and corrected by the agent review gates. (Count reconciled from live `get_version_info` MCP registration on 9975 — Bob's verification run, 2026-06-01, with Patton's tool-count gate cleared.)
 
 **Verifier path**: `gh repo list qso-graph --limit 100` enumerates the 12 qso-graph MCP repos; each repo's `README.md` lists its tool count, and each server exposes a `get_version_info` MCP tool that returns the live tool-set. The internal `agent-inbox-mcp` is documented in `CLAUDE.md` § Agent Message Queue. Two-person PR-control discipline is documented in `CLAUDE.md` § Release Workflow.
 
