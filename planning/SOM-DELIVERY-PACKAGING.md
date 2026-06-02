@@ -120,6 +120,13 @@ delivery time (cf. IAM pluggable-IdP, the pluggable persistence layer).
 - Same binary-compatible family → SOM artifacts work across both. Lab-on-Rocky proves the exact
   stack the customer runs on RHEL. Free below, supported above, one codebase.
 
+**Scope of base-OS substitutability** (per Patton flag `94899c4c`, fold-on-this-touch): v0.1
+commits substrate-substitutability **across the RHEL-compatible family** (UBI / Rocky / Alma /
+RHEL). Non-RHEL bases (Debian / Ubuntu / SUSE) are **out of v0.1 scope** — not silently implied
+by "substrate-substitutable." A customer-mandated non-RHEL base would require deliberate v0.x
+scope extension (UBI base swap, RPM↔deb path divergence, SELinux-vs-AppArmor reckoning). Named
+explicitly so a future reader doesn't read "substrate-substitutable" as "any Linux."
+
 ## Dependencies
 
 - `SOM-SPEC.md` v1.0 — mesh contract; substrate-substitutability invariant (SOM-MI-8) the

@@ -252,4 +252,9 @@ both the RC-testing decision and the Layer-2 SDK.
 - **ES-OQ4**: the **OTel→ACT envelope mapping** (per ES-CD7) needs specification — which C# OTel
   signals map to which ACT event-types, which payload fields carry over, what's lost in translation —
   slated post-Aspire-ServiceDefaults adoption. Weakly couples to SOM-VP-1 (this is C#-side egress, not
-  ACT-side ingest-taxonomy extension).
+  ACT-side ingest-taxonomy extension). **Per Patton flag `94899c4c` (fold-on-this-touch)**: if the
+  egress mapping needs ACT event-types not yet in the bounded enum, the new types route through
+  the SOM-VP-1 curation-event discipline, not around it — SOM-MI-6 (bounded event-type enums
+  require curation events for extension) holds at the C# egress boundary as well as the ACT
+  ingest boundary. The mapping spec is allowed to discover new event-type pressure; it is not
+  allowed to bypass curation.
