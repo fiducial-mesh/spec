@@ -131,8 +131,10 @@ conformance attestation is the evidence that draws the line.
 
 **CONF-CD4 — The conformance suite is the self-certify tool, and a PASS is the install-time gate.**
 The customer runs it; `SOM-DELIVERY-PACKAGING.md` DP-CD8's install-time connector-probe **invokes the
-conformance suite against the chosen backend before go-live** — a non-conformant backend fails the
-install fast, with a structured diagnostic, not silently at first production load.
+conformance suite against the chosen backend before go-live**, completing the **three-gate install
+composite** — host-prerequisites pre-flight (DP-CD7) → external-infrastructure connector-probe (DP-CD8)
+→ backend conformance suite (this spec). A non-conformant backend fails the install fast, with a
+structured diagnostic, not silently at first production load.
 
 **CONF-CD5 — Two-tier execution: reference backends in CI routinely; real enterprise backends
 ephemerally pre-RC.** Per `SOM-ENGINEERING-STANDARDS.md` ES-CD10 (Testcontainers) + the
@@ -145,14 +147,26 @@ live only for the run.
 
 **CONF-CD6 — Every conformance run produces a signed attestation record** (`{seam, tier/profile,
 backend identity + version, connector version, interface version, suite version, pass-set, timestamp}`)
-emitted to **ACT** as an audit artifact. The attestation is the durable proof of *what was certified
-against what, when* — the regulated audit trail for the support-boundary contract (CONF-CD3).
+emitted to **ACT** as an audit artifact. **ACT event-type**: the `conf.*` namespace (e.g.
+`conf.attestation_emitted`) — *new*, so it extends ACT's bounded enum only via a curation event per
+SOM-MI-6 (tracked as **CONF-VP-1**, same pattern as the wave-1 `pcs.*`/`dpg.*`/`crb.*`/`pge.*`
+namespaces); pre-curation bounded fallback is `act.detection_signal` with `signal_type=conf_attestation`.
+**Signing identity**: the attestation is signed by the **customer's own IdP-issued identity** (per the
+SOM-CD13 external-anchor invariant) — SOM does NOT mint conformance-signing identities; conformance
+*consumes* verified identity from IAM (SOM-MI-3) and never *produces* it. Self-cert is an honest-broker
+model (CONF-OQ2 tracks whether regulated tiers need witnessed verification). The attestation is the
+durable proof of *what was certified against what, when* — the regulated audit trail for the
+support-boundary contract (CONF-CD3).
 
-**CONF-CD7 — Conformance is the verification mechanism for SOM-MI-8.** A substrate swap at any seam
-that passes the (seam, tier) conformance suite is, by construction, a swap that does not break the
-mesh contract for that seam. The mesh-level Exit Test (`SOM-SPEC.md` SOM-MI-8) is operationally
-*the conjunction of per-seam conformance passes*. No seam's substrate choice may create an obligation
-another seam's conformant substrate cannot satisfy.
+**CONF-CD7 — Conformance verifies SOM-MI-8 — per-seam pass is *necessary*; cross-seam interaction
+tests are required for *sufficient*.** A substrate swap that passes the (seam, tier) suite satisfies
+*that seam's* contract — the necessary condition. But SOM-MI-8 has two halves: (a) substrate satisfies
+seam contract (per-seam), AND (b) no pillar's substrate creates lock-in for another (cross-seam) — and
+per-seam tests do not catch (b) (e.g. Postgres-as-IBX creating an implicit dependency pgvector-as-AKB
+cannot satisfy fires no per-seam test). So the mesh-level Exit Test (`SOM-SPEC.md` SOM-MI-8) requires
+**both**: (1) the conjunction of per-seam conformance passes (necessary), AND (2) a **cross-seam
+interaction test set** exercising seam-substrate combinations *together* under the actual mesh query
+patterns (the sufficient layer; see CONF-OQ5). Per-seam conformance alone is necessary, not sufficient.
 
 **CONF-CD8 — No silent partial conformance.** A backend either passes the full (seam, tier) suite or
 it is **non-conformant for that tier** — full stop. A backend that meets some-but-not-all requirements
@@ -173,6 +187,16 @@ customer-written connectors.** A customer writing their own connector targets th
 it is the definition of "their connector is correct." The reference is default + teaching artifact,
 not a privileged path.
 
+**CONF-CD11 — Conformance profile derivation is owned by the pillar.** The (seam, tier/profile)
+conformance profile for any pillar is **derived from that pillar's actual query/usage patterns**, not
+from generic capability checklists. The pillar spec is the source of truth for what its substrate must
+support; the conformance-spec author reviews for completeness but does not invent profile content.
+Concretely: AKB's vector profile lists AKB's *actual* query shapes (pre-filtered similarity at
+chunk-scale + the metadata predicates AKB uses); IBX's relational profile lists IBX's *actual*
+SKIP-LOCKED claim + idempotency patterns. A pillar change that alters substrate exercise requires the
+corresponding profile update before the next conformance run. This is what keeps CONF-CD8 honest — you
+cannot *fail* an attestation-theater profile, so the profile must be true to the pillar to be worth running.
+
 ## Deferred-Pending-Increment-2-Rulings (DRs)
 
 **CONF-DR1 (couples DR-IAM-6)**: the **tier set itself** depends on the sovereignty-as-one-mode-vs-
@@ -188,6 +212,14 @@ and tightens when the rulings resolve.
 **CONF-DR3 (couples DR-IAM-1)**: **concurrency-cap conformance** (does the orchestration/persistence
 backend support enforcing per-identity caps) couples to the cap-values ruling; v0.1 tests the cap
 *mechanism* exists, not specific values.
+
+## Validation-Pending (VP)
+
+**CONF-VP-1 — `conf.*` ACT event-type namespace.** The attestation emission (CONF-CD6) introduces a
+`conf.*` event-type; per ACT v1.0 CD4 + SOM-MI-6 the bounded enum extends only via a curation event.
+CONF-VP-1 routes through the **SOM-VP-1** curation discipline (the same atomic-curation pattern as the
+wave-1 `pcs.*`/`dpg.*`/`crb.*`/`pge.*` namespaces); pre-curation operational fallback is
+`act.detection_signal` with `signal_type=conf_attestation`. Resolves when the ACT v1.x curation event lands.
 
 ## Open Questions
 
@@ -206,6 +238,11 @@ backend support enforcing per-identity caps) couples to the cap-values ruling; v
    *excluded*? v0.1 treats it as non-conformant for the vector profile but conformant for relational;
    whether that's a named "relational-only tier" or just two independent profile results is a
    labeling choice to settle.
+5. **Cross-seam interaction test set** (per CONF-CD7 sufficiency layer) — does the harness ship the
+   cross-seam interaction tests at v0.1, defer them, or run them as a separate mesh-integration layer
+   distinct from per-seam conformance? Recommendation: a separate mesh-integration layer consuming the
+   same backends at the pre-RC tier (CONF-CD5) — per-seam conformance in CI, cross-seam pre-RC — so the
+   sufficiency check exists without bloating the per-seam self-certify suite.
 
 ## Failure Modes To Watch
 
