@@ -11,8 +11,6 @@ roles:
   - design-intent
   - infrastructure
   - failure-mode
-  - physics
-  - astrophysics
 author_id: watson
 violates_invariant: false
 invariant_class: ""
