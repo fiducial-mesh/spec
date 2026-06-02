@@ -91,8 +91,10 @@ This file is the registry. Documents reference it. Disagreements resolve to it. 
 - `planning/SOM-DESIGN-PHILOSOPHY.md` — IAM pillar conceptual frame (Agentic Workforce / HR mapping)
 - `planning/SOM-IDENTITY-PILLAR-DESIGN.md` — IAM foundational design (ARCA, agent-DNA lifecycle, containment, trust continuity)
 - `planning/SOM-INSTANTIATION-AND-IDP.md` — IAM onboarding + login flow + pluggable IdP interface; **current state: briefs only — services not yet built**
+- `planning/SOM-CONCURRENCY-AND-ARCHETYPES.md` — **cross-cutting design (not a pillar)**: concurrency model (identity-vs-session distinction extending IAM), three agent archetypes (worker / reasoner / quorum-voter), confidence-aggregation, label-oracle pattern. Referenced by the IAM, IBX, and ACT pillar specs; design-stage, briefs-only implementation. INPUT to Increment-2 rulings, not a front-run.
 - `planning/PCS-ADOPTION-PLAN.md` — current spec for PCS
 - `planning/MCP-SECURITY-FRAMEWORK.md` — operational spec for PGE
 - `planning/akb-*.md` — three-spec gate for AKB
+- `planning/IBX-SPEC.md` — formal contract for IBX (v0.2, includes nine-field PCT contract)
 - `CLAUDE.md` "Agent Message Queue" — operational reference for IBX
 - `CLAUDE.md` "Infrastructure" / "DAC Network" — operational reference for CRB

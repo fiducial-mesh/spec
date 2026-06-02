@@ -169,6 +169,7 @@ The IAM pillar carries the load-bearing answer to the regulated-industries varia
 - [`SOM-INSTANTIATION-AND-IDP.md`](SOM-INSTANTIATION-AND-IDP.md) — IAM onboarding + login + IdP interface (provisional, briefs-only implementation)
 - [`PCS-ADOPTION-PLAN.md`](PCS-ADOPTION-PLAN.md) — PCS spec lineage
 - [`akb-awareness-layer.md`](akb-awareness-layer.md), [`akb-reasoning-independence.md`](akb-reasoning-independence.md), [`akb-lifecycle.md`](akb-lifecycle.md) — AKB three-spec gate
+- [`SOM-CONCURRENCY-AND-ARCHETYPES.md`](SOM-CONCURRENCY-AND-ARCHETYPES.md) — cross-cutting design: concurrency model (identity-vs-session), three agent archetypes (worker/reasoner/quorum-voter), confidence-aggregation pattern, label-oracle four hard rules. Design-stage, briefs-only implementation. INPUT to Increment-2 rulings, not a front-run.
 - [`MCP-SECURITY-FRAMEWORK.md`](MCP-SECURITY-FRAMEWORK.md) — PGE operational spec
 - `diagrams/som-architecture.png` — legacy 7-pillar three-plane decomposition visual
 - `diagrams/som_architecture_with_identity_and_arca.svg` — current 8-pillar visual with the IAM pillar and ARCA above the dotted line

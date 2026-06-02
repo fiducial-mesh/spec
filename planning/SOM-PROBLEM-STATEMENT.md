@@ -89,6 +89,16 @@ The cascade is not undetected forever — it is corrected by the same dialectica
 
 For Slim Enterprise Orgs (Section 6), this matters disproportionately because singletons are the bottleneck the mesh cannot parallelize away. The mesh can spawn Watson-instances; it cannot spawn Patton-instances. **The discipline of PCT-crafting is therefore a load-bearing operator skill**, not a nice-to-have. PCT formalization (which pillar owns its schema, what fields are required, what validation gates apply) is a Section-6 open driver.
 
+### Relationship to the three agent archetypes (related but distinct axes)
+
+The Singleton/Instance distinction is one axis (substitutability — can a different agent do this work, or not). The companion design `SOM-CONCURRENCY-AND-ARCHETYPES.md` (Patton + Watson, 2026-06-02) surfaced a second axis (archetype — what governance intensity does this work warrant) that is **related but distinct, not fully orthogonal**: the archetype *determines* the identity-vs-session pattern that work uses, so the two axes are coupled at the structural layer.
+
+- **Worker** (many concurrent sessions of one identity, narrow authority, automated): worker-pool work is structurally one identity with N concurrent sessions. A worker pool of *distinct identities* would be meaningless identity sprawl — workers are interchangeable; that's the point.
+- **Reasoner** (few concurrent sessions of a broad-authority identity, human-gated for high-stakes): few sessions of one identity (Patton/Einstein/Newton singletons).
+- **Quorum Voter** (N independent voters reasoning over the same unit of work, consensus aggregates the outcome, used when being wrong is expensive): structurally requires **N distinct identities**, NOT N sessions of one — voter independence depends on it. Pairing quorum with shared-identity-sessions would produce N identical executions that fail identically and silently destroy the entire value of the quorum.
+
+So the archetype choice constrains the identity-vs-session pattern. The substitutability axis (Singleton/Instance) and the archetype axis are both real and both load-bearing, but they are not freely-combinable — quorum cannot ride the worker-pool identity pattern, and a Singleton archetype is always one of {Reasoner, Quorum-voter-instance} rather than a Worker. The archetype design is referenced rather than duplicated here; consult that doc for the concurrency model, the identity-vs-session distinction, the confidence-aggregation pattern, the four hard rules on label-oracle non-loop, and the seven open items pending Judge rulings.
+
 ## 3. Sovereignty vs. Vendor-Mediated Architecture (VMA)
 
 **Driver**: Every SOM pillar exists because a vendor-mediated alternative would compromise the Sovereign Trust Model. The eight-pillar shape is not arbitrary — it's the orthogonal decomposition of architectural concerns that vendors otherwise mediate.
