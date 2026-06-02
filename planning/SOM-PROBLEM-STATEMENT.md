@@ -2,13 +2,13 @@
 title: "SOM Problem Statement — Design Drivers from Operational Practice"
 doc_type: planning-canonical
 status: draft
-version: v0.5
+version: v0.6
 authors:
   - watson
   - patton
   - einstein
   - judge
-date: "2026-06-01"
+date: "2026-06-02"
 roles:
   - design-intent
   - infrastructure
