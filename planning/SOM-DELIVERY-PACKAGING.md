@@ -126,10 +126,13 @@ delivery time (cf. IAM pluggable-IdP, the pluggable persistence layer).
   delivery layer must not violate (no pillar's packaging may create lock-in for another).
 - `PCS-DAEMON-SPEC.md` v1.0 — the host-resident daemon shipped as RPM; plugin artifacts flow to
   the air-gapped Registry per PCS lifecycle.
-- `IAM-CORE-SPEC.md` v1.0 — artifact signing trust chain relates to the Issuance-Plane offline
-  authority (signed artifacts cross the dotted line at provisioning time).
-- `PGE-SPEC.md` v1.0 + `MCP-SECURITY-FRAMEWORK.md` — security posture the delivery integrity gates
-  enforce.
+- `IAM-CORE-SPEC.md` v1.0 — DP's cosign + GPG signing chain follows the **same offline-authority +
+  local-verification pattern as the Issuance Plane** (SOM-MI-4), but is a **distinct trust chain**:
+  cosign keys are shipped out-of-band for software-integrity verification, separate from the
+  ARCA-issued identity artifacts that cross the dotted line for IAM. Both rely on the air-gap-friendly
+  local-verification posture; neither calls back to an online authority.
+- `PGE-SPEC.md` v1.0 — security posture the delivery integrity gates enforce;
+  `MCP-SECURITY-FRAMEWORK.md` v1.0 = PGE rule corpus reference.
 - `SOM-ENGINEERING-STANDARDS.md` v0.1 — the license-audit + FIPS-hygiene CI gates this spec's
   DP-CD5/DP-CD6 reuse.
 
@@ -164,7 +167,7 @@ delivery time (cf. IAM pluggable-IdP, the pluggable persistence layer).
 
 - **DP-OQ1**: registry choice for the air-gap reference (Harbor vs Quay vs zot) — pick a reference,
   keep it pluggable.
-- **DP-OQ2**: where the delivery spec sits in the repo taxonomy after the `pcs-*` → `som-*` shift
-  and the `som-spec` migration (this file may move with the SOM corpus).
+- **DP-OQ2** ✅ **RESOLVED**: this spec lives in `KI7MT/som-spec/planning/`; the `pcs-*`→`som-pcs-*`
+  shift is done.
 - **DP-OQ3**: AOT vs Go for the `som` CLI — AOT is the lean-C# default; confirm AOT handles the
   process/file/network orchestration cleanly before foreclosing the Go fallback.

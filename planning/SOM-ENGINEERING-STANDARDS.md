@@ -67,15 +67,18 @@ Problem Details** error shape; idempotent write endpoints; correlation IDs propa
 
 **ES-CD5 — DI & configuration.** Built-in DI, constructor injection, no service-locator. Options
 pattern (`IOptions<T>`) with `ValidateOnStart`. **Secrets NEVER in code/appsettings** — sourced
-from the secrets-provider connector (Vault/OpenBao). This is `MCP-SECURITY-FRAMEWORK.md` / PGE
-expressed as a coding standard.
+from the secrets-provider connector (Vault/OpenBao). This is `PGE-SPEC.md` v1.0 (rule corpus per
+`MCP-SECURITY-FRAMEWORK.md` v1.0) expressed as a coding standard.
 
 **ES-CD6 — Resilience.** Polly v8 / `Microsoft.Extensions.Http.Resilience` — timeout,
 retry+backoff+jitter, circuit breaker, bulkhead, fallback in the HttpClient pipeline. Timeouts on
 everything; no unbounded waits.
 
 **ES-CD7 — Observability & health.** **OpenTelemetry** (logs/metrics/traces), vendor-neutral, no
-lock-in — and the emission path **ACT consumes** (cf. `ACT-SPEC.md`). Structured logging with
+lock-in, is the **C#-side in-process emission format**. The ACT Record Layer ingest envelope (per
+`ACT-SPEC.md` v1.0 §Event payload schema, a bounded event-type taxonomy — NOT OTel-shaped) is the
+wire format, so the C#-pillar→ACT path performs an **OTel→ACT envelope mapping at the egress
+boundary** (mapping itself is ES-OQ4). Structured logging with
 correlation/trace IDs; **NO secrets/PII in logs** (non-negotiable, PGE). Health checks `/healthz`
 (liveness) + `/readyz` (readiness) for the orchestrator (Nomad/k8s) lifecycle.
 
@@ -150,13 +153,24 @@ FIPS-cleanliness becomes the build, not a finding. Couples to `SOM-DELIVERY-PACK
 
 **ES-CD14 — Security baseline.** AuthN/AuthZ via the IAM pillar + mTLS (service mesh); input
 validation; **HTTPS/mTLS only** (no `http://`); no secrets in code (PGE non-negotiable); dependency
-scanning (`dotnet list package --vulnerable` / NuGet audit). Aligns with `MCP-SECURITY-FRAMEWORK.md`.
+scanning (`dotnet list package --vulnerable` / NuGet audit). Aligns with `PGE-SPEC.md` v1.0 (the
+formal pillar contract; rule corpus per `MCP-SECURITY-FRAMEWORK.md` v1.0).
 
 **ES-CD15 — CI/CD gate composition.** analyzers-as-errors + `dotnet format --verify-no-changes` +
 unit/integration + coverage floor + **Stryker mutation-score threshold** + **license-audit gate
 (ES-CD12)** + **FIPS-hygiene gate (ES-CD13)**. Two-person PR review (Bob codes → Watson reviews;
 inverted-origin for Bob-authored infra specs). SemVer on shared packages; reproducible pinned
 container builds.
+
+**ES-CD16 — Repo strategy: C# core pillar services live in one `som-core` monorepo.** The pillar
+microservices (IAM/ARCA, PGE, IBX, CRB, PCS-Daemon) share a single solution + repo, **NOT one repo
+per service**. Rationale: per-service repos = premature splitting; the seams co-evolve and require
+coherent cross-pillar changes; per-pillar PRs touch multiple projects within one solution. Shared
+code lives in versioned internal NuGet packages within the monorepo (no "Common" dumping ground —
+per ES-CD3). This is the **third anchor in `REPO-SHAPE-DECISIONS.md`** (alongside PCS multi-repo +
+AKB single-repo) — a different shape because of a different seam-coupling profile. Plugin authors
+(PCS plugins) and connector authors (Layer-2 SDK consumers) use **separate** repos per the Layer-2
+SDK pluggability model (below) — the monorepo is the *core services*, not the extension surface.
 
 ## SDK tooling — two layers
 
@@ -234,4 +248,8 @@ both the RC-testing decision and the Layer-2 SDK.
 - **ES-OQ1**: the separate **Python standard** (ACT Detect Layer + AI apps) — own spec, TBD.
 - **ES-OQ2**: pin exact analyzer + test-lib versions and re-verify all SPDX strings at promotion
   (the FA-flip risk is live).
-- **ES-OQ3**: where this spec sits after the `som-spec` migration (likely moves with the SOM corpus).
+- **ES-OQ3** ✅ **RESOLVED**: this spec lives in `KI7MT/som-spec/planning/` (the framework source of truth).
+- **ES-OQ4**: the **OTel→ACT envelope mapping** (per ES-CD7) needs specification — which C# OTel
+  signals map to which ACT event-types, which payload fields carry over, what's lost in translation —
+  slated post-Aspire-ServiceDefaults adoption. Weakly couples to SOM-VP-1 (this is C#-side egress, not
+  ACT-side ingest-taxonomy extension).
