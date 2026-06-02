@@ -102,8 +102,25 @@ validated module + FIPS mode — but SOM never generates the finding. (Couples t
 (the customer's house language in the IHFA case); AOT → no .NET runtime dependency on the box
 to bootstrap it; single static file, air-gap-copyable. (Go static binary is the documented
 fallback if AOT proves fiddly — existing ionis-apps muscle.) Flow: `load-bundle →
-verify-signatures → select-connectors (DB/IdP/secrets/crypto via site profile) →
-conformance-probe chosen backends → render+apply (Quadlet|Nomad|Helm) → health-check`.
+verify-signatures → **host-prerequisites pre-flight** → select-connectors (DB/IdP/secrets/crypto
+via site profile) → conformance-probe chosen backends → render+apply (Quadlet|Nomad|Helm) →
+health-check`.
+
+**Host-prerequisites pre-flight step (per Einstein wave-2 finding #1 `783ae084`, Patton-confirmed
+FLAG — reframed from his "causality paradox" misread)**: between signature-verification and
+connector-selection, the installer runs a **fail-fast substrate-prerequisite check** on the host
+itself, not on connectors. Confirms: Podman / Quadlet present at expected versions; local
+container registry reachable post-skopeo-copy (the bundle's images must be loadable); RPM mirror
+reachable; FIPS-mode crypto-policy actually active when the site profile declares FIPS-required;
+SELinux in expected state; the orchestrator surface for the chosen tier (Quadlet/Nomad/Helm)
+present and functional. If any check fails, the installer aborts with a structured diagnostic
+(*which* prerequisite, *why* it failed, *what* the customer needs to do) — fail-fast at the
+substrate before connector-probe rather than at render+apply with a downstream-confusing error.
+The pre-flight runs against the *customer's own host*, not against SOM's own pillar containers
+(which don't exist yet at this point in the flow — that's why Einstein's "causality paradox"
+framing misread the spec). Connector-probe (next step) runs against the customer's *external*
+infrastructure (the DB / IdP / secrets / crypto backends per site profile), which exists
+independently of SOM. Two distinct probe surfaces, two distinct fail-fast points.
 
 **DP-CD8 — Connector selection is config at install, not a fork.** The site profile declares
 which DB / IdP / secrets / crypto connector + endpoints; the conformance suite verifies the

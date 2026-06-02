@@ -78,9 +78,15 @@ everything; no unbounded waits.
 lock-in, is the **C#-side in-process emission format**. The ACT Record Layer ingest envelope (per
 `ACT-SPEC.md` v1.0 §Event payload schema, a bounded event-type taxonomy — NOT OTel-shaped) is the
 wire format, so the C#-pillar→ACT path performs an **OTel→ACT envelope mapping at the egress
-boundary** (mapping itself is ES-OQ4). Structured logging with
-correlation/trace IDs; **NO secrets/PII in logs** (non-negotiable, PGE). Health checks `/healthz`
-(liveness) + `/readyz` (readiness) for the orchestrator (Nomad/k8s) lifecycle.
+boundary** (mapping itself is ES-OQ4). **The egress boundary is where `SOM-SPEC.md` v1.0 SOM-MI-1
+applies** (audit retention + terminal-state resolution are non-negotiable): any OTel signal that
+the mapping treats as non-retained must be a *documented, audited* drop with explicit rationale,
+NOT a silent drop (per Einstein wave-2 cross-substrate pass finding #2, `783ae084`, Patton-confirmed
+as the priority GAP). Silent drop at the egress boundary would violate SOM-MI-1; documented drop
+is consistent (you retain a record of what you chose not to retain and why). See ES-OQ4 for the
+binding constraint on the mapping spec. Structured logging with correlation/trace IDs; **NO
+secrets/PII in logs** (non-negotiable, PGE). Health checks `/healthz` (liveness) + `/readyz`
+(readiness) for the orchestrator (Nomad/k8s) lifecycle.
 
 **ES-CD8 — .NET Aspire, selectively.** Adopt **Aspire ServiceDefaults** (per-service OTel + health
 + resilience wiring; new services inherit the platform). **Do NOT adopt Aspire AppHost as the
@@ -113,6 +119,23 @@ default).
 
 **The three that make it NASA-grade (most teams skip):** mutation (Stryker), architecture-as-tests
 (NetArchTest), property-based (FsCheck/CsCheck) — the C# analog of the IONIS validation framework.
+
+**Architecture-as-tests scope boundary (per Einstein wave-2 finding #3 `783ae084`, Patton-confirmed
+FLAG)**: NetArchTest enforces seams via **static IL analysis within the compiled solution
+boundary** — within `som-core` (per ES-CD16), it sees project-to-project references and enforces
+"pillars reference each other only via interfaces; DB-isms confined to adapter projects." It does
+NOT, by construction, trace invariant violations across a **consumed pre-compiled versioned NuGet
+package boundary** (the ES-CD3 shared-code mechanism): NetArchTest sees only the package's public
+surface, not invariants baked inside at the package's build time. **Mitigation under ES-CD16**:
+because shared internal NuGet packages are built within the `som-core` monorepo under the same
+CI gate, the coverage composes if **every internal package carries its own NetArchTest suite at
+its own build time** — each package's architecture invariants are enforced at the package's build
+(not at the consumer's build), so the cross-seam hole closes by composition. CI gate requires
+every internal package to include a `tests/` project with NetArchTest, run as part of that
+package's pipeline. External NuGet dependencies (third-party libraries) remain out of scope —
+architectural invariants over those are enforced via Architecture-Approval-At-Adoption (the
+licensing + dependency review at the moment of adding the dependency, not at every subsequent
+consumer's build).
 
 **Run tiering** (keep the heavy tools off the inner loop):
 - **Per-commit / PR (seconds–low-min):** unit + architecture + a thin integration slice.
@@ -225,8 +248,10 @@ both the RC-testing decision and the Layer-2 SDK.
   standard (props, analyzers-as-errors, ServiceDefaults, test ladder) with zero hand-wiring.
 - **The build fails** on: an analyzer warning, a non-permissive dependency license, non-approved
   crypto usage, or a mutation score below threshold.
-- **NetArchTest enforces the seams** — a PR that lets a pillar reference another pillar's
-  internals, or leaks a DB-ism into core, fails CI.
+- **NetArchTest enforces the seams within the compiled solution boundary** — a PR that lets a
+  pillar reference another pillar's internals, or leaks a DB-ism into core, fails CI. Cross-NuGet-
+  package coverage composes via per-internal-package architecture-test suites at each package's
+  own build (per ES-CD10 boundary note), not via consumer-side reflection.
 - **Layer-2 SDK lets a customer scaffold + conformance-test a connector** without reading SOM
   source.
 
@@ -258,3 +283,20 @@ both the RC-testing decision and the Layer-2 SDK.
   require curation events for extension) holds at the C# egress boundary as well as the ACT
   ingest boundary. The mapping spec is allowed to discover new event-type pressure; it is not
   allowed to bypass curation.
+
+  **Binding loss-function requirement (per Einstein wave-2 finding #2 `783ae084`, Patton-confirmed
+  GAP)**: the mapping spec MUST define explicit semantics for **every** OTel signal class — no
+  silent drops. Every signal class is exactly one of:
+  - **`map`** — has a target ACT event-type in the current bounded enum; spec records the
+    field-by-field translation.
+  - **`curate`** — needs a new ACT event-type to land; spec routes through SOM-VP-1 curation-event
+    discipline (per the fold above); type lands atomically with the mapping update.
+  - **`explicit-bounded-drop`** — a documented, audited decision that this signal class is NOT
+    retained, with **named rationale** and **per-class scope bound**. The drop itself is a record:
+    the mapping spec lists the signal classes treated as bounded-drop, the per-class rationale,
+    and the audit consequence (typically: the operator confirms acceptance of the bounded loss as
+    a deployment-architecture decision per profile/tier).
+  Silent drop is **structurally inadmissible** under SOM-MI-1 — an undocumented egress loss is the
+  audit invariant violation. The loss-function requirement is binding *now*; the specific mapping
+  is what resolves with the mapping spec. ES-CD7's egress-boundary cross-ref to SOM-MI-1 makes
+  the tension visible at the surface where it could otherwise be silently violated.
