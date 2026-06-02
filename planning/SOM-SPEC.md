@@ -35,6 +35,8 @@ references:
 
 **Status**: **Validated v1.0** — item 7 of the spec-campaign queue, the **integrative capstone** that closes the campaign. Per Patton's `f346fdab` forward note on item 7: *"this one is different in kind from the pillar specs — it's the integrative capstone, so the thing I'll be testing is NOT 'does each pillar's contract hold' (we've verified that eight times now) but 'do the SEAMS between them compose without gaps or double-coverage.' The specific risks: (1) every pillar marks its DRs as coupling to the seven IAM Increment-2 rulings — the SOM spec should confirm those seven rulings are enumerated in ONE place and that no pillar silently front-ran one; (2) the four-pillar shared ACT curation event (pcs/dpg/crb/pge) is now a real cross-cutting obligation that the SOM spec should track as a campaign-level open item, not leave distributed across four VPs; (3) the post-merge forward-reference sweep (MCP-SECURITY-FRAMEWORK → PGE-SPEC across DPG/PCS-Daemon/CRB/IAM) is campaign-level cleanup the SOM spec should name."*
 
+**Einstein cross-substrate pass fold-in (Patton adjudication `dc6ca481`, 2026-06-02)**: post-campaign-close, Judge ran an adversarial cross-substrate review with Einstein (Gemini), framework-scoped across the whole corpus. Patton adjudicated each finding against the actual spec files. Four items folded into v1.0 as non-blocking tightenings (no contract changes; clarifications of existing commitments + one new mesh OQ): **SOM-CD5** + **SOM-MI-1** tightened to include terminal-state resolution (Einstein finding #5 — every in-flight item reaches terminal audit state even when runtime is deferred); **SOM-CD13** added (Einstein finding #3 — DR-IAM-2 external-anchor base case invariant: bootstrap trust anchor is always external to the mesh); **CRB ⊥ DPG** framing refined (Einstein finding #2 — orthogonal *concerns*, coupled *decisions*; isolation tier feeds CRB eligibility as input); **SOM-OQ-6** added (Einstein finding #4, Patton-confirmed strongest finding — DPG→ACT telemetry annihilation seam, cross-pillar design decision pending Judge selection among four options). Finding #1 (IBX PCT scope/authority merge claim, BLOCKING) was dismissed as factually wrong against the file. The severity inversion (Einstein's BLOCKING claims were softest; his GAP was the strongest) was itself the signal that confirmed substrate independence.
+
 **Named up front per Patton's directive — this spec verifies SEAM COMPOSITION, not pillar contracts.** Each pillar's contract was validated by Patton through PR #61 (AKB three-spec gate) → PR #62 (Concurrency design) → PR #63 (IBX v1.0) → PR #64 (IAM core) → PR #65 (ACT) → PR #66 (PCS-Daemon) → PR #67 (DPG) → PR #68 (CRB) → PR #69 (PGE). What this spec adds is the **mesh-level** assertion that the eight pillar contracts compose into a coherent SOM contract — every seam traces to a committed surface on both sides; no seam has a gap (one side commits a surface the other does not consume); no seam has double-coverage (two pillars commit overlapping enforcement at the same chokepoint).
 
 **Three campaign-level open items** named in this spec (Patton's three risks) and tracked at mesh level rather than distributed across pillar specs:
@@ -227,7 +229,7 @@ Per Patton's `f346fdab` forward note. Rendered as ASCII so the seams are inspect
 - **CRB → PGE**: dispatch chokepoint consumes PGE rules; CRB does NOT carry its own policy corpus (CRB v1.0 CD6).
 - **PCS-Daemon → PGE**: promotion gate consumes PGE rules; `policy_compliance_pass` required for promotion.
 - **Workforce → ACT**: every agent action emits ACT events; subagent-guard hook is the runtime enforcement surface.
-- **CRB ⊥ DPG**: explicit orthogonality per Patton ruling `251c9511`. CRB = where to run; DPG = how to isolate. Compose at workload level; do NOT subsume each other.
+- **CRB ⊥ DPG**: orthogonal *concerns*, coupled *decisions* per Patton ruling `251c9511` (refined per Einstein cross-substrate pass `dc6ca481` finding #2). CRB = where to run (host class); DPG = how to isolate (boundary mechanism). The *concerns* are orthogonal — CRB never provisions isolation; DPG never routes by host class. The *decisions* couple at workload level: when an isolation tier (DPG-side) is only satisfiable on a host class (e.g., GPU-passthrough microVM only on hosts with PCIe-isolated GPUs), that constraint feeds CRB's eligibility filter as an input. Neither pillar subsumes the other's *concern*; they compose at decision time.
 
 ## Seam Composition Verification
 
@@ -253,12 +255,12 @@ For each cross-pillar coupling, verify:
 | PGE → CRB (dispatch-chokepoint rules) | PGE v1.0 § Coupling Boundary: CRB ↔ PGE | CRB v1.0 CD6 (consumes from PGE; no own corpus) | ✓ Composes |
 | PGE → PCS-Daemon (promotion-gate rules) | PGE v1.0 § Coupling Boundary: PCS-Daemon ↔ PGE | PCS-Daemon v1.0 § policy_compliance_pass | ✓ Composes |
 | PGE → ACT (rule decision emission) | PGE v1.0 CD9 (pge.* events) | ACT v1.0 CD4 (bounded enum extension via VP) | ⏳ Composes via SOM-VP-1 |
-| CRB ⊥ DPG (orthogonality) | CRB v1.0 CD6 + § Coupling Boundary: DPG ↔ CRB | DPG v1.0 explicit non-subsumption | ✓ Composes (orthogonal) |
+| CRB ⊥ DPG (orthogonal concerns, coupled decisions) | CRB v1.0 CD6 + § Coupling Boundary: DPG ↔ CRB | DPG v1.0 explicit non-subsumption | ✓ Composes (concerns orthogonal; isolation-tier feeds CRB eligibility as input per Einstein finding #2 `dc6ca481`) |
 | ACT cross-plane consumer | ACT v1.0 CD on ingest-from-all-pillars | All pillars emit `<pillar>.*` events | ⏳ Composes via SOM-VP-1 for four pillars |
 | Workforce → PGE (subagent-guard hook) | PGE v1.0 § Coupling Boundary: Workforce ↔ PGE | CLAUDE.md § Subagent Policy + `.claude/hooks/subagent-guard.sh` | ✓ Composes |
 | AKB → Workforce (Tier-1 retrieval) | AKB three-spec gate (PR #61) | Per-agent MCP config (akb-mcp) | ✓ Composes |
 
-**Result**: 17 of 19 enumerated seams compose cleanly at v1.0. 2 of 19 (PGE→ACT, ACT cross-plane four-pillar) compose via the shared curation event SOM-VP-1. No seam has a gap or double-coverage; orthogonality between CRB and DPG is explicit; no pillar silently front-runs an Increment-2 ruling.
+**Result**: 17 of 19 enumerated seams compose cleanly at v1.0. 2 of 19 (PGE→ACT, ACT cross-plane four-pillar) compose via the shared curation event SOM-VP-1. No seam has a gap or double-coverage; CRB and DPG orthogonality is of *concerns*, not of *decisions* (concerns separate; decisions couple at workload level per the eligibility-input pattern); no pillar silently front-runs an Increment-2 ruling.
 
 ## Seven IAM Increment-2 Rulings (Enumerated in ONE Place)
 
@@ -267,9 +269,9 @@ Per Patton's risk #1 (`f346fdab`). The seven IAM Increment-2 rulings, with the c
 | Ruling | Question | Mechanism committed v1.0 | Cross-pillar couplings |
 |--------|----------|--------------------------|------------------------|
 | **DR-IAM-1** | Concurrency cap values per tier | Cap enforced at instantiation (IAM CD4); per-identity caps per pool | DR-DPG-4 (Worker-pool cap), DR-CRB-4 (broker cap), DR-ACT-4 (baseline reset cadence with DR-IAM-3) |
-| **DR-IAM-2** | Bootstrap credential + JIT-broker scope | Bootstrap requirement named; mechanism per form factor (host token / OAuth / pre-provisioned) | DR-PCS-1 (Daemon startup), DR-DPG-1 (runner startup), DR-CRB-1 (broker startup), ACT ingest trust-by-network-boundary today |
+| **DR-IAM-2** | Bootstrap credential + JIT-broker scope | Bootstrap requirement named; mechanism per form factor (host token / OAuth / pre-provisioned). **Base case (per Einstein finding #3, `dc6ca481`): the bootstrap trust anchor is always external to the mesh** — host-level token, hardware-bound key, or offline-ARCA-provisioned initial credential. No in-mesh authority is a valid bootstrap source (the recursion is broken by external symmetry, not by an in-mesh prime mover). See § The DR-IAM-2 external-anchor base case invariant. | DR-PCS-1 (Daemon startup), DR-DPG-1 (runner startup), DR-CRB-1 (broker startup), ACT ingest trust-by-network-boundary today |
 | **DR-IAM-3** | Revocation window + downstream-checking scope | Fail-strict-on-stale-state principle committed; short-lived self-expiring cert direction | DR-ACT-4 (baseline reset cadence with DR-IAM-1) |
-| **DR-IAM-4** | Terminator failure-mode (session-level vs identity-level) + total-flood scope | Axis committed (both session-level suspend AND identity-level terminate per IAM CD4); operational mechanics deferred | **Cross-pillar audit-vs-runtime split (load-bearing pattern)**: DR-ACT-3 (audit invariant NOT deferred; runtime delivery deferred), DR-PCS-3 (same shape), DR-DPG-3 (same shape), DR-CRB-3 (same shape), DR-PGE-3 (same shape). **Audit retention is NEVER deferred regardless of how DR-IAM-4 lands.** |
+| **DR-IAM-4** | Terminator failure-mode (session-level vs identity-level) + total-flood scope | Axis committed (both session-level suspend AND identity-level terminate per IAM CD4); operational mechanics deferred. **Terminal-state airtightening (per Einstein finding #5, `dc6ca481`): the deferral applies to *what the runtime does*, never to *whether the audit record resolves*.** Every in-flight item reaches a terminal audit state even when runtime continuation is deferred — e.g., a session terminated mid-flight gets `runtime_continuation_deferred_pending_ruling` (or equivalent terminal marker) so the audit trail is resolved regardless of runtime ruling. | **Cross-pillar audit-vs-runtime split (load-bearing pattern)**: DR-ACT-3 (audit invariant NOT deferred; runtime delivery deferred), DR-PCS-3 (same shape), DR-DPG-3 (same shape), DR-CRB-3 (same shape), DR-PGE-3 (same shape). **Audit retention AND terminal-state resolution are NEVER deferred regardless of how DR-IAM-4 lands.** |
 | **DR-IAM-5** | Per-session-credential format and lifetime | Per-session credentials exist (IAM CD4); session-issuance API surface named | DR-ACT-2 (Record Layer ingest authentication strengthening), DR-PCS-2 (Daemon session credentials), DR-DPG-2 (runner session credentials), DR-CRB-2 (broker session credentials) |
 | **DR-IAM-6** | Sovereignty-as-claim-vs-mode | Sovereign deployment is v1.0 default | DR-PCS-4 (Daemon deployment substrate flexibility) |
 | **DR-IAM-7** | ITDR scope | IAM event-publishing surface suitable for ITDR consumption | DR-ACT-1 (Detect Layer scope; couples with IBX DR1) |
@@ -283,9 +285,20 @@ Every pillar's DR that defers behavior to one of the seven cites the correspondi
 This is the most architecturally important pattern that emerged across the campaign. Every pillar with in-flight work that could outlive a session termination — ACT (in-flight events), PCS-Daemon (in-flight promotions), DPG (in-flight executions), CRB (in-flight dispatches), PGE (in-flight rule evaluations) — applies the same split:
 
 - **Audit invariant**: every event emitted up to the termination point is preserved. Append-only is non-negotiable regardless of DR-IAM-4 ruling. This is the **mesh-level commitment** to audit completeness.
+- **Terminal-state resolution** (per Einstein finding #5, `dc6ca481`): every in-flight item reaches a **terminal audit state** even when runtime continuation is deferred. The deferral applies to *what the runtime does*, never to *whether the audit record resolves*. A session terminated mid-flight gets a terminal audit marker (e.g., `runtime_continuation_deferred_pending_ruling`) so the trail is resolved at the audit layer regardless of the runtime ruling. Without this airtightening, in-flight items could sit in a non-terminal state ("execution in progress") with no defined transition, undercutting the audit-invariant claim — events would be retained but the trail would not be *resolved*.
 - **Runtime continuation**: deferred to DR-IAM-4 ruling. Whether in-flight work continues, aborts, is re-issued, or is signaled-and-retried is the runtime question Judge's ruling reshapes.
 
-This pattern is mesh-level discipline that v1.0 SOM commits. **No pillar's DR-IAM-4 coupling may defer the audit invariant**; only runtime continuation is deferable. This rule applies to any future pillar that gains in-flight work.
+This pattern is mesh-level discipline that v1.0 SOM commits. **No pillar's DR-IAM-4 coupling may defer the audit invariant OR the terminal-state resolution**; only runtime continuation is deferable. This rule applies to any future pillar that gains in-flight work.
+
+### The DR-IAM-2 external-anchor base case invariant
+
+Per Einstein finding #3 (`dc6ca481`), rediscovered from first principles via a different substrate as a symmetry-breaking / prime-mover problem. The recursive root problem at IAM bootstrap (every daemon needs a credential to authenticate to Vault before it holds its normal credentials) cannot be broken by an in-mesh authority — there is no in-mesh prime mover from zero-state. The base case is:
+
+**The bootstrap trust anchor is always *external to the mesh*.** Acceptable forms (committed at v1.0): host-level token (provisioned by OS / hypervisor / hardware), hardware-bound key (TPM, secure enclave, HSM), offline-ARCA-provisioned initial credential (signed by the Issuance Plane before the mesh starts). **No in-mesh authority may serve as bootstrap source** — using PCS-Daemon, IBX, or any runtime pillar as the bootstrap authority would re-introduce the recursion that DR-IAM-2 is trying to resolve.
+
+This invariant is committed *now* at v1.0; the **mechanism** choice among the acceptable forms remains deferred to DR-IAM-2. The invariant constrains how Judge's eventual ruling can land: any ruling that selects an in-mesh source is structurally inadmissible regardless of its operational appeal.
+
+This pattern is mesh-level discipline that v1.0 SOM commits. **Future bootstrap-credential design (any pillar's daemon, including pillars not yet named) must select from the external-anchor set; in-mesh sources are excluded by SOM-CD13.**
 
 ## Campaign-Level Open Items (Mesh Tracking)
 
@@ -335,11 +348,30 @@ Per Patton's `f346fdab` non-blocking flag on PGE: CD10 + § Rule Lifecycle's "no
 
 **Resolution trigger**: next touch of `PGE-SPEC.md` adds one reconciling sentence (sweep-on-next-touch per the established discipline).
 
+### SOM-OQ-6: DPG→ACT telemetry annihilation seam (per Einstein finding #4 `dc6ca481`, Patton-confirmed strongest finding)
+
+**The gap**: DPG-SPEC v1.0 CD13 commits a runner reconciliation sweep that detects executions whose `dpg.execution_complete` event was lost and emits a terminal `lost_completion_recovered` event. ACT-SPEC v1.0 commits append-only retention of every event that reaches the Record Layer. Both hold. **What neither commits**: the content of telemetry generated *inside* the DPG boundary that **dies before reaching ACT** when the container hard-crashes (reasoning spans, intermediate tool calls, partial execution record, in-boundary cognitive events buffered locally but not yet flushed to ACT). CD13 recovers the *fact* a completion was lost; it does not recover the *content* of the unflushed interior. SOM-MI-1 retains what arrived at ACT; the boundary-local-to-ACT-ingest seam is unprotected. Two Claudes (Watson + Patton) missed this because each reasoned about its own pillar's recovery and assumed the other's covered the rest. Einstein's substrate (Gemini, physics-first) found it via information-conservation analysis: an observer can only measure what crosses the boundary.
+
+**Severity**: GAP, not BLOCKING — the loss is *detectable* (CD13 + `act.chain_checkpoint` mean you know it happened and approximately when), so the audit trail has a *known hole*, not a *forged record*. This makes it a real cross-pillar design decision rather than a v1.0 spec defect. SOM-MI-1 caveats this seam explicitly so the limitation is honest.
+
+**The four candidate resolutions** (Judge to select; resolution closes the OQ at mesh level):
+
+1. **Accept + bound** — cheapest, honest. Commit at DPG-SPEC + ACT-SPEC + SOM-SPEC that DPG telemetry is best-effort-flushed and a hard crash may lose up to one flush-interval of interior content; CD13's `lost_completion_recovered` is the audit marker; document the bounded loss as a known property of the mesh. Posture: interior cognitive spans are not worth boundary-isolation cost.
+2. **Stream-before-act** — preserves content in steady state. Require DPG to stream cognitive events to ACT incrementally during execution (not batch-on-completion); the unprotected interval shrinks to one event. Cost: ACT-ingest bandwidth + couples DPG runtime to ACT availability (tension with DPG's whole point — isolation).
+3. **Boundary-local durable spool** — strongest, most complex. DPG writes telemetry to a crash-survivable spool *inside* the boundary's persistent layer that survives container death; spool swept to ACT post-crash by the runner reconciliation. Resolves ACT-coupling tension at cost of DPG complexity.
+4. **Hybrid stream-with-spool-fallback** (Watson's flag for Judge's weighing, recorded post-Patton-review): stream-before-act in steady state; spill to boundary-local durable spool when ACT is unavailable. Content-preserving in steady state; bounded loss in degraded mode. Resolves the ACT-coupling tension partially. Highest complexity.
+
+**Why mesh-level, not buried in one pillar**: the gap is at the **seam** between DPG (event generation) and ACT (event ingest); neither pillar's spec alone can resolve it. The chosen resolution will touch both DPG-SPEC (Stratum 2 changes to runner behavior at boundary destruction) and ACT-SPEC (possibly ingest API changes for streaming case) and may pull a new event-type into the four-pillar curation event (SOM-VP-1). Tracking at mesh level prevents the resolution from landing in one pillar without the other being updated coherently.
+
+**Resolution trigger**: Judge's design decision among the four options. The OQ closes on the decision; the implementing spec touches land afterward.
+
+**Forward note**: Patton recommends a second Einstein pass scoped to the wave-2 specs once the four-item tightening lands (`dc6ca481`). SOM-OQ-6 is the kind of seam-gap that benefits most from cross-substrate review and may surface adjacent gaps when the resolution is selected.
+
 ## Mesh-Level Invariants
 
 Beyond the pillar-level CDs, v1.0 SOM commits these **mesh invariants** that hold across all eight pillars:
 
-**SOM-MI-1**: **Audit retention is non-negotiable across all pillars.** Every pillar with in-flight work emits ACT events for that work; the events are preserved regardless of session termination, runtime failure, or policy rejection. Runtime continuation may be deferred to Judge ruling; audit retention may not.
+**SOM-MI-1**: **Audit retention AND terminal-state resolution are non-negotiable across all pillars.** Every pillar with in-flight work emits ACT events for that work; the events are preserved regardless of session termination, runtime failure, or policy rejection. **Plus** (per Einstein finding #5, `dc6ca481`): every in-flight item reaches a *terminal* audit state — even when runtime continuation is deferred to a Judge ruling, the audit record gets a defined terminal marker (e.g., `runtime_continuation_deferred_pending_ruling`). Runtime continuation may be deferred; audit retention and terminal-state resolution may not. *Caveat — see SOM-OQ-6: between event-generation inside a hard-isolating boundary (e.g., DPG sandbox) and event-arrival at ACT ingest, an unprotected interval exists where boundary-local telemetry may be annihilated before reaching ACT. The retention guarantee applies to events that arrived at ACT; the in-boundary-to-ACT seam is the surface SOM-OQ-6 is tracking.*
 
 **SOM-MI-2**: **PGE is the single source of policy truth across the mesh.** DPG, PCS-Daemon, CRB, and any future pillar that enforces policy at a chokepoint consume rules from PGE; none embed their own corpus. The mesh's policy surface is uniform; deviation is a mesh-conformance violation.
 
@@ -369,7 +401,7 @@ Beyond the pillar-level CDs, v1.0 SOM commits these **mesh invariants** that hol
 
 **SOM-CD4**: **Seven IAM Increment-2 rulings enumerated in ONE place** (§ Seven IAM Increment-2 Rulings). All pillar DRs that defer to a ruling cite the corresponding DR-IAM-N row. No silent front-running.
 
-**SOM-CD5**: **The DR-IAM-4 audit-vs-runtime split is mesh-level discipline.** Audit invariant is never deferred; only runtime continuation is. Applies to all current and future pillars.
+**SOM-CD5**: **The DR-IAM-4 audit-vs-runtime split is mesh-level discipline.** Audit invariant is never deferred. **Per Einstein finding #5 (`dc6ca481`) airtightening: terminal-state resolution is also never deferred** — every in-flight item reaches a terminal audit state even when runtime continuation is deferred (e.g., `runtime_continuation_deferred_pending_ruling`). Only runtime continuation is deferable. Applies to all current and future pillars.
 
 **SOM-CD6**: **Four-pillar shared ACT v1.x curation event tracked at mesh level** (SOM-VP-1). Resolves four pillar VPs atomically; prevents half-extended-enum failure mode.
 
@@ -384,6 +416,8 @@ Beyond the pillar-level CDs, v1.0 SOM commits these **mesh invariants** that hol
 **SOM-CD11**: **Audit completeness is testable.** SOM-MI-1 + SOM-MI-6 + ACT v1.0 CD3 (append-only) compose: every action emits events; every event lands; the chain is verifiable.
 
 **SOM-CD12**: **This spec is integrative, not derivative.** It does not re-derive pillar contracts; it asserts mesh-level composition. Each pillar's spec remains authoritative for that pillar; this spec is authoritative for the mesh.
+
+**SOM-CD13** (added per Einstein finding #3, `dc6ca481`): **The DR-IAM-2 external-anchor base case invariant is mesh-level discipline.** Bootstrap credentials originate from outside the mesh — host-level token, hardware-bound key, or offline-ARCA-provisioned initial credential. No in-mesh authority may serve as bootstrap source. This invariant binds at v1.0; the specific mechanism choice remains deferred to DR-IAM-2 ruling, but the *admissible set* is bounded now. Any future ruling that selects an in-mesh source is structurally inadmissible.
 
 ## Deferred-Pending-Increment-2-Rulings (DRs)
 
@@ -408,6 +442,8 @@ Beyond the pillar-level CDs, v1.0 SOM commits these **mesh invariants** that hol
 **SOM-OQ-4**: **Mesh-level performance contract.** Each pillar's substrate has its own performance properties (IBX = ClickHouse throughput; ACT = append-only event-store latency; DPG = boundary-provision latency; CRB = dispatch decision latency). The mesh-level question is whether these compose to a performance contract end-to-end (e.g., "a PCT submitted to IBX, evaluated by PGE Gate 1, dispatched by CRB, executed in DPG, audited by ACT completes within N seconds"). v1.0 does not commit such an end-to-end contract; resolves when production workloads pressure-test the composition.
 
 **SOM-OQ-5**: **Mesh-level versioning policy.** Each pillar has its own version (IBX v1.0, IAM v1.0, etc.). The mesh-level question is whether SOM versions independently (SOM v1.0 = today's pillar set; SOM v1.1 = some pillars advance) or in lockstep. v1.0 SOM = today's pillar set; future-versioning policy is post-v1.0.
+
+**SOM-OQ-6**: **DPG→ACT telemetry annihilation seam.** Per Einstein finding #4 (`dc6ca481`), Patton-confirmed strongest finding of the cross-substrate pass. See § SOM-OQ-6 above. Judge to select among four resolution options. **Cross-pillar (DPG + ACT) decision; tracked at mesh level so resolution lands coherently across both pillar specs.**
 
 ## Failure Modes To Watch
 

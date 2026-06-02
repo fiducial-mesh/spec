@@ -36,7 +36,7 @@ references:
 1. **Design-vs-built honesty**. CRB-as-pillar today is *convention*, not code. The spec body never reads CRB as "having a daemon" — every reference to the broker daemon is explicit about its build-target status. The same discipline IAM v1.0 used for the briefs-only IAM implementation applies here.
 2. **Exit Test boundary clarity**. CRB's substrate-substitutability is its load-bearing architectural claim: the DAC + per-host-venv reference substrate at v1.0 must support migration to Nomad / Slurm / Kubernetes-class schedulers without contract revision. The contract is what CRB commits; the substrate is what the deployment satisfies. This watch-out gets its own dedicated section (§ Substrate Substitutability).
 
-**Clean seam with DPG explicitly preserved**: CRB and DPG are **orthogonal concerns**. CRB answers *where to run* (which host, by hardware classification). DPG answers *in what isolation boundary* (ephemeral, per § DPG-SPEC.md v1.0). A single workload may require both — CRB routes it to 9975WX because GPU-bound; DPG isolates it on 9975WX in an ephemeral boundary because pre-validation. The two pillars compose at the workload level; they do NOT subsume each other. Per Patton's ruling `251c9511`, this seam is structural (different concerns, different failure modes, different Exit Test boundaries) and is preserved in this spec by never letting CRB take on DPG's isolation concerns or vice versa.
+**Clean seam with DPG explicitly preserved (refined per Einstein finding #2 `dc6ca481`)**: CRB and DPG own **orthogonal concerns** but their **decisions couple at workload level**. CRB answers *where to run* (which host, by hardware classification). DPG answers *in what isolation boundary* (ephemeral, per § DPG-SPEC.md v1.0). The *concerns* are separate — CRB never provisions isolation; DPG never routes by host class. The *decisions* are coupled — when an isolation tier (DPG-side) is only satisfiable on a host class (e.g., GPU-passthrough microVM on hosts with PCIe-isolated GPUs), that constraint feeds CRB's eligibility filter as an input. A single workload may require both — CRB routes it to 9975WX because GPU-bound *and* because the requested isolation tier is satisfiable there; DPG isolates it on 9975WX in the ephemeral boundary. The two pillars compose at the workload level; they do NOT subsume each other. Per Patton's ruling `251c9511` (refined by Einstein cross-substrate pass), this seam is structural (different concerns, different failure modes, different Exit Test boundaries) and is preserved in this spec by never letting CRB take on DPG's isolation concerns or vice versa — but the decision-time eligibility-input direction is named explicitly so the orthogonality is not over-claimed.
 
 ## Purpose / Problem Restatement
 
@@ -242,9 +242,9 @@ v1.0 PCS-Daemon and DPG specs introduced the `pcs.*` and `dpg.*` event-type name
 
 Per ACT v1.0 CD4, the `crb.*` namespace requires an explicit curation event. v1.0 CRB spec tracks the dependency in **VP-CRB-1** below. Following Patton's standing pattern (per his `4759a355`): the ACT v1.x curation event closing VP-CRB-1 should fold the **same single event** that closes VP-PCS-1 and VP-DPG-1, so the enum extension lands in one motion across all three pillars.
 
-## Coupling Boundary: DPG ↔ CRB (Clean Seam — Patton's Ruling 251c9511)
+## Coupling Boundary: DPG ↔ CRB (Orthogonal Concerns, Coupled Decisions — Patton's Ruling 251c9511 + Einstein Refinement `dc6ca481`)
 
-Per Patton's ruling: DPG and CRB are **separate concerns with a clean seam**. This section names the seam explicitly so the two pillars cannot drift toward overlap.
+Per Patton's ruling: DPG and CRB own **separate concerns**. Per Einstein cross-substrate pass finding #2 (`dc6ca481`) and Patton adjudication: the *concerns* are orthogonal but the *decisions* couple at workload level. This section names the seam explicitly so the two pillars cannot drift toward overlap, AND names the decision-time coupling so the orthogonality is not over-claimed.
 
 | Concern | Owned by | Not owned by |
 |---|---|---|
@@ -252,6 +252,12 @@ Per Patton's ruling: DPG and CRB are **separate concerns with a clean seam**. Th
 | **How to isolate** (ephemeral boundary, validation gates) | DPG | CRB |
 | **Workload submission** (the PCT that requests execution) | Either pillar may accept submissions per the request's classification | — |
 | **Result return** (workload outcome back to requester) | The pillar that handled the dispatch returns the result | — |
+
+### Orthogonal concerns, coupled decisions (per Einstein finding #2)
+
+The earlier framing — "no arrow between CRB and DPG" — slightly overclaims. The accurate picture: **CRB never provisions isolation; DPG never routes by host class.** The *concerns* don't overlap. But when a workload's isolation tier (DPG-side) is only satisfiable on a host class (e.g., GPU-passthrough microVM only on hosts with PCIe-isolated GPUs; firecracker microVM only on hosts running compatible KVM), that constraint **feeds CRB's eligibility filter as an input**. The dependency runs DPG-isolation-requirement → CRB-eligibility-input, not as a CRB-internal decision. Symmetrically, CRB's target-host choice constrains what isolation primitives are available on that host (a host without `/dev/kvm` excludes microVM-class isolation tiers).
+
+Neither pillar subsumes the other's *concern*; they compose at *decision time*. CRB's classification taxonomy (§ Workload Classification Taxonomy) already carries `gpu_bound`/`mps_bound` and the `mixed` class takes "the strictest constraint among sub-class requirements" — the machinery to express "this isolation tier needs this host class" exists; it's wired to the DPG seam by treating isolation-tier as an additional constraint dimension at policy evaluation. This preserves the ruling `251c9511` (clean separation of concerns) while closing the seam-table overclaim Einstein caught.
 
 ### When a workload requires both CRB and DPG
 

@@ -234,6 +234,29 @@ Per `ACT-SPEC.md` v1.0 CD4, the bounded event-type enum already includes `dpg.co
 - **`dpg.code_emitted`** is emitted by the **agent that emits code into DPG** (not by DPG itself). This is the upstream signal: agent X submitted code to DPG. ACT records it for attribution at the Workforce layer.
 - **`dpg.execution_complete`** is emitted by the **DPG runner** when an execution finishes (success or failure). ACT records it for DPG-side attribution. Payload includes the execution_id, outcome, validation_results summary, and resource_usage (per § Code-Execution Contract).
 - **v1.0 proposes one additional event-type for ACT**: `dpg.execution_request_rejected` (when DPG refuses to run an execution at all, e.g., because the requester lacks authorization). Per ACT v1.0 CD4 extensibility, this is a curation-event addition; v1.0 DPG spec tracks the dependency in **VP-DPG-1** below.
+- **Unflushed in-boundary telemetry on hard-crash is tracked at mesh level as SOM-OQ-6** (per Einstein cross-substrate pass finding #4, `dc6ca481`). CD13's runner reconciliation sweep recovers the *fact* a completion was lost; it does NOT recover the *content* of telemetry generated inside the boundary that died before flushing to ACT. The DPG-event-generation-to-ACT-ingest seam is unprotected; SOM-OQ-6 enumerates four candidate resolutions (accept-and-bound; stream-before-act; boundary-local durable spool; hybrid). **Cross-pillar resolution required** — neither DPG nor ACT spec alone can land the fix; SOM tracks the design decision. See `SOM-SPEC.md` § SOM-OQ-6.
+
+## Coupling Boundary: CRB ↔ DPG (Orthogonal Concerns, Coupled Decisions — Patton Ruling 251c9511 + Einstein Refinement `dc6ca481`)
+
+Per Patton's ruling `251c9511` and Einstein cross-substrate pass finding #2 (`dc6ca481`): CRB and DPG own **orthogonal concerns** but their **decisions couple at workload level**. This section names the seam symmetrically with `CRB-SPEC.md` v1.0 § Coupling Boundary: DPG ↔ CRB so the two pillars cannot drift toward overlap, AND so the orthogonality is not over-claimed.
+
+| Concern | Owned by | Not owned by |
+|---|---|---|
+| **How to isolate** (ephemeral boundary mechanism, validation gates) | DPG | CRB |
+| **Where to run** (hardware classification, target-host selection) | CRB | DPG |
+| **Isolation tier as eligibility input** (e.g., GPU-passthrough microVM requires PCIe-isolated GPU host class) | The constraint *originates* with DPG (a property of the requested isolation tier) and *flows to* CRB (as an additional input dimension at policy evaluation) | — |
+
+### What DPG does NOT do (lest the seam drift)
+
+- **DPG does not route workloads by host class.** When a workload requires both DPG and CRB, the DPG-side concern is *what isolation primitive applies*; CRB makes the host-class decision based on the workload's classification plus the DPG-side isolation-tier constraint surfaced as an input.
+- **DPG does not maintain its own host inventory.** DPG validates that the boundary it provisions on the assigned host satisfies the five non-negotiable ephemeral-isolation properties. The host inventory is CRB's concern (per `CRB-SPEC.md` v1.0 § Hardware Topology Model).
+- **DPG does not dispatch alternative hosts on its own.** If the assigned host cannot provide the requested isolation tier, DPG returns a structured failure to the requester via the attested channel; the requester (or CRB on retry) selects a different host that satisfies the constraint. DPG does not unilaterally reroute.
+
+### When a workload requires both DPG and CRB
+
+The composition pattern (mirrors `CRB-SPEC.md` v1.0 § When a workload requires both): CRB routes the workload to an eligible host *based on classification + isolation-tier eligibility input*; DPG provisions the boundary on that host; DPG runs the workload inside the boundary under the four validation gates; DPG returns the result through the attested channel; CRB's dispatch is recorded as `success` or `failure` based on the DPG outcome.
+
+The two pillars compose at decision time; they do NOT subsume each other.
 
 ## Coupling Boundary: Workforce ↔ DPG (Code Emission)
 
@@ -277,6 +300,8 @@ Workforce agents (Watson, Bob, Patton, Einstein, Newton) are the principal sourc
 
 CD13 closes the audit-gap-during-boundary-destruction failure mode (per § Failure Modes below) as a formal commitment rather than a mitigation that's only referenced in prose. Forward-completion ordering remains correct; lost-completion failures are caught by reconciliation; reconciliation is idempotent. Same pattern shape as PCS-Daemon CD5; the relocated half-state failure mode is shut.
 
+**Scope limit (per Einstein cross-substrate pass finding #4, `dc6ca481`)**: CD13 recovers the *fact* a completion was lost — the synthetic terminal `lost_completion_recovered` event marks that the execution's completion never reached ACT. CD13 does NOT recover the *content* of in-boundary telemetry that died before flushing to ACT (reasoning spans, intermediate tool calls, partial execution record). The boundary-local-to-ACT-ingest interval is unprotected; SOM-MI-1 retains what arrived at ACT, but the gap is at event-generation-to-event-arrival. This seam is tracked at mesh level as **SOM-OQ-6** with four candidate resolutions (accept-and-bound / stream-before-act / boundary-local durable spool / hybrid) — see `SOM-SPEC.md` § SOM-OQ-6. The cross-pillar design decision is pending Judge selection; v1.0 commits CD13's fact-of-loss recovery as the audit floor, with content recovery as the SOM-OQ-6 question.
+
 ## Deferred-Pending-Increment-2-Rulings (DRs)
 
 **DR-DPG-1 (couples to DR-IAM-2)**: **DPG runner's bootstrap credential at process start.** Same recursive root problem as PCS-Daemon (per `PCS-DAEMON-SPEC.md` v1.0 DR-PCS-1) and the other agent identities. The DPG runner's process needs to authenticate to Vault as the runner identity at startup. Until DR-IAM-2 resolves, deployment-architecture-configured bootstrap.
@@ -308,7 +333,7 @@ CD13 closes the audit-gap-during-boundary-destruction failure mode (per § Failu
 - **Network egress proxy compromised.** A misconfigured or compromised network proxy could allow execution to reach unauthorized network destinations. **Mitigation**: proxy is a substrate-side component owned by the deployment; default-deny rule; allowlist per request; egress events captured in `boundary_audit_summary`.
 - **Resource-limit bypass.** Execution code finds a way to exceed declared limits (e.g., fork-bomb-style process spawning that the substrate doesn't immediately catch). **Mitigation**: substrate-enforced cgroups/VM limits; runner monitors actual consumption; execution forcibly terminated when limit exceeded.
 - **Validation gate misconfiguration.** A request specifies validation gates that don't catch a real defect; the execution passes DPG but is non-compliant in production. **Mitigation**: PGE compliance is mandatory and unmodifiable per CD4 + CD8 (not request-configurable); Syntax conformance is mandatory; per-request gates are additive, not subtractive — they add more checks, never remove the mandatory four.
-- **Audit gap during boundary destruction.** A bug in the runner could destroy the boundary before fully capturing audit events. **Mitigation**: events emitted to ACT before boundary destruction; chain-checkpoint events (per `ACT-SPEC.md` v1.0 CD4 `act.chain_checkpoint`) preserve durable evidence; **CD13 formal reconciliation-sweep commitment** (promoted from this mitigation by Patton ruling `58db3413`) provides the durable recovery mechanism: runner reconciliation sweep detects executions whose `dpg.execution_complete` was lost and emits the recovery event with outcome `lost_completion_recovered`.
+- **Audit gap during boundary destruction.** A bug in the runner could destroy the boundary before fully capturing audit events. **Mitigation**: events emitted to ACT before boundary destruction; chain-checkpoint events (per `ACT-SPEC.md` v1.0 CD4 `act.chain_checkpoint`) preserve durable evidence; **CD13 formal reconciliation-sweep commitment** (promoted from this mitigation by Patton ruling `58db3413`) provides the durable recovery mechanism: runner reconciliation sweep detects executions whose `dpg.execution_complete` was lost and emits the recovery event with outcome `lost_completion_recovered`. **Limit**: CD13 recovers *fact* of loss only; *content* of unflushed in-boundary telemetry is tracked at mesh level as `SOM-SPEC.md` § SOM-OQ-6 (per Einstein finding #4, `dc6ca481`).
 - **Worker-pool starvation.** A flood of execution requests overwhelms the DPG runner pool. **Mitigation**: dead-letter queue per IBX v1.0 worker-pool CD; rate-limiting at the request layer; OQ-D1 names autoscaling as the operational question.
 - **Resource-limit-too-low rejection cascade.** A misconfigured tier defaults sets resource limits too low for routine workloads, causing systemic `resource_limit_exceeded` outcomes. **Mitigation**: per-deployment-tier resource-limit defaults documented in deployment-architecture; operator review of `resource_limit_exceeded` rate as a deployment-health signal.
 - **CUDA nondeterminism masquerades as failure.** A test expects deterministic results; CUDA's numerical drift produces a "failure" that isn't really one. **Mitigation**: CUDA workloads explicitly declare their determinism expectation per CD10; tests for CUDA workloads use bounded-tolerance comparisons.
