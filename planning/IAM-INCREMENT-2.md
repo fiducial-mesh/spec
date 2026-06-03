@@ -48,13 +48,13 @@ IAM-CORE-SPEC v1.0 closed the **architecture** of the identity pillar — the fo
 
 The operational ground now exists. The 2026-06-03 Vault POC (per `notes/vault-poc-runbook.md`) delivered the credential layer: both `pki_arca` and `pki_tls` intermediates are live in Vault on `som-vault-1`, signed offline against roots in Judge's encrypted custody, with both chains verifying end-to-end (`test.ki7mt.cloud` for TLS, `test-agent` for ARCA). The Identity layer (Roster + ARCA-mint flow) and the Permissions layer (AuthZ via federation) are the next bricks. This increment is the formal contract for those.
 
-**One additional load-bearing addition**: the structural invariant that the agent is OUT of the trust ceremony. The Vault POC near-miss (a root token pasted into an agent transcript mid-build, contained by destroying and rebuilding the VM clean) demonstrated that the v1.0 spec's procedural framing — "don't paste secrets" — is not a defense. The structural fix Judge mandated is that the agent **architecturally cannot** be the actor that touches init/unseal/login/PKI-admin/root keys. This is exactly the same pattern as Patton's §A.1.3 enforcement-vs-principle lesson on the AKB bootstrap that landed earlier the same day: documentation isn't enforcement; **enforcement requires that the prohibited action be structurally unreachable**. This increment encodes that boundary as the **agent-out-of-secret-path invariant** and consistency-checks every section against it.
+**One additional load-bearing addition**: the structural invariant that the agent is OUT of the trust ceremony. The Vault POC near-miss (a root token pasted into an agent transcript mid-build, contained by destroying and rebuilding the VM clean) demonstrated that the v1.0 spec's procedural framing — "don't paste secrets" — is not a defense. The structural fix Judge mandated is that the agent **architecturally cannot** be the actor that touches init/unseal/login/PKI-admin/root keys. This is exactly the same pattern as **Patton's §A.1.3 enforcement-vs-principle ruling** on the AKB bootstrap (per Patton's PR-#61 review on the AKB three-spec gate, now committed to `akb-migration-plan.md` §A.1.3 lines 120–153): *"a written prohibition without a detection mechanism is exactly how the SOM-4 drift happened in the first place."* Documentation isn't enforcement; **enforcement requires that the prohibited action be structurally unreachable**. This increment encodes that boundary as the **agent-out-of-secret-path invariant** and consistency-checks every section against it.
 
 ## The Agent-Out-of-Secret-Path Invariant (load-bearing)
 
 **Statement**: an agent of the SOM mesh may **NEVER** be the actor that touches the IAM trust ceremony — `vault operator init`, unseal, `vault login`, PKI engine administration, root keys, signed-intermediate import, or any operation whose output includes unseal keys / root tokens / private keys. These operations are performed **only** by Judge in the Vault UI, with the agent architecturally OUT.
 
-**Why structural, not procedural** (per `vault-poc-runbook.md` 2026-06-03 lesson, mirroring Patton's §A.1.3 enforcement-vs-principle ruling for AKB the same day):
+**Why structural, not procedural** (per `vault-poc-runbook.md` 2026-06-03 lesson, mirroring Patton's §A.1.3 enforcement-vs-principle ruling for AKB at PR-#61 → `akb-migration-plan.md` §A.1.3):
 
 A procedural rule (`"the agent should not paste secrets"`) failed under operational pressure — a single CLI walkthrough leaked a root token into an agent transcript. The fix is not "be more careful next time"; the fix is that the operations producing secrets are **architecturally unreachable by an agent at all**. The agent cannot leak what the agent cannot ever see.
 
@@ -160,7 +160,7 @@ The Publish pipeline runs in a context with:
 
 ### B.2 The Mint Sequence (atomic, all-or-nothing)
 
-The birth flow is **one atomic transaction** that produces the Roster record, the AD record (if AD backend), the keypair, and the birth-cert together — or none of them. Partial mint is **inadmissible** (an agent with a Roster record but no birth-cert is identity-uncrypto-bound; an agent with a birth-cert but no Roster record is identity-untracked).
+The birth flow is **atomic-or-reconciled** — it produces the Roster record, the AD record (if AD backend), the keypair, and the birth-cert together, OR a Publish-pipeline reconciliation sweep (§B.5) brings any partial state to a defined terminal state. The honest framing is: the three stores written across (Vault, AD, Roster) are independent systems without a distributed-commit protocol; compensating actions on rollback can themselves fail; a partial-mint window is real and must be detectable and recoverable, not assumed impossible. **Partial-mint persistence is inadmissible** (an agent with a Roster record but no birth-cert is identity-uncrypto-bound; an agent with a birth-cert but no Roster record is identity-untracked); the reconciliation sweep is what guarantees that.
 
 **Step 1 — Authorization gate** (Judge or Judge-authorized owner per the owner-driven onboarding model):
 - The Publish pipeline accepts a `MintRequest` carrying: proposed `callsign`, proposed `job_code`, `owner_principal_id`, `cost_center`, `department`, `description`, and a Judge-or-owner authorization signature.
@@ -223,6 +223,32 @@ Per IAM-CORE-SPEC v1.0 §"Identity Is Permanent; Authority Is Mutable", the agen
 
 **Re-mint is a different agent**, even if it reuses a callsign. This preserves the v1.0 commitment that identity is fixed at birth; re-mint is birth of a new identity, not mutation of an existing one.
 
+### B.5 Reconciliation Sweep — Partial-Mint Recovery (per Patton FLAG 1, `bf98cc5b`)
+
+The B.2 mint sequence writes across three independent systems (Vault KV, AD-DC, Roster) without a distributed-commit protocol. The Step 5 compensating actions on rollback (destroy Vault key, release AD reservation, revoke cert via CRL) can themselves fail if the same system is briefly unreachable during compensation. A partial state is therefore possible: any non-empty proper subset of {Vault KV entry, AD record, Roster row at `status=active`, valid birth-cert} exists in the world without the others.
+
+Per Patton's PR #3 review (`bf98cc5b`), and **by parity with `PCS-DAEMON-SPEC.md` v1.0 CD5 (Registry-write reconciliation) and `DPG-SPEC.md` v1.0 CD13 (lost-completion recovery)** — both of which closed the same distributed-half-state shape — IAM Increment 2 commits an idempotent reconciliation sweep.
+
+**The sweep** (Publish pipeline runs on a configurable cadence, defaulting to every 5 minutes during normal operation):
+
+1. **Find candidate stranded states** — query each of the three stores for inconsistencies:
+   - Roster rows in `status=pending` older than the B.2 expected window (default 60s; tunable).
+   - Roster rows in `status=active` whose `fingerprint` does not resolve to a Vault KV key entry OR does not resolve to an AD record with the matching `somFingerprint`.
+   - AD records in `OU=Agents` with no matching Roster row (orphan AD record).
+   - Vault KV entries under the agent path with no matching Roster row (orphan Vault key).
+   - Birth-certs issued by `pki_arca` with no matching Roster row (orphan cert — detected via CRL audit comparison against Roster contents).
+
+2. **Resolve to a terminal state**:
+   - A `pending` row past TTL → roll back: destroy any partial writes; remove the Roster row; release the AD reservation; emit `iam.mint_rolled_back` event with rationale.
+   - A `status=active` row missing one of the three stores → either re-issue the missing piece (if recoverable — e.g., re-issue the AD record from the Roster's authoritative data) OR transition the agent to `status=deprovisioned` with an explicit `incomplete_at_mint_reconciled` flag and emit a high-severity `iam.partial_mint_recovered` event for human review. The choice is per-store and per-state, codified in the Publish pipeline's recovery table.
+   - An orphan store entry (AD or Vault or cert with no Roster row) → destroy / revoke; emit `iam.orphan_store_reconciled` event.
+
+3. **Idempotent** — the sweep re-runs safely; once an entry has been moved to its terminal state, subsequent sweeps see no work for it. Idempotency keys on the recovery events prevent double-emission.
+
+4. **Sweep is itself audited** — every recovery action emits an event to ACT carrying `(agent_id, store_pair, original_state, terminal_state, rationale)`. The audit trail is what makes "atomic-or-reconciled" honest at the audit layer (SOM-MI-1): partial states are detected, reconciled, and recorded — they are not silently dropped.
+
+**This closes the FLAG 1 honesty gap**: the spec no longer claims distributed atomicity it cannot deliver. It claims atomic-or-reconciled, names the mechanism, and inherits the same discipline PCS-Daemon CD5 and DPG CD13 established for the same structural shape. Per Patton's forward note (`bf98cc5b`), three instances of this distributed-half-state pattern across the mesh (PCS-Daemon, DPG, now IAM-mint) warrant a mesh-level SOM-MI on the next SOM-SPEC touch — that's tracked as a forward-reference, not folded here.
+
 ---
 
 ## §C. AuthZ — Job-Code → Permissions via Federation TO External IdP
@@ -241,6 +267,7 @@ When an external IdP (Samba AD or Microsoft AD) is present, the IdP is **authori
 **Operational shape** (production / AD-shop):
 - AD is authoritative for: group membership (= job-code assignment), account status (enabled/disabled mirrors lifecycle status, per §D), `objectGUID`, `somFingerprint`.
 - SOM Roster is authoritative for: `agent_id`, `fingerprint`, `birth_cert`, `birth_timestamp`, `callsign`, `cost_center`, `department`, `description`. The Roster's `job_code` field is a **cache** of the AD group membership read at session start; the canonical job-code lookup is against AD at the cache-refresh cadence (per `DR-IAM-3` revocation-window ruling).
+- **Interim cache-staleness bound** (per Patton FLAG 2, `bf98cc5b`; SOM-CD13 base-case-invariant pattern applied while DR-IAM-3 is ruling-pending): the cache is **session-scoped**. Every session reads AD freshly at session-start and is bound to that read for the session's lifetime; the cache is never trusted across sessions. Worst-case staleness is therefore one session lifetime, which is a safe floor regardless of where DR-IAM-3 lands the operational cadence. When DR-IAM-3 lands and supersedes this floor, the cache may shorten further; it cannot lengthen beyond the ruling.
 - The Publish pipeline writes both at mint (B.2 Step 5) and on lifecycle transitions (§D).
 
 **Operational shape** (lab / AD-less):
@@ -445,7 +472,7 @@ No agent ever writes to the Roster. No PGE / ACT / IBX / Launcher write either.
 
 **IAM-INC2-CD2**: **Roster record schema is committed** per §A.1, with the overtly-an-agent disclosure model per §A.2 binding the AD-DC backend and the Roster-local backend equivalently. The `cost_center` + `owner_principal_id` couplings (A.3) make "cost forces an owner" structural.
 
-**IAM-INC2-CD3**: **ARCA-mint is an atomic transaction** per §B.2 (Roster + AD + keypair + birth-cert succeed together or none persist). Partial mint is inadmissible. The Publish pipeline is the privileged actor; agents never participate.
+**IAM-INC2-CD3**: **ARCA-mint is atomic-or-reconciled** per §B.2 + §B.5 (per Patton FLAG 1, `bf98cc5b`). The three-system distributed write (Vault + AD + Roster) succeeds together OR an idempotent Publish-pipeline reconciliation sweep brings any partial state to a defined terminal state. Partial-mint **persistence** is inadmissible; partial states are detected, reconciled, and recorded. The Publish pipeline is the privileged actor; agents never participate. Parity with PCS-Daemon CD5 (Registry-write reconciliation) and DPG CD13 (lost-completion recovery) — same distributed-half-state structural shape, same reconciliation discipline.
 
 **IAM-INC2-CD4**: **Birth-cert contents are committed** per §B.3 — EC P-384, ECDSA-SHA384, 1-year TTL, custom OIDs for SOM fingerprint + initial job-code. Renewal preserves identity; re-mint creates a new identity (§B.4).
 
@@ -535,4 +562,5 @@ This increment **resolves** several deferral surfaces (the Roster schema, the AR
 - `planning/ACT-SPEC.md` v1.0 — metering + audit consumer
 - `notes/som-agent-identity-and-metering.md` (Bob, 9975) — design input for §A schema + ACT metering
 - `notes/vault-poc-runbook.md` (Bob, 9975) — operational ground + the agent-out-of-secret-path lesson
-- Patton inbox `dc6ca481` (2026-06-02) — the §A.1.3 enforcement-vs-principle ruling that the agent-out-of-secret-path invariant in §IAM-INC2-CD1 mirrors structurally
+- `akb-migration-plan.md` §A.1.3 lines 120–153 (ionis-devel `planning/`) — **the §A.1.3 enforcement-vs-principle ruling** Patton committed per his PR-#61 review on the AKB three-spec gate, which IAM-INC2-CD1 mirrors structurally. The principle: *"a written prohibition without a detection mechanism is exactly how the SOM-4 drift happened in the first place."*
+- Patton inbox `bf98cc5b` (2026-06-03) — IAM Increment 2 v0.1 PR #3 review; source of FLAG 1 (partial-mint reconciliation), FLAG 2 (cache-staleness interim bound), and the citation-correction (required fix that moved this provenance row from `dc6ca481` — wave-2 Einstein scoping reference — to the actual §A.1.3 AKB ruling above)
