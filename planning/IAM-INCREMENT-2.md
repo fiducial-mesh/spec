@@ -2,7 +2,7 @@
 title: "IAM Increment 2 — Identity + Permissions (Roster, ARCA-Mint, AuthZ Federation, Lifecycle, Read Contract)"
 doc_type: spec
 status: draft
-version: v0.1
+version: v0.2
 authors:
   - watson
   - bob
@@ -28,7 +28,7 @@ references:
 
 **Scope**: Increment 2 of the IAM pillar. Fills the **Identity** and **Permissions** halves that `IAM-CORE-SPEC.md` v1.0 deliberately left deferred — concrete Roster record schema, ARCA-mint flow against the operational `pki_arca` intermediate, AuthZ via federation TO an external IdP (Samba/Microsoft AD in the production lab, Roster-local in the AD-less lab), lifecycle semantics (onboard → active → suspend → deprovision), and the read contract for the four downstream consumers (Launcher, PGE, ACT, IBX). Plus one **structural invariant** the design session produced and the 2026-06-03 Vault POC near-miss validated: **the agent is architecturally OUT of the trust ceremony**, not merely "expected to be careful." This invariant is load-bearing for the entire IAM design and the entire spec is consistent with it.
 
-**Status**: **Draft v0.1**, IAM Increment 2 of the spec roadmap. Builds on `IAM-CORE-SPEC.md` v1.0 (which is sealed at v1.0 as the architectural contract). Does NOT fork the v1.0 spec; this increment is the **specification of what was deferred**, anchored at every section to the v1.0 commitment it extends. Cross-references the operational Vault POC ground state from the 2026-06-03 runbook (`notes/vault-poc-runbook.md` on the 9975), which proved both `pki_arca` and `pki_tls` chains end-to-end. The seven `DR-IAM-*` rulings inherit from IAM-CORE-SPEC v1.0 unchanged where they remain ruling-pending; where this increment is able to bound the admissible set without Judge's ruling, it does so explicitly (per the SOM-CD13 base-case-invariant precedent set by the Einstein cross-substrate pass on 2026-06-02).
+**Status**: **Draft v0.2**, IAM Increment 2 of the spec roadmap. **v0.2 (Bob review folds, post-merge):** v0.1 merged at PR #3 (`6fa773e`, 18:16Z) before Bob's close-out review posted; this touch folds that review's four items — **FOLD-1** §B.2 headers now read *atomic-or-reconciled* (matching the committed B.5/CD3 semantics, finishing the FLAG-1 fold the headers had missed); **FOLD-2** §C.1 names the cache-floor's coupling to the DR-IAM-4 in-flight-session ruling; **Note-3** §E.2 clarifies AD-group `job_code` is an AD read, not a Roster field; **Note-4** adds the re-mint dead-agent-window failure mode. No contract change — all four are consistency/honesty folds; the nine CDs and seven DR-IAM statuses are unchanged. Builds on `IAM-CORE-SPEC.md` v1.0 (which is sealed at v1.0 as the architectural contract). Does NOT fork the v1.0 spec; this increment is the **specification of what was deferred**, anchored at every section to the v1.0 commitment it extends. Cross-references the operational Vault POC ground state from the 2026-06-03 runbook (`notes/vault-poc-runbook.md` on the 9975), which proved both `pki_arca` and `pki_tls` chains end-to-end. The seven `DR-IAM-*` rulings inherit from IAM-CORE-SPEC v1.0 unchanged where they remain ruling-pending; where this increment is able to bound the admissible set without Judge's ruling, it does so explicitly (per the SOM-CD13 base-case-invariant precedent set by the Einstein cross-substrate pass on 2026-06-02).
 
 **Authorship lane** (per Bob `24e95f40`, design session 2026-06-02/03 with Judge):
 - Bob captured the use-case scenarios + the AD-DC integration shape + the agent-out-of-secret-path lesson (the source notes `som-agent-identity-and-metering.md` and `vault-poc-runbook.md` on 9975).
@@ -158,7 +158,7 @@ The Publish pipeline runs in a context with:
 - Authentication to Vault as a service principal with `pki_arca/issue/agent` permission
 - Write access to the AD-DC (when the IdP backend is AD) or the Roster-local store (when AD-less)
 
-### B.2 The Mint Sequence (atomic, all-or-nothing)
+### B.2 The Mint Sequence (atomic-or-reconciled)
 
 The birth flow is **atomic-or-reconciled** — it produces the Roster record, the AD record (if AD backend), the keypair, and the birth-cert together, OR a Publish-pipeline reconciliation sweep (§B.5) brings any partial state to a defined terminal state. The honest framing is: the three stores written across (Vault, AD, Roster) are independent systems without a distributed-commit protocol; compensating actions on rollback can themselves fail; a partial-mint window is real and must be detectable and recoverable, not assumed impossible. **Partial-mint persistence is inadmissible** (an agent with a Roster record but no birth-cert is identity-uncrypto-bound; an agent with a birth-cert but no Roster record is identity-untracked); the reconciliation sweep is what guarantees that.
 
@@ -187,13 +187,13 @@ The birth flow is **atomic-or-reconciled** — it produces the Roster record, th
 
 > **SOM-PEN allocation**: the IANA Private Enterprise Number for the lab/org is required for the custom OIDs above. v0.1 of this spec uses `<SOM-PEN>` as a placeholder; the Publish pipeline build will pin the real PEN at first deployment. **CONF-VP-1 analog**: this is `IAM-INC2-VP-1` — pending IANA PEN allocation (operational, not Judge-pending).
 
-**Step 5 — Atomic write** (all-or-nothing transaction across Roster + AD + Vault secret-store):
+**Step 5 — Best-effort write + reconciliation** (across Roster + AD + Vault secret-store — succeeds together on the optimistic path, or §B.5 reconciles any partial state):
 - Write the agent's private key to a Vault KV path scoped to the agent (per IAM-CORE-SPEC v1.0 §"Agents Hold Their Own Real Credentials" — the key lives in Vault's secret store, accessible to the running agent process via its session credential).
 - Write the AD record (if AD backend) with `sAMAccountName`, `givenName`, `sn`, `UPN`, `OU`, `description`, and `somFingerprint`.
 - Update the Roster record: `status=active`, populate `fingerprint`, `birth_cert`, `birth_timestamp`.
 - Emit an `iam.agent_minted` event to ACT carrying the `(agent_id, fingerprint, callsign, job_code, owner_principal_id)` tuple (per ACT v1.0 §IAM-events).
 
-If any sub-step fails, the entire transaction rolls back: the `pending` Roster record is removed, the AD reservation is released, the Vault key entry (if written) is destroyed, the issued cert is revoked via the `pki_arca` CRL.
+If any sub-step fails, the Publish pipeline **attempts** rollback: remove the `pending` Roster record, release the AD reservation, destroy the Vault key entry (if written), revoke the issued cert via the `pki_arca` CRL. Because these compensating actions are themselves writes to independent systems and can fail, any partial state they leave behind is caught by the §B.5 reconciliation sweep — this is the *atomic-or-reconciled* guarantee, **not** distributed atomicity (which the three stores cannot provide without a distributed-commit protocol they do not share).
 
 ### B.3 Birth Cert Contents (cryptographic + operational)
 
@@ -268,6 +268,7 @@ When an external IdP (Samba AD or Microsoft AD) is present, the IdP is **authori
 - AD is authoritative for: group membership (= job-code assignment), account status (enabled/disabled mirrors lifecycle status, per §D), `objectGUID`, `somFingerprint`.
 - SOM Roster is authoritative for: `agent_id`, `fingerprint`, `birth_cert`, `birth_timestamp`, `callsign`, `cost_center`, `department`, `description`. The Roster's `job_code` field is a **cache** of the AD group membership read at session start; the canonical job-code lookup is against AD at the cache-refresh cadence (per `DR-IAM-3` revocation-window ruling).
 - **Interim cache-staleness bound** (per Patton FLAG 2, `bf98cc5b`; SOM-CD13 base-case-invariant pattern applied while DR-IAM-3 is ruling-pending): the cache is **session-scoped**. Every session reads AD freshly at session-start and is bound to that read for the session's lifetime; the cache is never trusted across sessions. Worst-case staleness is therefore one session lifetime, which is a safe floor regardless of where DR-IAM-3 lands the operational cadence. When DR-IAM-3 lands and supersedes this floor, the cache may shorten further; it cannot lengthen beyond the ruling.
+  - **Coupling to DR-IAM-4 (named so it is not a silent assumption):** the session-scoped floor is only a *safe* floor if a suspend/deprovision **terminates in-flight sessions** (§D.2 commits this today). DR-IAM-4 leaves in-flight-session runtime behavior ruling-pending (continue / abort / re-issue). If DR-IAM-4 rules that in-flight sessions *continue*, a session holding a cached `job_code` outlives the status change, and the one-session-lifetime bound no longer holds against a mid-session suspend/deprovision — the floor must then be revisited (e.g., a forced cache re-read triggered by a suspend signal). This increment commits the floor under the §D.2 termination assumption and flags the dependency.
 - The Publish pipeline writes both at mint (B.2 Step 5) and on lifecycle transitions (§D).
 
 **Operational shape** (lab / AD-less):
@@ -427,6 +428,8 @@ Per PGE-SPEC v1.0 §"PGE consumes verified identity from IAM": PGE looks up the 
 
 **NOT exposed**: free-text description, cost_center, owner (PGE evaluates policy; cost attribution is ACT's domain).
 
+> **Read-source note**: the table lists what PGE *consumes*, not that all of it originates in the Roster. `agent_id` / `fingerprint` / `status` are Roster reads; the **authoritative `job_code` is read from AD groups directly** (§C.1), not from the Roster — the Roster `job_code` is only the session-scoped cache. In the AD-less lab, the Roster `job_code` is the authoritative source under the same contract surface.
+
 ### E.3 ACT (the metering + audit consumer)
 
 Per `ACT-SPEC.md` v1.0 and the design-session decision that ACT is the metering layer (not just audit), every consumption event is tagged with `(identity, session)` and rolls up to cost-center for chargeback.
@@ -526,6 +529,7 @@ This increment **resolves** several deferral surfaces (the Roster schema, the AR
 - **Roster + AD divergence.** The Roster cache of AD group membership goes stale; PGE evaluates against the stale cache and over-authorizes a deprovisioned agent. **Mitigation**: §D.5 names DR-IAM-3 as the ruling-pending cadence; the operational shape committed (CRL + AD-disable) closes the gap once the ruling lands.
 - **Partial mint.** B.2 Step 3-5 atomicity fails (e.g., AD is unreachable mid-mint); the Roster shows `pending` indefinitely. **Mitigation**: §D.2 commits `pending` as transient with a short TTL; the Publish pipeline rolls back on Step 3-5 failure.
 - **Re-mint reuse without deprovision.** A new keypair is generated but the old Roster record is not deprovisioned; two records with the same callsign exist concurrently. **Mitigation**: §B.4 commits "re-mint is a different agent" — the old record transitions to deprovisioned BEFORE the new record is created.
+- **Re-mint dead-agent window.** The inverse of the above: §B.4 deprovisions the old record (cert revoked, key destroyed, AD disabled) *before* the new mint runs §B.2 Step 1–5. If the new mint hits a §B.5 partial-state, the identity is fully gone with no working replacement — a dead-agent window. **Mitigation (v0.2 — names the gap; resolution deferred to the §B.4 implementation / next spec touch):** either the §B.5 reconciliation sweep must explicitly cover a stranded re-mint (detect *old-deprovisioned + no-new-active for the same callsign* → re-drive the new mint or raise a high-severity alert), **or** re-mint holds the old record in `suspended` (reversible) rather than `deprovisioned` until the new record reaches `active`. The trade-off (clean-break vs. reversible-overlap) is a §B.4 design decision flagged here, not resolved unilaterally in this fold.
 - **Cost attribution to a deprovisioned owner.** The sponsoring human leaves the org; their agent continues running and accruing cost against a stale cost-center. **Mitigation**: §A.3 makes `owner_principal_id` mandatory; the human-IdP side (out of scope here, but coupled via the IdP interface) is expected to surface owner-leave events that trigger §D lifecycle transitions on owned agents.
 - **AD group sprawl encoding tier-skipping permission profiles.** An AD admin adds an agent to a group its job-code shouldn't carry, bypassing the birthright RBAC discipline. **Mitigation**: §C.3 commits PGE as the enforcement layer evaluating the *current* AD group set; auditing the group memberships against the job-code → permission-profile table is an ITDR / governance concern (couples to DR-IAM-7).
 - **Custom OID collision.** The PEN-encoded custom OIDs in §B.3 collide with another organization's PEN usage if the PEN is misallocated. **Mitigation**: IAM-INC2-VP-1 — PEN allocation is a deployment prerequisite, not optional.
@@ -564,3 +568,4 @@ This increment **resolves** several deferral surfaces (the Roster schema, the AR
 - `notes/vault-poc-runbook.md` (Bob, 9975) — operational ground + the agent-out-of-secret-path lesson
 - `akb-migration-plan.md` §A.1.3 lines 120–153 (ionis-devel `planning/`) — **the §A.1.3 enforcement-vs-principle ruling** Patton committed per his PR-#61 review on the AKB three-spec gate, which IAM-INC2-CD1 mirrors structurally. The principle: *"a written prohibition without a detection mechanism is exactly how the SOM-4 drift happened in the first place."*
 - Patton inbox `bf98cc5b` (2026-06-03) — IAM Increment 2 v0.1 PR #3 review; source of FLAG 1 (partial-mint reconciliation), FLAG 2 (cache-staleness interim bound), and the citation-correction (required fix that moved this provenance row from `dc6ca481` — wave-2 Einstein scoping reference — to the actual §A.1.3 AKB ruling above)
+- Bob PR #3 close-out review (GitHub, 2026-06-03) — source of the v0.2 consistency folds: FOLD-1 (atomic-headers consistency), FOLD-2 (cache ↔ DR-IAM-4 coupling), Note-3 (§E.2 read-source), Note-4 (re-mint dead-agent window). Posted after the v0.1 merge; folded here as the v0.2 follow-up touch.
