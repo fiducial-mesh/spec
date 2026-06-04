@@ -2,11 +2,11 @@
 title: "IAM Increment 2 — Identity + Permissions (Roster, ARCA-Mint, AuthZ Federation, Lifecycle, Read Contract)"
 doc_type: spec
 status: draft
-version: v0.2
+version: v0.3
 authors:
   - watson
   - bob
-date: "2026-06-03"
+date: "2026-06-04"
 roles:
   - design-intent
   - infrastructure
@@ -28,7 +28,7 @@ references:
 
 **Scope**: Increment 2 of the IAM pillar. Fills the **Identity** and **Permissions** halves that `IAM-CORE-SPEC.md` v1.0 deliberately left deferred — concrete Roster record schema, ARCA-mint flow against the operational `pki_arca` intermediate, AuthZ via federation TO an external IdP (Samba/Microsoft AD in the production lab, Roster-local in the AD-less lab), lifecycle semantics (onboard → active → suspend → deprovision), and the read contract for the four downstream consumers (Launcher, PGE, ACT, IBX). Plus one **structural invariant** the design session produced and the 2026-06-03 Vault POC near-miss validated: **the agent is architecturally OUT of the trust ceremony**, not merely "expected to be careful." This invariant is load-bearing for the entire IAM design and the entire spec is consistent with it.
 
-**Status**: **Draft v0.3**, IAM Increment 2 of the spec roadmap. **v0.3 (re-mint dead-agent-window resolution, 2026-06-04):** Resolves the v0.2 Note-4 gap (Failure Modes — re-mint dead-agent window) via Path B: the re-mint state machine §B.4.1 holds the old Roster record in `suspended` (reversible) until the new record reaches `status=active`, then transitions the old to `deprovisioned`. New **IAM-INC2-CD11** commits the state machine; §B.5 reconciliation sweep extended to detect stranded re-mints and revert to the pre-re-mint state rather than re-drive a failed mint. Net effect: no dual-active window, no dead-agent window — both are structurally impossible. **v0.2 (Bob review folds, post-merge):** v0.1 merged at PR #3 (`6fa773e`, 18:16Z) before Bob's close-out review posted; that touch folded four items — **FOLD-1** §B.2 headers read *atomic-or-reconciled* (matching the committed B.5/CD3 semantics); **FOLD-2** §C.1 names the cache-floor's coupling to the DR-IAM-4 in-flight-session ruling; **Note-3** §E.2 clarifies AD-group `job_code` is an AD read, not a Roster field; **Note-4** adds the re-mint dead-agent-window failure mode (now resolved at v0.3). v0.3 contract addition is IAM-INC2-CD11; the other ten CDs and seven DR-IAM statuses are unchanged. Builds on `IAM-CORE-SPEC.md` v1.0 (which is sealed at v1.0 as the architectural contract). Does NOT fork the v1.0 spec; this increment is the **specification of what was deferred**, anchored at every section to the v1.0 commitment it extends. Cross-references the operational Vault POC ground state from the 2026-06-03 runbook (`notes/vault-poc-runbook.md` on the 9975), which proved both `pki_arca` and `pki_tls` chains end-to-end. The seven `DR-IAM-*` rulings inherit from IAM-CORE-SPEC v1.0 unchanged where they remain ruling-pending; where this increment is able to bound the admissible set without Judge's ruling, it does so explicitly (per the SOM-CD13 base-case-invariant precedent set by the Einstein cross-substrate pass on 2026-06-02).
+**Status**: **Draft v0.3**, IAM Increment 2 of the spec roadmap. **v0.3 (re-mint dead-agent-window resolution + cross-pillar reference invariant, 2026-06-04):** Resolves the v0.2 Note-4 gap (Failure Modes — re-mint dead-agent window) via Path B: the re-mint state machine §B.4.1 holds the old Roster record in `suspended` (reversible) until the new record reaches `status=active`, then transitions the old to `deprovisioned`. New §B.4.3 commits the cross-pillar reference invariant (per Patton REQUIRED 2, `5db9340a`): in-flight cross-pillar references keyed to the old `agent_id`/`fingerprint` resolve against the old record's status and fail closed — they do NOT silently roll over to the new `agent_id`. New **IAM-INC2-CD11** commits the state machine + the three structural impossibilities (no dual-active, no dead-agent, no cross-pillar reference rollover); §B.5 reconciliation sweep extended to detect stranded re-mints and revert to the pre-re-mint state rather than re-drive a failed mint. Net effect: no dual-active window, no dead-agent window, no cross-pillar identity confusion across re-mint — all three are structurally impossible. **v0.2 (Bob review folds, post-merge):** v0.1 merged at PR #3 (`6fa773e`, 18:16Z) before Bob's close-out review posted; that touch folded four items — **FOLD-1** §B.2 headers read *atomic-or-reconciled* (matching the committed B.5/CD3 semantics); **FOLD-2** §C.1 names the cache-floor's coupling to the DR-IAM-4 in-flight-session ruling; **Note-3** §E.2 clarifies AD-group `job_code` is an AD read, not a Roster field; **Note-4** adds the re-mint dead-agent-window failure mode (now resolved at v0.3). v0.3 contract addition is IAM-INC2-CD11; the other ten CDs and seven DR-IAM statuses are unchanged. Builds on `IAM-CORE-SPEC.md` v1.0 (which is sealed at v1.0 as the architectural contract). Does NOT fork the v1.0 spec; this increment is the **specification of what was deferred**, anchored at every section to the v1.0 commitment it extends. Cross-references the operational Vault POC ground state from the 2026-06-03 runbook (`notes/vault-poc-runbook.md` on the 9975), which proved both `pki_arca` and `pki_tls` chains end-to-end. The seven `DR-IAM-*` rulings inherit from IAM-CORE-SPEC v1.0 unchanged where they remain ruling-pending; where this increment is able to bound the admissible set without Judge's ruling, it does so explicitly (per the SOM-CD13 base-case-invariant precedent set by the Einstein cross-substrate pass on 2026-06-02).
 
 **Authorship lane** (per Bob `24e95f40`, design session 2026-06-02/03 with Judge):
 - Bob captured the use-case scenarios + the AD-DC integration shape + the agent-out-of-secret-path lesson (the source notes `som-agent-identity-and-metering.md` and `vault-poc-runbook.md` on 9975).
@@ -243,6 +243,27 @@ The state machine the Publish pipeline executes for re-mint:
 #### B.4.2 Stranded Re-mint Recovery (couples to §B.5)
 
 If the new-record mint at Step 2 fails terminally and the old record remains stuck at `suspended` (the operator cannot complete the handoff), the §B.5 reconciliation sweep detects the stranded state and resolves it. See §B.5 for the detection and recovery logic; the design call is captured in **IAM-INC2-CD11** below.
+
+#### B.4.3 Cross-Pillar References Do NOT Roll Over Across Re-mint (per Patton REQUIRED, `5db9340a`)
+
+Re-mint creates a **new** `agent_id` and **new** `fingerprint` (§B.4 — "re-mint is a different agent, even if it reuses a callsign"). That "different agent" property must hold not just at mint time but across **every cross-pillar reference** that the old identity left behind. The spec commits the following invariant:
+
+**In-flight cross-pillar references to the OLD `agent_id`/`fingerprint` resolve against the OLD Roster record's status — they fail closed when it hits `suspended` (during the handoff window) or `deprovisioned` (after handoff). They do NOT silently roll over to the NEW `agent_id` even though the callsign continues to resolve to a working identity.**
+
+Concretely, across the cross-pillar surface during and after re-mint:
+
+- **PGE cache entries** (per §C.1 and §E.2): cache keyed to the OLD `(agent_id, fingerprint)` resolves against the OLD record. As soon as the old record transitions to `suspended` in step 1 of §B.4.1, the cache hit fails closed (cert chain on the cached credential no longer validates against an `active` identity). PGE re-evaluation re-reads the session credential; the new identity has a new session, with its own §C.1 cache entry under the new `agent_id`.
+- **IBX queued messages** (per §E.4): messages addressed to the OLD `principal_id` fail closed against the OLD record's `suspended`/`deprovisioned` state. They are **not** redelivered to the new `agent_id`. Cross-identity message routing across a re-mint requires an explicit operator-driven hand-off (analogous to forwarding a deprovisioned employee's mailbox), not implicit identity-rollover.
+- **ACT attributions** (per §E.3): events emitted before re-mint are attributed to the OLD `agent_id` permanently — that is the durable audit record (SOM-MI-1: audit retention is non-negotiable). Events emitted after the new identity activates are attributed to the NEW `agent_id`. There is no merged-identity audit record; the audit trail shows the re-mint event explicitly (`iam.remint_initiated` + `iam.remint_completed`) and a clean break in `agent_id` attribution.
+
+**Continuity is callsign-level, not identity-level.** The Launcher (§E.1) shows the callsign as "working again" after the new identity activates — that's the operationally meaningful continuity for humans. But every cross-pillar surface that consumes verified identity per `SOM-MI-3` (PGE, IBX, ACT, DPG, CRB) treats the new `agent_id` as a distinct principal. This is what makes "re-mint is a different agent" hold across the whole mesh, not just at mint time.
+
+The cross-references this couples to:
+- §C.1 — the session-scoped cache resolves the new identity at session-start; cross-session staleness over a re-mint is impossible because the cache is keyed to `agent_id` and the new identity has a different one.
+- §E.2 — PGE's read of `agent_id`/`fingerprint` is bound to the verified session credential; the credential cannot be the OLD identity's after the new identity activates.
+- §E.4 — IBX queue semantics fail closed against `deprovisioned`/`suspended` identities; this is already the spec's behavior, restated here to make the re-mint case explicit.
+
+This invariant binds without DR-IAM-3 (the revocation-window ruling) — it is a structural property of the cross-pillar surface, not a cadence question. When DR-IAM-3 lands and shortens cache windows, this invariant is unaffected.
 
 ### B.5 Reconciliation Sweep — Partial-Mint Recovery (per Patton FLAG 1, `bf98cc5b`)
 
@@ -492,7 +513,7 @@ No agent ever writes to the Roster. No PGE / ACT / IBX / Launcher write either.
 
 ---
 
-## Closed Decisions (CDs — v0.1 Commitments)
+## Closed Decisions (CDs — v0.1–v0.3 Commitments)
 
 **IAM-INC2-CD1**: **Agent-out-of-secret-path is a load-bearing structural invariant.** Agents never touch init/unseal/login/PKI-admin/root keys. Procedural rules are not enforcement; only structural unreachability is. Every section of this spec is consistent-by-construction with this invariant.
 
@@ -514,7 +535,13 @@ No agent ever writes to the Roster. No PGE / ACT / IBX / Launcher write either.
 
 **IAM-INC2-CD10**: **The IAM-CORE-SPEC v1.0 contract is preserved unchanged.** This increment extends it; nothing in this spec contradicts a CD/DR/VP/OQ from v1.0. Specifically: the four-services architecture, the dotted-line separation, the identity-vs-session distinction, the per-session credentials commitment, the immutable-identity / mutable-authority separation, and the trust-continuity commitments all carry through unchanged.
 
-**IAM-INC2-CD11** (added v0.3): **Re-mint is a state-machine handoff: suspend → new-mint → finalize, never dual-active and never dead-agent.** Per §B.4.1, the Publish pipeline executes re-mint as a four-step state machine: (1) suspend the old Roster record (`active` → `suspended`, terminating in-flight sessions per §D.2 but keeping the record reversible), (2) run §B.2 Step 1–5 atomic-or-reconciled for the new identity, (3) confirm the new record is `status=active` and passes the §E.1 read contract, (4) transition the old record `suspended` → `deprovisioned` (terminal, cost stops per §D.4). No interval permits both records `status=active` simultaneously (no dual-active). The old record is recoverable until handoff completes (no dead-agent window — if the new mint fails, §B.5 reverts the old to `active`). Resolves Failure Modes "Re-mint reuse without deprovision" (no dual-active is structural) and "Re-mint dead-agent window" (no dead window — the suspend is reversible until handoff). The trade-off Watson decided: prefer revert-on-failure over re-drive, because re-driving a mint that already failed once risks repeating the failure mode while reverting restores the operator's working pre-existing identity and gives a human room to investigate.
+**IAM-INC2-CD11** (added v0.3): **Re-mint is a state-machine handoff: suspend → new-mint → finalize, with three structural impossibilities — no dual-active, no dead-agent, and no cross-pillar reference rollover.** Per §B.4.1, the Publish pipeline executes re-mint as a four-step state machine: (1) suspend the old Roster record (`active` → `suspended`, terminating in-flight sessions per §D.2 but keeping the record reversible), (2) run §B.2 Step 1–5 atomic-or-reconciled for the new identity, (3) confirm the new record is `status=active` and passes the §E.1 read contract, (4) transition the old record `suspended` → `deprovisioned` (terminal, cost stops per §D.4). Three structural properties hold across the entire cross-pillar surface, not just at mint time:
+
+- **No dual-active**: no interval permits both records `status=active` simultaneously. The old record is `suspended` for the entire new-mint window.
+- **No dead-agent**: the old record is recoverable until handoff completes — if the new mint fails, §B.5 reverts the old back to `active`.
+- **No cross-pillar reference rollover** (per §B.4.3): in-flight cross-pillar references (PGE cache entries, queued IBX messages, ACT attributions) keyed to the OLD `agent_id`/`fingerprint` resolve against the OLD record's status and fail closed when it hits `suspended`/`deprovisioned`. They do NOT silently roll over to the new `agent_id`. Continuity is callsign-level for humans (Launcher §E.1), never identity-level for cross-pillar references — "re-mint is a different agent" holds across the whole mesh, not just at mint time.
+
+Resolves Failure Modes "Re-mint reuse without deprovision" (no dual-active is structural), "Re-mint dead-agent window" (no dead window — the suspend is reversible until handoff), and the implicit cross-pillar continuity gap (callsign-level continuity is explicit; identity-level rollover is structurally impossible). The trade-off Watson decided: prefer revert-on-failure over re-drive, because re-driving a mint that already failed once risks repeating the failure mode while reverting restores the operator's working pre-existing identity and gives a human room to investigate.
 
 ## Deferred-Pending-Increment-2-Rulings (DRs) — Status Inherited from IAM-CORE-SPEC v1.0
 
