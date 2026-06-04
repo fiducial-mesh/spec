@@ -86,10 +86,11 @@ per-pillar discipline.
 .NET 10 publishes container images directly (no Dockerfile). Host-level pieces that cannot
 containerize — the **PCS-Daemon** (controls host plugins, cf. `PCS-DAEMON-SPEC.md`), the
 GPU/driver layer, and the **`som` CLI** — ship as **RPM** (existing COPR muscle). Dual-format
-by necessity. Both the OCI contract and the RPM fallback apply to the same `ContainerBaseImage` /
-RPM-build parameterization discipline: substrate is per-environment, named, and gated by the
-delivery conformance run (per the install-time three-gate composite, DP-CD7 → DP-CD8 →
-`SOM-CONFORMANCE.md` CONF-CD4).
+by necessity. Both formats share the same *delivery discipline* — substrate is per-environment,
+named, and gated by the delivery conformance run (per the install-time three-gate composite,
+DP-CD7 → DP-CD8 → `SOM-CONFORMANCE.md` CONF-CD4) — though the specific parameterization
+differs by format (`ContainerBaseImage` for OCI; standard `%dist`/`buildroot` for the RPM
+build path).
 
 **DP-CD2 — Runtime: Podman + Quadlet (systemd), not Docker.** Rootless, no root daemon,
 SELinux-native (`:Z` labels), FIPS-friendly — the RHEL-native choice, and it removes the
