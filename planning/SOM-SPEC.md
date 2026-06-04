@@ -127,6 +127,24 @@ Contains the active agents that perform work — Reasoners (Watson, Bob, Patton,
 
 Per `SOM-PROBLEM-STATEMENT.md` v0.6 §0: the dotted line between Issuance and Control is **a deliberate security property, not tidiness**. Because ARCA is never in the action path, it can be kept offline; an offline authority cannot be attacked over the network during operation. Runtime verification is local (signature + trust chain), never a callback. The air-gap is the design assumption; every pillar's runtime behavior respects this separation.
 
+## Three-Layer Deployment Model
+
+Above the three internal planes (Issuance / Control / Workforce, which structure the *mesh* itself), SOM-as-a-deployed-product has three external **layers** that the customer experiences:
+
+```
+MCC          ← Mesh Control Center (humans drive here)
+─────────────────────────────────────────────
+Mesh         ← Eight pillars (IAM · IBX · PCS · ACT · AKB · CRB · PGE · DPG)
+─────────────────────────────────────────────
+Substrate    ← Customer-pluggable foundation (Vault, AD, OLTP, OTel sink, etc.)
+```
+
+- **Substrate** (bottom) is what the customer provides per the SOM-IP-1 substrate-pluggability principle (`SOM-MI-8` + `SOM-CD9` + `CONF-CD1..11`). Per-seam, per-tier conformance; SOM ships a reference connector but the customer chooses + operates the backend.
+- **Mesh** (middle) is the eight pillars (this spec's contract). The pillars consume substrate seams and expose their own seams to consumers. The three internal *planes* (Issuance + Control + Workforce, § Three-Plane Architecture below) structure how the mesh works internally.
+- **MCC** (top) is the human control plane (§ Mesh Control Center below). Aggregates pillar seams as panes for humans; agents consume the same pillar seams directly via MCP. MCC owns no business logic — it's a *consumer surface*, not a privileged layer.
+
+The customer's deployment story is "Substrate (you bring) + Mesh (we ship) + MCC (we ship)." One cohesive deployment, three layers reading top-to-bottom.
+
 ## Mesh Control Center (MCC)
 
 The **Mesh Control Center (MCC)** is the admin **control plane *over* the mesh** — the human single-pane that aggregates every pillar's seams. MCC is **not a 9th pillar**: SOM stays at eight (IAM, IBX, PCS, ACT, AKB, CRB, PGE, DPG). MCC aggregates; pillars own logic.
