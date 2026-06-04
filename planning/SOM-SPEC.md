@@ -127,6 +127,69 @@ Contains the active agents that perform work — Reasoners (Watson, Bob, Patton,
 
 Per `SOM-PROBLEM-STATEMENT.md` v0.6 §0: the dotted line between Issuance and Control is **a deliberate security property, not tidiness**. Because ARCA is never in the action path, it can be kept offline; an offline authority cannot be attacked over the network during operation. Runtime verification is local (signature + trust chain), never a callback. The air-gap is the design assumption; every pillar's runtime behavior respects this separation.
 
+## Three-Layer Deployment Model
+
+Above the three internal planes (Issuance / Control / Workforce, which structure the *mesh* itself), SOM-as-a-deployed-product has three external **layers** that the customer experiences:
+
+```
+MCC          ← Mesh Control Center (humans drive here)
+─────────────────────────────────────────────
+Mesh         ← Eight pillars (IAM · IBX · PCS · ACT · AKB · CRB · PGE · DPG)
+─────────────────────────────────────────────
+Substrate    ← Customer-pluggable foundation (Vault, AD, OLTP, OTel sink, etc.)
+```
+
+- **Substrate** (bottom) is what the customer provides per the substrate-substitutability invariant `SOM-MI-8` + its mesh-level enforcement `SOM-CD9` + the conformance mechanics `CONF-CD1..11`. Per-seam, per-tier conformance; SOM ships a reference connector but the customer chooses + operates the backend.
+- **Mesh** (middle) is the eight pillars (this spec's contract). The pillars consume substrate seams and expose their own seams to consumers. The three internal *planes* (Issuance + Control + Workforce, § Three-Plane Architecture below) structure how the mesh works internally.
+- **MCC** (top) is the human control plane (§ Mesh Control Center below). Aggregates pillar seams as panes for humans; agents consume the same pillar seams directly via MCP. MCC owns no business logic — it's a *consumer surface*, not a privileged layer.
+
+The customer's deployment story is "Substrate (you bring) + Mesh (we ship) + MCC (we ship)." One cohesive deployment, three layers reading top-to-bottom.
+
+## Mesh Control Center (MCC)
+
+The **Mesh Control Center (MCC)** is the admin **control plane *over* the mesh** — the human single-pane that aggregates every pillar's seams. MCC is **not a 9th pillar**: SOM stays at eight (IAM, IBX, PCS, ACT, AKB, CRB, PGE, DPG). MCC aggregates; pillars own logic.
+
+> **Naming**: "MCC" specifically, not "MCP." MCP (Model Context Protocol) is the agent-facing protocol; MCC is the human-facing control plane. Both surface the same pillar seams to different consumers.
+
+### Role — aggregator, not owner
+
+MCC presents the pillar surfaces; the surfaces *are* the pillars. Like Rancher over Kubernetes or the Azure Portal over Azure services, MCC embeds existing observability (Grafana, Prometheus, Tempo dashboards) rather than rebuilding it. MCC owns no business logic, no policy enforcement, no identity verification, no audit storage — it queries pillars and presents.
+
+### Two consumers, same seams
+
+- **Agents** consume the mesh via **MCP (Model Context Protocol)** — pillar surfaces exposed as MCP tools, agents call them directly
+- **Humans** consume the mesh via **MCC** — pillar surfaces presented as panes, humans navigate them
+
+This duality is structural: every pillar function is reachable via CLI/API/MCP (the agent surface), and MCC is a *client* of those same surfaces (the human surface). MCC is never privileged; it never bypasses a CLI command an agent could also run. The CLI-first/UI-second discipline (per `SOM-ENGINEERING-STANDARDS.md`) is what keeps MCC thin and prevents MCC from becoming a parallel-and-divergent control surface.
+
+### Panes (one per consumed pillar surface)
+
+| Pane | Source pillar | What it surfaces |
+|------|---------------|-------------------|
+| Roster | IAM | Agent identities, ARCA-mint state, lifecycle |
+| Inbox + Approval | IBX | Message queue, Judge approval gate |
+| Registry | PCS | Certified content browse, conformance status |
+| Audit + Metering | ACT | Audit events (SOM-MI-1 stream), metering rollups (SOM-MI-11 stream) |
+| Knowledge | AKB | Knowledge base browse + search |
+| Telemetry | (embedded Grafana/Prometheus/Tempo) | Cross-pillar traces, metrics dashboards (SOM-MI-11) |
+| Substrate + Conformance | (SOM-MI-8 + CONF-CD1..11) | Live substrate matrix, conformance attestation status per seam |
+| Compute | CRB | Job state, worker-pool status (SOM-MI-7) |
+
+The pane set is bounded by the pillar set. Adding a pillar adds a pane; removing a pane requires no pillar change (it's just a UI navigation surface).
+
+### Implementation
+
+- **Web (ASP.NET Core + Blazor)** — not desktop. Customer deployments are multi-user (admin teams); browser reachability from anywhere on the LAN + zero install per user beats desktop's per-machine model. Matches the "one cohesive deployment" commitment: MCC is part of the deployment, reachable as a web surface, not an additional desktop install per operator.
+- **Project**: `Som.Console` in `som-core` (per repo-shape decision — one .NET solution for all SOM implementation).
+- **Seed**: the current `inbox-ui` prototype (single-pane IBX approval-gate) graduates into MCC's first production pane. The UX patterns (Judge-only-can-approve, secret-path discipline, single-pane focus) carry over regardless of the rebuild to Blazor/web.
+- **Authentication**: MCC authenticates humans via IAM (federated to the customer's AD/Entra/IdP). MCC consumes the Identity seam exactly as agents do — same substrate-pluggable contract per SOM-MI-8 + CONF-CD1..11; the customer's IdP choice (AD / Entra / OpenLDAP / Keycloak) plugs in identically for human authentication and agent identity verification.
+
+### What MCC is NOT
+
+- **Not a 9th pillar** — adding MCC does not change the pillar count, the SOM-MI-10 invariant ("eight pillar contracts + the other twelve mesh invariants"), or the conformance scope. SOM-CD1 (eight pillars compose into one mesh) is unaffected.
+- **Not a runtime executor** — MCC presents surfaces; it does not enforce policy, mint identities, dispatch jobs, or write audit. Those live in their respective pillars.
+- **Not the only consumer surface** — agents consume via MCP independently; MCC's absence does not block agent operation. MCC is the *human* surface specifically.
+
 ## Cross-Pillar Dependency Graph
 
 Per Patton's `f346fdab` forward note. Rendered as ASCII so the seams are inspectable.
@@ -389,7 +452,13 @@ Beyond the pillar-level CDs, v1.0 SOM commits these **mesh invariants** that hol
 
 **SOM-MI-9**: **The seven IAM Increment-2 rulings are the single deferral surface for Judge.** All ruling-pending behavior across pillars couples to one of the seven (or to IBX DR1 + DR-IAM-7 for ITDR). No pillar introduces an Increment-2 ruling outside the seven without Judge sign-off + SOM-PILLAR-NAMES update.
 
-**SOM-MI-10**: **Mesh conformance is verifiable.** A deployment is conformant if and only if it satisfies all eight pillar contracts + the ten mesh invariants. Conformance is testable; the success criteria below name the tests.
+**SOM-MI-10**: **Mesh conformance is verifiable.** A deployment is conformant if and only if it satisfies all eight pillar contracts + the other twelve mesh invariants (SOM-MI-1..9 + SOM-MI-11..13). Conformance is testable; the success criteria below name the tests.
+
+**SOM-MI-11**: **Telemetry contract — every pillar emits OTLP traces, OTLP metrics, and JSON-structured logs with identity/session/service attributes.** Every pillar's runtime behavior is observable via OpenTelemetry: OTLP traces for cross-pillar operations, OTLP metrics for runtime state (including the token + cost counters that ACT consumes for chargeback), JSON-structured logs to stderr (stdout is reserved for MCP protocol channel) with `timestamp`, `level`, `message`, `service.name`, `service.version`, `trace_id`, `span_id`, `identity`, `session` keys plus event-specific fields. The customer selects the **Telemetry-sink** — App Insights / Azure Monitor, OCI Monitoring, Datadog, Grafana/Prometheus/Tempo stack, etc. — and configures the OTLP endpoint via `OTEL_EXPORTER_OTLP_ENDPOINT`; SOM does not name the sink. Definition-of-done weight equal to SOM-MI-1 (audit retention): a pillar without OTLP traces + OTLP metrics + structured-JSON logs is non-conformant. Distinct from SOM-MI-1: MI-1 governs *audit* telemetry (the durable accountability record); MI-11 governs *observability* telemetry (the operational + cost-attribution surface). ACT consumes both: audit events from the MI-1 stream, runtime metering from the MI-11 stream. Substrate-pluggability per SOM-MI-8 extends to the Telemetry-sink seam: the contract is OTLP-on-the-wire, never a specific backend.
+
+**SOM-MI-12**: **Spec-Harness-Registry primitive — pluggable-artifact governance follows the three-part contract.** When a pillar governs a set of pluggable artifacts — substrate products (per SOM-MI-8 conformance), plugins (per PCS), and future content classes (AKB knowledge curation, PGE rule packs) — the governance follows a three-part contract: (1) a declarative **Spec** (what a valid artifact must satisfy), (2) a mechanical **Test Harness** (the conformance gate — non-conformant artifacts are rejected), (3) a **Registry** (the certified set — only Harness-passed artifacts enter, versioned per the artifact-interface SemVer). The primitive already exists at two mesh-level surfaces: **substrate conformance** (SOM-MI-8 expressed via `CONF-CD1..11`: the Spec is the seam contract, the Harness is the conformance suite, the Registry is the substrate matrix), and **PCS plugin governance** (PCS-Syntax = Spec, PCS-Daemon writes the Registry after Harness pass, PCS-Registry = certified set). Future pluggable-artifact governance — AKB knowledge classes, PGE rule packs — SHOULD instantiate this primitive rather than rolling bespoke governance. Same Harness and Registry implementations can be reused across pillars; the only per-pillar variation is the Spec content. This invariant is what makes mesh-wide spec-driven governance a reusable architectural pattern rather than a coincidence.
+
+**SOM-MI-13**: **Distributed-half-state reconciliation — multi-store writes are atomic-or-reconciled, not atomically distributed.** When a pillar must apply writes across multiple external substrate stores (e.g., PCS-Daemon writing to Registry + state per PCS-Daemon CD5; DPG writing to worker-pool + state per DPG CD13; IAM ARCA-mint writing to Vault + AD + Roster per IAM-INC2 §B.5), the mesh does NOT require true distributed atomicity. Instead: (1) the write is best-effort applied to each store independently, (2) any partial failure is detected by a per-pillar reconciliation sweep with a bounded cadence, (3) the sweep converges the state to either fully-applied or fully-rolled-back within the bounded window. **The mesh-level invariant: no half-state persists past the sweep window.** Each pillar specifies its sweep cadence and window bound. The pattern has converged across three independent pillar specs (PCS-Daemon, DPG, IAM-Increment-2) — naming it as a mesh invariant prevents future pillars from re-inventing it or assuming true distributed atomicity is required.
 
 ## Closed Decisions (CDs — v1.0 Mesh Commitments)
 
@@ -407,7 +476,7 @@ Beyond the pillar-level CDs, v1.0 SOM commits these **mesh invariants** that hol
 
 **SOM-CD7**: **Post-merge forward-reference sweep tracked at mesh level** (SOM-OQ-1). Sweep-on-next-touch discipline; not blocking.
 
-**SOM-CD8**: **Ten mesh-level invariants** (§ Mesh-Level Invariants SOM-MI-1..10) hold across all pillars regardless of pillar version. Deviation is a mesh-conformance violation.
+**SOM-CD8**: **Thirteen mesh-level invariants** (§ Mesh-Level Invariants SOM-MI-1..13) hold across all pillars regardless of pillar version. Deviation is a mesh-conformance violation.
 
 **SOM-CD9**: **Substrate substitutability is mesh-level**, not just pillar-level. SOM-MI-8: no pillar's substrate may create lock-in for another. The mesh-level Exit Test is the conjunction of pillar-level Exit Tests.
 
@@ -418,6 +487,8 @@ Beyond the pillar-level CDs, v1.0 SOM commits these **mesh invariants** that hol
 **SOM-CD12**: **This spec is integrative, not derivative.** It does not re-derive pillar contracts; it asserts mesh-level composition. Each pillar's spec remains authoritative for that pillar; this spec is authoritative for the mesh.
 
 **SOM-CD13** (added per Einstein finding #3, `dc6ca481`): **The DR-IAM-2 external-anchor base case invariant is mesh-level discipline.** Bootstrap credentials originate from outside the mesh — host-level token, hardware-bound key, or offline-ARCA-provisioned initial credential. No in-mesh authority may serve as bootstrap source. This invariant binds at v1.0; the specific mechanism choice remains deferred to DR-IAM-2 ruling, but the *admissible set* is bounded now. Any future ruling that selects an in-mesh source is structurally inadmissible.
+
+**SOM-CD14**: **MCC (Mesh Control Center) is the human control plane, not a 9th pillar.** Per § Mesh Control Center (MCC): MCC aggregates pillar seams as panes for human operators; it owns no business logic, no policy enforcement, no identity verification, no audit storage. Pillar count stays at eight (SOM-CD1 unaffected); MCC is a *consumer surface* parallel to the agent-facing MCP protocol. The CLI-first/UI-second discipline (per `SOM-ENGINEERING-STANDARDS.md`) ensures every MCC pane reflects a CLI/API surface an agent could also call — MCC is never a privileged or parallel-and-divergent control surface. Implementation: web (ASP.NET Core + Blazor), `Som.Console` project in `som-core`. The `inbox-ui` prototype is the seed; production MCC grows from it.
 
 ## Deferred-Pending-Increment-2-Rulings (DRs)
 
@@ -479,7 +550,7 @@ Beyond the pillar-level CDs, v1.0 SOM commits these **mesh invariants** that hol
 ## Success Criteria
 
 - **All eight pillar contracts hold.** Per-pillar Success Criteria sections in each pillar spec. **Measure**: each pillar's spec is at validated v1.0 status (verified — IAM #64, IBX #63, ACT #65, PCS-Daemon #66, DPG #67, CRB #68, PGE #69, AKB three-spec gate #61).
-- **All ten mesh invariants hold.** SOM-MI-1..10. **Measure**: conformance test suite (post-v1.0 build target) verifies each invariant on a candidate deployment.
+- **All thirteen mesh invariants hold.** SOM-MI-1..13. **Measure**: conformance test suite (post-v1.0 build target) verifies each invariant on a candidate deployment.
 - **Seam composition is complete.** § Seam Composition Verification table is full at v1.0; no row says "gap" or "double-coverage." **Measure**: table reviewed at every SOM spec touch; new seams added when new pillar versions introduce couplings.
 - **Seven IAM Increment-2 rulings enumerated in ONE place.** § Seven IAM Increment-2 Rulings is the canonical table; every pillar DR that couples to a ruling cites the corresponding row. **Measure**: cross-spec grep for `DR-IAM-N` references; every reference matches a row.
 - **No silent front-running of Increment-2 rulings.** **Measure**: § Seven IAM Increment-2 Rulings table is reverse-derived from pillar DRs; reverse-derivation is reproducible (run the grep, compare to table).
