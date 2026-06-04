@@ -72,6 +72,17 @@ elsewhere in the corpus (SOM-MI-8 + § Tested Substrate Profiles in `SOM-SPEC.md
 the contract gate and names the default; the framework/product choice belongs to the
 implementer + environment.
 
+**The base-image escape-hatch is *proven*, not asserted** (per Patton review `e035dfef`, applying
+the same asserted-vs-measured discipline SOM-CD15 commits for substrate seams): the bundle build
+conformance run exercises **at least one non-UBI base** from the documented tested-base set
+(reference set: `{ubi9-minimal, wolfi-base (Chainguard distroless-ish), scratch-equivalent (.NET
+self-contained AOT)}` — the second proves the escape-hatch parameter actually works end-to-end
+through build → signing → install). A base image outside the tested set is a **new conformance
+run**, not a covered guarantee — same boundary discipline as § Tested Substrate Profiles applied
+one layer into packaging. This makes the `ContainerBaseImage` parameter a *measured property* of
+the build, not a *theoretical knob*. CI gates on the multi-base run alongside the single-image-
+per-pillar discipline.
+
 .NET 10 publishes container images directly (no Dockerfile). Host-level pieces that cannot
 containerize — the **PCS-Daemon** (controls host plugins, cf. `PCS-DAEMON-SPEC.md`), the
 GPU/driver layer, and the **`som` CLI** — ship as **RPM** (existing COPR muscle). Dual-format
