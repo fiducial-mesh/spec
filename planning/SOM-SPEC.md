@@ -127,6 +127,51 @@ Contains the active agents that perform work — Reasoners (Watson, Bob, Patton,
 
 Per `SOM-PROBLEM-STATEMENT.md` v0.6 §0: the dotted line between Issuance and Control is **a deliberate security property, not tidiness**. Because ARCA is never in the action path, it can be kept offline; an offline authority cannot be attacked over the network during operation. Runtime verification is local (signature + trust chain), never a callback. The air-gap is the design assumption; every pillar's runtime behavior respects this separation.
 
+## Mesh Control Center (MCC)
+
+The **Mesh Control Center (MCC)** is the admin **control plane *over* the mesh** — the human single-pane that aggregates every pillar's seams. MCC is **not a 9th pillar**: SOM stays at eight (IAM, IBX, PCS, ACT, AKB, CRB, PGE, DPG). MCC aggregates; pillars own logic.
+
+> **Naming**: "MCC" specifically, not "MCP." MCP (Model Context Protocol) is the agent-facing protocol; MCC is the human-facing control plane. Both surface the same pillar seams to different consumers.
+
+### Role — aggregator, not owner
+
+MCC presents the pillar surfaces; the surfaces *are* the pillars. Like Rancher over Kubernetes or the Azure Portal over Azure services, MCC embeds existing observability (Grafana, Prometheus, Tempo dashboards) rather than rebuilding it. MCC owns no business logic, no policy enforcement, no identity verification, no audit storage — it queries pillars and presents.
+
+### Two consumers, same seams
+
+- **Agents** consume the mesh via **MCP (Model Context Protocol)** — pillar surfaces exposed as MCP tools, agents call them directly
+- **Humans** consume the mesh via **MCC** — pillar surfaces presented as panes, humans navigate them
+
+This duality is structural: every pillar function is reachable via CLI/API/MCP (the agent surface), and MCC is a *client* of those same surfaces (the human surface). MCC is never privileged; it never bypasses a CLI command an agent could also run. The CLI-first/UI-second discipline (per `SOM-ENGINEERING-STANDARDS.md`) is what keeps MCC thin and prevents MCC from becoming a parallel-and-divergent control surface.
+
+### Panes (one per consumed pillar surface)
+
+| Pane | Source pillar | What it surfaces |
+|------|---------------|-------------------|
+| Roster | IAM | Agent identities, ARCA-mint state, lifecycle |
+| Inbox + Approval | IBX | Message queue, Judge approval gate |
+| Registry | PCS | Certified content browse, conformance status |
+| Audit + Metering | ACT | Audit events (SOM-MI-1 stream), metering rollups (SOM-MI-11 stream) |
+| Knowledge | AKB | Knowledge base browse + search |
+| Telemetry | (embedded Grafana/Prometheus/Tempo) | Cross-pillar traces, metrics dashboards (SOM-MI-11) |
+| Substrate + Conformance | (SOM-MI-8 + CONF-CD1..11) | Live substrate matrix, conformance attestation status per seam |
+| Compute | CRB | Job state, worker-pool status (SOM-MI-7) |
+
+The pane set is bounded by the pillar set. Adding a pillar adds a pane; removing a pane requires no pillar change (it's just a UI navigation surface).
+
+### Implementation
+
+- **Web (ASP.NET Core + Blazor)** — not desktop. Customer deployments are multi-user (admin teams); browser reachability from anywhere on the LAN + zero install per user beats desktop's per-machine model. Matches the "one cohesive deployment" commitment: MCC is part of the deployment, reachable as a web surface, not an additional desktop install per operator.
+- **Project**: `Som.Console` in `som-core` (per repo-shape decision — one .NET solution for all SOM implementation).
+- **Seed**: the current `inbox-ui` prototype (single-pane IBX approval-gate) graduates into MCC's first production pane. The UX patterns (Judge-only-can-approve, secret-path discipline, single-pane focus) carry over regardless of the rebuild to Blazor/web.
+- **Authentication**: MCC authenticates humans via IAM (federated to the customer's AD/Entra/IdP). The MCC pane is itself a SOM-IP-1-style consumer of the Identity seam.
+
+### What MCC is NOT
+
+- **Not a 9th pillar** — adding MCC does not change the pillar count, the SOM-MI-10 invariant ("eight pillar contracts + eleven mesh invariants"), or the conformance scope. SOM-CD1 (eight pillars compose into one mesh) is unaffected.
+- **Not a runtime executor** — MCC presents surfaces; it does not enforce policy, mint identities, dispatch jobs, or write audit. Those live in their respective pillars.
+- **Not the only consumer surface** — agents consume via MCP independently; MCC's absence does not block agent operation. MCC is the *human* surface specifically.
+
 ## Cross-Pillar Dependency Graph
 
 Per Patton's `f346fdab` forward note. Rendered as ASCII so the seams are inspectable.
@@ -420,6 +465,8 @@ Beyond the pillar-level CDs, v1.0 SOM commits these **mesh invariants** that hol
 **SOM-CD12**: **This spec is integrative, not derivative.** It does not re-derive pillar contracts; it asserts mesh-level composition. Each pillar's spec remains authoritative for that pillar; this spec is authoritative for the mesh.
 
 **SOM-CD13** (added per Einstein finding #3, `dc6ca481`): **The DR-IAM-2 external-anchor base case invariant is mesh-level discipline.** Bootstrap credentials originate from outside the mesh — host-level token, hardware-bound key, or offline-ARCA-provisioned initial credential. No in-mesh authority may serve as bootstrap source. This invariant binds at v1.0; the specific mechanism choice remains deferred to DR-IAM-2 ruling, but the *admissible set* is bounded now. Any future ruling that selects an in-mesh source is structurally inadmissible.
+
+**SOM-CD14**: **MCC (Mesh Control Center) is the human control plane, not a 9th pillar.** Per § Mesh Control Center (MCC): MCC aggregates pillar seams as panes for human operators; it owns no business logic, no policy enforcement, no identity verification, no audit storage. Pillar count stays at eight (SOM-CD1 unaffected); MCC is a *consumer surface* parallel to the agent-facing MCP protocol. The CLI-first/UI-second discipline (per `SOM-ENGINEERING-STANDARDS.md`) ensures every MCC pane reflects a CLI/API surface an agent could also call — MCC is never a privileged or parallel-and-divergent control surface. Implementation: web (ASP.NET Core + Blazor), `Som.Console` project in `som-core`. The `inbox-ui` prototype is the seed; production MCC grows from it.
 
 ## Deferred-Pending-Increment-2-Rulings (DRs)
 
