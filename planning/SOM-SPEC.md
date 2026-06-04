@@ -186,7 +186,7 @@ The pane set is bounded by the pillar set. Adding a pillar adds a pane; removing
 
 ### What MCC is NOT
 
-- **Not a 9th pillar** — adding MCC does not change the pillar count, the SOM-MI-10 invariant ("eight pillar contracts + eleven mesh invariants"), or the conformance scope. SOM-CD1 (eight pillars compose into one mesh) is unaffected.
+- **Not a 9th pillar** — adding MCC does not change the pillar count, the SOM-MI-10 invariant ("eight pillar contracts + the other twelve mesh invariants"), or the conformance scope. SOM-CD1 (eight pillars compose into one mesh) is unaffected.
 - **Not a runtime executor** — MCC presents surfaces; it does not enforce policy, mint identities, dispatch jobs, or write audit. Those live in their respective pillars.
 - **Not the only consumer surface** — agents consume via MCP independently; MCC's absence does not block agent operation. MCC is the *human* surface specifically.
 
