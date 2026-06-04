@@ -145,6 +145,29 @@ Substrate    ← Customer-pluggable foundation (Vault, AD, OLTP, OTel sink, etc.
 
 The customer's deployment story is "Substrate (you bring) + Mesh (we ship) + MCC (we ship)." One cohesive deployment, three layers reading top-to-bottom.
 
+## Tested Substrate Profiles
+
+This section names the **exact substrate profile set** SOM-MI-8 substitutability is defined against. The set is **the boundary of the substitutability claim, not an illustration of a broader one**: a deployment that swaps in a substrate listed here is covered by the multi-profile conformance run (per SOM-CD15 + CONF-CD1..11); a substrate outside the set is a **new conformance run, not a covered claim**. "Substitutable" without naming the set is the overclaim Einstein's coherence pass surfaced; this table is the fence.
+
+Per CONF-CD11, profile content is owned by the pillar that owns the seam — each pillar's spec is authoritative for what its substrate must support, and the conformance suite codifies its actual query/usage patterns. The table below names the *currently-targeted* profile set (the multi-profile axis the conformance run binds against); pillar specs are the source of truth for the contract each profile must satisfy.
+
+| Seam | Profile A (sovereign ref) | Profile B (commercial / on-prem alt) | Profile C (commercial / cloud alt) | Semantic axis deliberately spanned |
+|------|---------------------------|---------------------------------------|-------------------------------------|-----------------------------------|
+| **IBX message store** | ClickHouse (sovereign current) | Postgres 16+ | Microsoft SQL Server 2025 | columnar/append-streaming vs row-transactional |
+| **ACT event store** | Postgres + append-only schema | Microsoft SQL Server 2025 | Oracle 23ai Free | open-source vs MS-stack vs Oracle-stack |
+| **AKB vector store** | Postgres + pgvector | Qdrant | Azure AI Search | embedded-in-RDBMS vs purpose-built vs cloud-managed |
+| **IAM identity backend** | Samba AD DC | Microsoft Active Directory | Entra ID | sovereign on-prem vs commercial on-prem vs cloud IdP |
+| **IAM secrets + PKI** | OpenBao | HashiCorp Vault | Azure Key Vault | open-fork vs commercial-source vs cloud-managed |
+| **PCS Registry storage** | Filesystem (sovereign ref) | Postgres | S3-compatible object store | local-fs vs RDBMS vs object-store |
+| **PGE rule corpus** | YAML on filesystem | OPA bundle | Postgres | static-config vs runtime-engine vs RDBMS |
+| **CRB compute dispatch** | DAC (sovereign current) | HashiCorp Nomad | Kubernetes | direct-attached-compute vs orchestrator vs cloud-orchestrator |
+| **DPG sandbox boundary** | Git worktree (sovereign current) | OCI container | KVM micro-VM | filesystem-isolation vs container-isolation vs hypervisor-isolation |
+| **Telemetry sink** (per SOM-MI-11) | OTel Collector → Tempo/Prometheus | Azure Monitor / App Insights | Datadog | open-stack vs MS-stack vs SaaS observability |
+
+**The three-profile minimum is the conformance discipline, not a target ceiling.** Per CONF-CD7 (per-seam + cross-seam) and CONF-CD11 (pillar-owned profile content), the multi-profile run for each seam is the structural mechanism that catches a co-evolved som-core seam silently encoding a substrate-specific property: if the seam works on Profile A but breaks on Profile B or C, the off-profile failure surfaces at CI before merge. That is what makes the som-core monorepo's co-evolved seams (PCT, event enum, identity claims, etc., per REPO-SHAPE-DECISIONS § som-core) provably substrate-neutral rather than asserted-substrate-neutral.
+
+**Adding to the set is a deliberate motion.** A future substrate added to a row (e.g., MongoDB at IBX, Postgres at AKB-without-pgvector, AWS Secrets Manager at IAM) requires: (1) a profile definition codifying that substrate's query/usage pattern per CONF-CD11, (2) a conformance suite extension to test the seams against it, and (3) the multi-profile run passing. Until those three land, the new substrate is **not** part of the SOM-MI-8 guarantee; consumers depending on it ship under their own evaluation. This is the same boundary discipline as `SOM-DELIVERY-PACKAGING.md` DP-CD's base-OS-scope wording (tested-on-RHEL-family-not-any-Linux) — bounded, named, honest.
+
 ## Mesh Control Center (MCC)
 
 The **Mesh Control Center (MCC)** is the admin **control plane *over* the mesh** — the human single-pane that aggregates every pillar's seams. MCC is **not a 9th pillar**: SOM stays at eight (IAM, IBX, PCS, ACT, AKB, CRB, PGE, DPG). MCC aggregates; pillars own logic.
@@ -448,7 +471,7 @@ Beyond the pillar-level CDs, v1.0 SOM commits these **mesh invariants** that hol
 
 **SOM-MI-7**: **Worker-pool dispatch (SKIP-LOCKED claim + lease/timeout + idempotency + mid-action-safe termination) is the canonical pattern for parallel workloads of a single identity.** DPG v1.0 CD7 commits this; future pillars with parallel-worker concerns follow.
 
-**SOM-MI-8**: **Substrate substitutability per Exit Test holds at every pillar.** A deployment that substitutes any one pillar's substrate (e.g., NATS for ClickHouse at IBX; OPA for per-server tests at PGE; Nomad for DAC at CRB) must not break the mesh contract. The mesh-level Exit Test is the conjunction of pillar-level Exit Tests; substrate choice in one pillar may not create lock-in for another.
+**SOM-MI-8**: **Substrate substitutability is defined as passing the multi-profile conformance run, not asserted as a property.** A pillar is substitutable across exactly the profiles its seam contracts are tested against in § Tested Substrate Profiles — and no further. The mesh-level Exit Test is the conjunction of pillar-level conformance suite passes (CONF-CD1..11) against the named profile set; substrate choice in one pillar may not create lock-in for another, *because* the conformance run catches a co-evolved som-core seam that would silently encode a substrate-specific property. The substrate-neutrality of co-evolved som-core seams (PCT nine-field surface, bounded ACT event enum, identity claims, et al.) is what the multi-profile run **proves**, not what this spec **asserts**. A seam change that fails any profile in § Tested Substrate Profiles does not merge (SOM-CD15). This converts the build-time-coupling (monorepo) vs runtime-substitutability (this invariant) orthogonality from asserted-orthogonal to measured-orthogonal on every CI run.
 
 **SOM-MI-9**: **The seven IAM Increment-2 rulings are the single deferral surface for Judge.** All ruling-pending behavior across pillars couples to one of the seven (or to IBX DR1 + DR-IAM-7 for ITDR). No pillar introduces an Increment-2 ruling outside the seven without Judge sign-off + SOM-PILLAR-NAMES update.
 
@@ -478,7 +501,7 @@ Beyond the pillar-level CDs, v1.0 SOM commits these **mesh invariants** that hol
 
 **SOM-CD8**: **Thirteen mesh-level invariants** (§ Mesh-Level Invariants SOM-MI-1..13) hold across all pillars regardless of pillar version. Deviation is a mesh-conformance violation.
 
-**SOM-CD9**: **Substrate substitutability is mesh-level**, not just pillar-level. SOM-MI-8: no pillar's substrate may create lock-in for another. The mesh-level Exit Test is the conjunction of pillar-level Exit Tests.
+**SOM-CD9**: **Substrate substitutability is mesh-level**, not just pillar-level. SOM-MI-8: no pillar's substrate may create lock-in for another. The mesh-level Exit Test is the conjunction of pillar-level conformance suite passes against the profile set named in § Tested Substrate Profiles, enforced at CI by SOM-CD15.
 
 **SOM-CD10**: **PGE is single source of policy truth (SOM-MI-2); IAM is single source of verified identity (SOM-MI-3); ACT is single source of cross-pillar audit (SOM-MI-1).** Three uniform-surface commitments that distinguish a mesh from a federation of independent pillars.
 
@@ -489,6 +512,8 @@ Beyond the pillar-level CDs, v1.0 SOM commits these **mesh invariants** that hol
 **SOM-CD13** (added per Einstein finding #3, `dc6ca481`): **The DR-IAM-2 external-anchor base case invariant is mesh-level discipline.** Bootstrap credentials originate from outside the mesh — host-level token, hardware-bound key, or offline-ARCA-provisioned initial credential. No in-mesh authority may serve as bootstrap source. This invariant binds at v1.0; the specific mechanism choice remains deferred to DR-IAM-2 ruling, but the *admissible set* is bounded now. Any future ruling that selects an in-mesh source is structurally inadmissible.
 
 **SOM-CD14**: **MCC (Mesh Control Center) is the human control plane, not a 9th pillar.** Per § Mesh Control Center (MCC): MCC aggregates pillar seams as panes for human operators; it owns no business logic, no policy enforcement, no identity verification, no audit storage. Pillar count stays at eight (SOM-CD1 unaffected); MCC is a *consumer surface* parallel to the agent-facing MCP protocol. The CLI-first/UI-second discipline (per `SOM-ENGINEERING-STANDARDS.md`) ensures every MCC pane reflects a CLI/API surface an agent could also call — MCC is never a privileged or parallel-and-divergent control surface. Implementation: web (ASP.NET Core + Blazor), `Som.Console` project in `som-core`. The `inbox-ui` prototype is the seed; production MCC grows from it.
+
+**SOM-CD15** (added per Einstein STRAIN #1, `f43fff7f` + `b808eb5e`): **Co-evolved som-core seams are substrate-neutral by construction, enforced by the multi-profile conformance run — not by reviewer judgment.** Per § Tested Substrate Profiles + SOM-MI-8: a seam change in the `som-core` monorepo that fails any profile in the named profile set does not merge. This is the structural mechanism that makes the monorepo decision (REPO-SHAPE-DECISIONS § som-core) and the substitutability invariant (SOM-MI-8) provably compatible rather than asserted-compatible. The position is *"we are substitutable across exactly what we test, and here is what we test"* (§ Tested Substrate Profiles is the boundary of the claim, not an illustration). Adding a substrate to the set is a deliberate motion requiring a profile definition (CONF-CD11), a conformance suite extension (CONF-CD9), and the multi-profile run passing. Substrates outside the set are new conformance runs, not covered claims. This commits the enforcement-vs-principle discipline applied throughout the corpus to the substrate-neutrality property specifically: CI proves it; reviewer judgment does not.
 
 ## Deferred-Pending-Increment-2-Rulings (DRs)
 

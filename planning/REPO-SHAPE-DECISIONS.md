@@ -2,7 +2,7 @@
 title: "Repo Shape Decisions — Diagnostic for Single-Repo vs. Multi-Repo Choices"
 doc_type: shared-context
 status: draft
-version: v0.3
+version: v0.4
 authors:
   - watson
   - patton
@@ -23,7 +23,10 @@ references:
 
 **Scope**: Records the decision rule for "should this system be one repo or multiple repos?" so future architecture decisions can be answered against the diagnostic instead of re-derived each time.
 
-**Status**: Draft v0.3 — extends the som-core monorepo decision to **all SOM implementation pillars**, recognizes the **one-cohesive-Spec** directive (Judge 2026-06-04), and adds the **§ Actual-State Reconciliation** section enumerating existing SOM-prefixed repos and their target destinations under the cohesive-deployment model. AKB-as-cohesive-peer is explicitly named (no satellite carve-out per Judge directive). Builds on v0.2 (the original som-core anchoring example) and v0.1 (the diagnostic itself).
+**Status**: Draft v0.4 — closes the monorepo-vs-substitutability shear surfaced by Einstein's whole-system coherence pass (STRAIN #1, `f43fff7f` + `b808eb5e`, 2026-06-04). The som-core anchoring example now cites SOM-CD15 + § Tested Substrate Profiles in `SOM-SPEC.md` as the structural mechanism that makes co-evolved seams substrate-neutral by CI enforcement rather than reviewer judgment. No diagnostic change. Builds on v0.3 (the cohesive-Solution + AKB-as-peer + Actual-State Reconciliation), v0.2 (the original som-core anchoring example), and v0.1 (the diagnostic itself).
+
+**v0.4 changes** (from v0.3, 2026-06-04 evening):
+- § som-core anchoring example — added one paragraph naming SOM-CD15 + § Tested Substrate Profiles as the enforcement mechanism that makes the monorepo's co-evolved seams provably substrate-neutral rather than asserted-substrate-neutral. Closes Einstein STRAIN #1 from the whole-system coherence pass (Patton adjudication, `f43fff7f`). The diagnostic itself is unchanged; this is a cross-reference fold that lands the answer to "doesn't the monorepo undermine SOM-MI-8?" at the site a reader would look.
 
 **v0.3 changes** (from v0.2, 2026-06-02):
 - § The Two Anchoring Examples → § The Three Anchoring Examples — AKB anchoring example updated to reflect its **fold-in to som-core** as a cohesive peer (the original AKB-as-standalone single-repo decision was correct for Phase-1; the v0.3 update recognizes that Judge's "one cohesive Spec / Solution / Deployment" directive folds Phase-N AKB implementation into som-core history-preserving)
@@ -105,6 +108,8 @@ Applied to the diagnostic (Watson + Bob design 2026-06-02; Judge directive 2026-
 | Different deployment surfaces? | **NO** — all pillar services ship as OCI containers on UBI base per `SOM-DELIVERY-PACKAGING.md` DP-CD1, under the same orchestrator surface (Quadlet → Nomad → Helm tier mapping per DP-CD2); the entire mesh is one delivery contract; the Three-Layer Deployment Model (per `SOM-SPEC.md` § Three-Layer Deployment Model) commits this — *Substrate (customer brings) + Mesh (we ship) + MCC (we ship)* is one deployment story |
 
 Four NOs / one YES (on tight-coupling) = unambiguously single-repo across all eight pillars.
+
+**The monorepo's co-evolved seams do NOT threaten SOM-MI-8 substitutability**, because substrate-neutrality of the co-evolved seams is enforced by the multi-profile conformance run (`SOM-SPEC.md` SOM-CD15 + § Tested Substrate Profiles), not assumed. The monorepo makes it *easier* for a co-evolution commit to silently encode a substrate-specific property into a shared seam (PCT nine-field surface, bounded ACT event enum, identity claims); without an enforcement mechanism, that leak would slip past reviewer judgment. The CI run against the named profile set catches the leak before merge — a seam change that fails any profile in the substrate-profile table does not merge. This is what makes the build-time coupling (monorepo) and runtime substitutability (SOM-MI-8) **measured-orthogonal** rather than asserted-orthogonal. Einstein's whole-system coherence pass surfaced this fragility as STRAIN #1 (`f43fff7f`, 2026-06-04); SOM-CD15 + § Tested Substrate Profiles is the resolution.
 
 **Polyglot inside som-core is fine.** Per `project_som_csharp_target_stack`, the C# pillars use .NET 10 LTS; ACT specifically uses Python (ML/analytics adjacency); the Python ACT lives as `som-core/python/act/`. Shared `/contracts` and `/conventions` directories at the solution root govern cross-language seams. The Python pillar is a *build job* in the same CI workflow, not a repo split. The MCC (`Som.Console` project per SOM-CD14) lives in the same solution.
 
