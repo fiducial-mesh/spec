@@ -57,14 +57,28 @@ Two governing principles carried from the mesh:
 
 ## Closed Decisions (Draft — pending review chain)
 
-**DP-CD1 — Artifact unit: OCI containers on a UBI base + RPM for host-resident bits.**
-Containers are the unit for the C#-plus-Python mesh (one image per pillar service; identical
-image on both tiers). Base on **Red Hat UBI** (`ubi9-minimal`) → base image is itself
-RHEL-supported + FIPS-capable, and the identical image runs on the Rocky/Alma lab tier.
+**DP-CD1 — Artifact unit: OCI container (contract) + RPM for host-resident bits.**
+The contract gate is **OCI container** — every pillar service ships as an OCI image; one image per
+pillar service; identical image on both tiers. The base image is a **per-environment parameter**
+(`ContainerBaseImage`), NOT a hard mandate — the same `dotnet publish` build emits the sovereign
+default for the lab and IHFA tier and emits a customer's approved base for non-RHEL AI-infra
+deployments.
+
+The **sovereign-reference + RHEL-AI-infra default is Red Hat UBI** (`ubi9-minimal`): RHEL-supported,
+FIPS-capable, identical image runs on the Rocky/Alma lab tier, and matches the enterprise AI-infra
+norm (RHEL-dominant in the AI-platform space and IHFA's stack). UBI is **named as the documented
+justified default, not as the spec-level requirement** — per the framework-naming discipline applied
+elsewhere in the corpus (SOM-MI-8 + § Tested Substrate Profiles in `SOM-SPEC.md`), the spec describes
+the contract gate and names the default; the framework/product choice belongs to the
+implementer + environment.
+
 .NET 10 publishes container images directly (no Dockerfile). Host-level pieces that cannot
 containerize — the **PCS-Daemon** (controls host plugins, cf. `PCS-DAEMON-SPEC.md`), the
 GPU/driver layer, and the **`som` CLI** — ship as **RPM** (existing COPR muscle). Dual-format
-by necessity.
+by necessity. Both the OCI contract and the RPM fallback apply to the same `ContainerBaseImage` /
+RPM-build parameterization discipline: substrate is per-environment, named, and gated by the
+delivery conformance run (per the install-time three-gate composite, DP-CD7 → DP-CD8 →
+`SOM-CONFORMANCE.md` CONF-CD4).
 
 **DP-CD2 — Runtime: Podman + Quadlet (systemd), not Docker.** Rootless, no root daemon,
 SELinux-native (`:Z` labels), FIPS-friendly — the RHEL-native choice, and it removes the
