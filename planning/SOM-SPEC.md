@@ -139,7 +139,7 @@ Mesh         ← Eight pillars (IAM · IBX · PCS · ACT · AKB · CRB · PGE ·
 Substrate    ← Customer-pluggable foundation (Vault, AD, OLTP, OTel sink, etc.)
 ```
 
-- **Substrate** (bottom) is what the customer provides per the SOM-IP-1 substrate-pluggability principle (`SOM-MI-8` + `SOM-CD9` + `CONF-CD1..11`). Per-seam, per-tier conformance; SOM ships a reference connector but the customer chooses + operates the backend.
+- **Substrate** (bottom) is what the customer provides per the substrate-substitutability invariant `SOM-MI-8` + its mesh-level enforcement `SOM-CD9` + the conformance mechanics `CONF-CD1..11`. Per-seam, per-tier conformance; SOM ships a reference connector but the customer chooses + operates the backend.
 - **Mesh** (middle) is the eight pillars (this spec's contract). The pillars consume substrate seams and expose their own seams to consumers. The three internal *planes* (Issuance + Control + Workforce, § Three-Plane Architecture below) structure how the mesh works internally.
 - **MCC** (top) is the human control plane (§ Mesh Control Center below). Aggregates pillar seams as panes for humans; agents consume the same pillar seams directly via MCP. MCC owns no business logic — it's a *consumer surface*, not a privileged layer.
 
@@ -182,7 +182,7 @@ The pane set is bounded by the pillar set. Adding a pillar adds a pane; removing
 - **Web (ASP.NET Core + Blazor)** — not desktop. Customer deployments are multi-user (admin teams); browser reachability from anywhere on the LAN + zero install per user beats desktop's per-machine model. Matches the "one cohesive deployment" commitment: MCC is part of the deployment, reachable as a web surface, not an additional desktop install per operator.
 - **Project**: `Som.Console` in `som-core` (per repo-shape decision — one .NET solution for all SOM implementation).
 - **Seed**: the current `inbox-ui` prototype (single-pane IBX approval-gate) graduates into MCC's first production pane. The UX patterns (Judge-only-can-approve, secret-path discipline, single-pane focus) carry over regardless of the rebuild to Blazor/web.
-- **Authentication**: MCC authenticates humans via IAM (federated to the customer's AD/Entra/IdP). The MCC pane is itself a SOM-IP-1-style consumer of the Identity seam.
+- **Authentication**: MCC authenticates humans via IAM (federated to the customer's AD/Entra/IdP). MCC consumes the Identity seam exactly as agents do — same substrate-pluggable contract per SOM-MI-8 + CONF-CD1..11; the customer's IdP choice (AD / Entra / OpenLDAP / Keycloak) plugs in identically for human authentication and agent identity verification.
 
 ### What MCC is NOT
 
@@ -452,7 +452,7 @@ Beyond the pillar-level CDs, v1.0 SOM commits these **mesh invariants** that hol
 
 **SOM-MI-9**: **The seven IAM Increment-2 rulings are the single deferral surface for Judge.** All ruling-pending behavior across pillars couples to one of the seven (or to IBX DR1 + DR-IAM-7 for ITDR). No pillar introduces an Increment-2 ruling outside the seven without Judge sign-off + SOM-PILLAR-NAMES update.
 
-**SOM-MI-10**: **Mesh conformance is verifiable.** A deployment is conformant if and only if it satisfies all eight pillar contracts + the thirteen mesh invariants. Conformance is testable; the success criteria below name the tests.
+**SOM-MI-10**: **Mesh conformance is verifiable.** A deployment is conformant if and only if it satisfies all eight pillar contracts + the other twelve mesh invariants (SOM-MI-1..9 + SOM-MI-11..13). Conformance is testable; the success criteria below name the tests.
 
 **SOM-MI-11**: **Telemetry contract — every pillar emits OTLP traces, OTLP metrics, and JSON-structured logs with identity/session/service attributes.** Every pillar's runtime behavior is observable via OpenTelemetry: OTLP traces for cross-pillar operations, OTLP metrics for runtime state (including the token + cost counters that ACT consumes for chargeback), JSON-structured logs to stderr (stdout is reserved for MCP protocol channel) with `timestamp`, `level`, `message`, `service.name`, `service.version`, `trace_id`, `span_id`, `identity`, `session` keys plus event-specific fields. The customer selects the **Telemetry-sink** — App Insights / Azure Monitor, OCI Monitoring, Datadog, Grafana/Prometheus/Tempo stack, etc. — and configures the OTLP endpoint via `OTEL_EXPORTER_OTLP_ENDPOINT`; SOM does not name the sink. Definition-of-done weight equal to SOM-MI-1 (audit retention): a pillar without OTLP traces + OTLP metrics + structured-JSON logs is non-conformant. Distinct from SOM-MI-1: MI-1 governs *audit* telemetry (the durable accountability record); MI-11 governs *observability* telemetry (the operational + cost-attribution surface). ACT consumes both: audit events from the MI-1 stream, runtime metering from the MI-11 stream. Substrate-pluggability per SOM-MI-8 extends to the Telemetry-sink seam: the contract is OTLP-on-the-wire, never a specific backend.
 
