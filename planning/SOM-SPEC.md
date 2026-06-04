@@ -434,9 +434,11 @@ Beyond the pillar-level CDs, v1.0 SOM commits these **mesh invariants** that hol
 
 **SOM-MI-9**: **The seven IAM Increment-2 rulings are the single deferral surface for Judge.** All ruling-pending behavior across pillars couples to one of the seven (or to IBX DR1 + DR-IAM-7 for ITDR). No pillar introduces an Increment-2 ruling outside the seven without Judge sign-off + SOM-PILLAR-NAMES update.
 
-**SOM-MI-10**: **Mesh conformance is verifiable.** A deployment is conformant if and only if it satisfies all eight pillar contracts + the eleven mesh invariants. Conformance is testable; the success criteria below name the tests.
+**SOM-MI-10**: **Mesh conformance is verifiable.** A deployment is conformant if and only if it satisfies all eight pillar contracts + the twelve mesh invariants. Conformance is testable; the success criteria below name the tests.
 
 **SOM-MI-11**: **Telemetry contract — every pillar emits OTLP traces, OTLP metrics, and JSON-structured logs with identity/session/service attributes.** Every pillar's runtime behavior is observable via OpenTelemetry: OTLP traces for cross-pillar operations, OTLP metrics for runtime state (including the token + cost counters that ACT consumes for chargeback), JSON-structured logs to stderr (stdout is reserved for MCP protocol channel) with `timestamp`, `level`, `message`, `service.name`, `service.version`, `trace_id`, `span_id`, `identity`, `session` keys plus event-specific fields. The customer selects the **Telemetry-sink** — App Insights / Azure Monitor, OCI Monitoring, Datadog, Grafana/Prometheus/Tempo stack, etc. — and configures the OTLP endpoint via `OTEL_EXPORTER_OTLP_ENDPOINT`; SOM does not name the sink. Definition-of-done weight equal to SOM-MI-1 (audit retention): a pillar without OTLP traces + OTLP metrics + structured-JSON logs is non-conformant. Distinct from SOM-MI-1: MI-1 governs *audit* telemetry (the durable accountability record); MI-11 governs *observability* telemetry (the operational + cost-attribution surface). ACT consumes both: audit events from the MI-1 stream, runtime metering from the MI-11 stream. Substrate-pluggability per SOM-MI-8 extends to the Telemetry-sink seam: the contract is OTLP-on-the-wire, never a specific backend.
+
+**SOM-MI-12**: **Spec-Harness-Registry primitive — pluggable-artifact governance follows the three-part contract.** When a pillar governs a set of pluggable artifacts — substrate products (per SOM-MI-8 conformance), plugins (per PCS), and future content classes (AKB knowledge curation, PGE rule packs) — the governance follows a three-part contract: (1) a declarative **Spec** (what a valid artifact must satisfy), (2) a mechanical **Test Harness** (the conformance gate — non-conformant artifacts are rejected), (3) a **Registry** (the certified set — only Harness-passed artifacts enter, versioned per the artifact-interface SemVer). The primitive already exists at two mesh-level surfaces: **substrate conformance** (SOM-MI-8 expressed via `CONF-CD1..11`: the Spec is the seam contract, the Harness is the conformance suite, the Registry is the substrate matrix), and **PCS plugin governance** (PCS-Syntax = Spec, PCS-Daemon writes the Registry after Harness pass, PCS-Registry = certified set). Future pluggable-artifact governance — AKB knowledge classes, PGE rule packs — SHOULD instantiate this primitive rather than rolling bespoke governance. Same Harness and Registry implementations can be reused across pillars; the only per-pillar variation is the Spec content. This invariant is what makes mesh-wide spec-driven governance a reusable architectural pattern rather than a coincidence.
 
 ## Closed Decisions (CDs — v1.0 Mesh Commitments)
 
@@ -454,7 +456,7 @@ Beyond the pillar-level CDs, v1.0 SOM commits these **mesh invariants** that hol
 
 **SOM-CD7**: **Post-merge forward-reference sweep tracked at mesh level** (SOM-OQ-1). Sweep-on-next-touch discipline; not blocking.
 
-**SOM-CD8**: **Eleven mesh-level invariants** (§ Mesh-Level Invariants SOM-MI-1..11) hold across all pillars regardless of pillar version. Deviation is a mesh-conformance violation.
+**SOM-CD8**: **Twelve mesh-level invariants** (§ Mesh-Level Invariants SOM-MI-1..12) hold across all pillars regardless of pillar version. Deviation is a mesh-conformance violation.
 
 **SOM-CD9**: **Substrate substitutability is mesh-level**, not just pillar-level. SOM-MI-8: no pillar's substrate may create lock-in for another. The mesh-level Exit Test is the conjunction of pillar-level Exit Tests.
 
@@ -528,7 +530,7 @@ Beyond the pillar-level CDs, v1.0 SOM commits these **mesh invariants** that hol
 ## Success Criteria
 
 - **All eight pillar contracts hold.** Per-pillar Success Criteria sections in each pillar spec. **Measure**: each pillar's spec is at validated v1.0 status (verified — IAM #64, IBX #63, ACT #65, PCS-Daemon #66, DPG #67, CRB #68, PGE #69, AKB three-spec gate #61).
-- **All eleven mesh invariants hold.** SOM-MI-1..11. **Measure**: conformance test suite (post-v1.0 build target) verifies each invariant on a candidate deployment.
+- **All twelve mesh invariants hold.** SOM-MI-1..12. **Measure**: conformance test suite (post-v1.0 build target) verifies each invariant on a candidate deployment.
 - **Seam composition is complete.** § Seam Composition Verification table is full at v1.0; no row says "gap" or "double-coverage." **Measure**: table reviewed at every SOM spec touch; new seams added when new pillar versions introduce couplings.
 - **Seven IAM Increment-2 rulings enumerated in ONE place.** § Seven IAM Increment-2 Rulings is the canonical table; every pillar DR that couples to a ruling cites the corresponding row. **Measure**: cross-spec grep for `DR-IAM-N` references; every reference matches a row.
 - **No silent front-running of Increment-2 rulings.** **Measure**: § Seven IAM Increment-2 Rulings table is reverse-derived from pillar DRs; reverse-derivation is reproducible (run the grep, compare to table).
