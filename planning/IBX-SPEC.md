@@ -2,11 +2,11 @@
 title: "IBX Spec — Inbox Exchange Message Routing Substrate"
 doc_type: spec
 status: validated
-version: v1.0
+version: v1.1
 authors:
   - watson
   - patton
-date: "2026-06-02"
+date: "2026-06-05"
 roles:
   - design-intent
   - infrastructure
@@ -14,6 +14,8 @@ author_id: watson
 violates_invariant: false
 invariant_class: ""
 references:
+  - planning/SOM-SPEC.md
+  - planning/PILLAR-SPEC-TEMPLATE.md
   - planning/SOM-PILLAR-NAMES.md
   - planning/SOM-PROBLEM-STATEMENT.md
   - planning/SOM-PRODUCTION-VALIDATION.md
@@ -28,9 +30,19 @@ references:
 
 **Scope**: Formalizes the contract IBX (Inbox Exchange) satisfies as the Control-Plane message routing substrate of SOM. Covers the PCT (Principal Control Token) nine-field schema, **two distinct message-routing dispatch patterns** (point-to-point and worker-pool claim), status workflow, the server-enforced Judge-approval gate, the storage substrate (which may split by pattern), the identity-vs-session distinction folded from `SOM-CONCURRENCY-AND-ARCHETYPES.md`, and the coupling boundaries with PCS-Lifecycle and SOM's IAM pillar.
 
-**Status**: **Validated v1.0** — first item of the spec-campaign queue (per Patton's `87d77f55`). Extends v0.2 with the concurrency hooks from `SOM-CONCURRENCY-AND-ARCHETYPES.md` (Patton + Watson, 2026-06-02, landed at `c5b2426`) and resolves the non-IAM-coupled Open Questions to commitments. IAM-coupled Open Questions (DR1, DR2, DR3, DR5) remain **deferred-pending the seven Increment-2 Judge rulings**; DR6 is **narrowed** to defer only the v2 *content* (migration *discipline* committed in CD6). DR4 was **closed** at the v1.0 review gate by Patton ruling (`b2b6a4e1`) — see CD5. The stable parts are validated and PCS-Daemon may build against them.
+**Status**: **Validated v1.1** — first instantiation of the new pillar-spec template (`planning/PILLAR-SPEC-TEMPLATE.md`, merged 2026-06-05). v1.1 adds the per-pillar manifest layer (§ Substrate Matrix + § Telemetry Contract) that instantiates the mesh-level contracts in `SOM-SPEC.md` (SOM-MI-8, SOM-MI-11, § Tested Substrate Profiles); renames § Success Criteria → § Acceptance Criteria with the 5 non-negotiables from the template prepended; records CD7 + CD8 for the v1.1 commitments. v1.0 contract surface is unchanged — PCS-Daemon's `pct-v1` consumer remains valid. v1.0 history retained below.
 
-v1.0 additions:
+**Prior status (v1.0, retained for history)**: First item of the spec-campaign queue (per Patton's `87d77f55`). Extends v0.2 with the concurrency hooks from `SOM-CONCURRENCY-AND-ARCHETYPES.md` (Patton + Watson, 2026-06-02, landed at `c5b2426`) and resolves the non-IAM-coupled Open Questions to commitments. IAM-coupled Open Questions (DR1, DR2, DR3, DR5) remain **deferred-pending the seven Increment-2 Judge rulings**; DR6 is **narrowed** to defer only the v2 *content* (migration *discipline* committed in CD6). DR4 was **closed** at the v1.0 review gate by Patton ruling (`b2b6a4e1`) — see CD5. The stable parts are validated and PCS-Daemon may build against them.
+
+v1.1 additions (this version):
+1. **§ Substrate Matrix** (new section) — per-pillar manifest of IBX's substrate seams (routing audit storage, worker-pool claim queue, identity verification, telemetry sink, Judge-gate credential) per SOM-MI-8 + § Tested Substrate Profiles. CD7 commits PG-17 as primary worker-pool claim queue substrate per Bob's CD4-permissive reading (`6316686f`) + Judge's (B) Owed disposition. Substitutability claim is scoped to the matrix rows (per SOM-CD15).
+2. **§ Telemetry Contract** (new section) — IBX-specific spans (`som.ibx.message.send`, `som.ibx.judge.gate.fire`, `som.ibx.workerpool.claim`, etc.), metrics (`som.ibx.message.depth`, `som.ibx.judge.gate.pending`, etc.), and log events per SOM-MI-11. CD8 commits this as the MI-11 manifest for IBX.
+3. **§ Acceptance Criteria** (renamed from § Success Criteria) — prepends the 5 non-negotiables from `planning/PILLAR-SPEC-TEMPLATE.md`: Secure, Instrumented-by-default, JSON logs, CLI-first/UI-second, Audit emission. Existing v1.0 success criteria preserved as additional IBX-specific acceptance bars.
+4. **CD7 + CD8** record the substrate matrix + telemetry contract commitments respectively.
+
+The v1.0 contract surface (PCT nine-field schema, priority semantics, status workflow, server-enforced Judge gate, worker-pool claim/lease/retry contract) is **unchanged**. PCS-Daemon's `pct-v1` consumer built against v1.0 remains valid. v1.1 is additive: it adds the manifest layer that says *which* substrates and *which* spans/metrics — it does not modify any v1.0 commitment.
+
+v1.0 additions (retained for history):
 1. **Identity-vs-session distinction** folded into PCT field 1 (`principal-id`) — names *which identity*; the substrate names *which session of that identity*. Today IBX is single-session-per-identity in practice; the spec defines the contract for the concurrent-sessions case so the worker-pool pattern is unambiguous when Bob builds it.
 2. **Worker-pool claim dispatch pattern** — new § Concurrency-Safe Worker-Pool Dispatch. Exactly-once claim semantics (SKIP-LOCKED-style), lease/visibility-timeout, retry + poison-queue, idempotency keys, mid-action-safe termination. Substrate implication: claim queue needs a transactional store (OLAP/ClickHouse is wrong for the claim queue).
 3. **Resolved Open Questions** (non-IAM-coupled, now Closed Decisions): validate-at-send fail-strict on PCT meta fields (CD1, closes OQ1+OQ2), `all`-is-announcements broadcast semantics (CD2, closes OQ5), field-name convention snake_case (CD3, closes OQ10), substrate split by dispatch pattern (CD4 — v1.0 new). Patton review at v1.0 (`b2b6a4e1`) closed an additional question on the merits: validity stays advisory for `info` priority (CD5, closes DR4 v0.2 OQ8). Patton review also committed the PCT contract-version migration discipline (CD6) — coordinated migration with PCS-Daemon participation; no unilateral version changes; v2 *content* still deferred but the *migration posture* is locked in.
@@ -247,7 +259,106 @@ When SOM's IAM pillar is built (per `SOM-IDENTITY-PILLAR-DESIGN.md`), IBX integr
 
 **v1.0 commits to naming this seam, not to building it.** The IAM pillar is design-stage, briefs-only — the current state per the v1.1 validation doc. Until IAM lands, IBX runs on identity-by-brief; this is honest, documented, and consistent with the rest of SOM's design-vs-implementation discipline.
 
-## Closed Decisions (v1.0)
+## Substrate Matrix
+
+Per SOM-MI-8 + `SOM-SPEC.md` § Tested Substrate Profiles, IBX's substrate substitutability is defined as **passing the multi-profile conformance run** against the matrix below. Wording is **role + version floor** — the matrix names *contracts*, not *products*. IBX's substitutability claim covers exactly the rows listed; out-of-set substrates require a new profile definition (per CONF-CD11), conformance suite extension, and the multi-profile run passing per SOM-CD15.
+
+IBX exposes five substrate seams. The first two are storage (split per CD4 by dispatch pattern); the third is identity (design-stage gap closed by IAM); the fourth is telemetry (per SOM-MI-11); the fifth is the Judge-gate credential boundary (today ClickHouse-grant-based, hardware-bound per future IAM).
+
+| Seam | Contract (role + version floor) | Sovereign reference (version floor) | Supported alternatives (version floor) |
+|------|---------------------------------|-------------------------------------|----------------------------------------|
+| **Routing audit storage** (point-to-point hand-off record) | Append-mostly storage with per-message-id latest-state view materialization; LZ4 or zstd compression; columnar-friendly OR row-oriented | ClickHouse 23.8+ (today on 9975WX `messages.inbox`) | PostgreSQL 17+ with logical-decoding history, NATS JetStream 2.10+ with stream retention, Kafka 3.6+ with compacted topics |
+| **Worker-pool claim queue** (atomic claim / lease / retry / dead-letter; per § Concurrency-Safe Worker-Pool Dispatch) | Atomic exactly-once claim primitive (SKIP-LOCKED-style or equivalent); lease/visibility timeout with auto-return on expiry; **idempotent claim-completion** (the substrate OR the pillar's use of it guarantees no double-execution at the queue — via a native uniqueness constraint OR an application-layer dedup keyed on the PCT `idempotency-key` field); per-attempt retry counter; dead-letter routing on attempt N+1 | **PostgreSQL 17+** with `FOR UPDATE SKIP LOCKED` + unique index on `idempotency-key` (CD7) | NATS JetStream 2.10+ (consumer ack with redelivery; app-layer `SET NX` dedup on `Nats-Msg-Id`), Redis Streams 7+ (consumer groups with XCLAIM; app-layer `SET NX` dedup), RabbitMQ 3.12+ (quorum queues with delivery-count; app-layer idempotent-consumer per RabbitMQ's recommended pattern) |
+| **Identity verification source** (sender authentication for PCT principal-id field 1) | Sender identity attestation: today brief-asserted (cooperative trust); future ARCA-signed PCT verifiable against Roster-published public key | **IAM (design-stage, briefs-only)** | Cooperative-trust-by-convention (today). IAM is the only future binding per § Coupling boundary: IAM. Until IAM lands, this seam is design-only — see DR2. |
+| **Telemetry sink** (per SOM-MI-11; OTLP-on-the-wire contract) | OpenTelemetry / OTLP for traces + metrics; JSON-structured logs to stderr; sink configurable via `OTEL_EXPORTER_OTLP_ENDPOINT` | Grafana/Prometheus/Tempo stack | Azure Monitor / App Insights, Datadog, OCI Monitoring, any OTLP-compatible sink — per SOM-MI-11 final paragraph |
+| **Judge-gate credential store** (server-enforced status-mutation authorization; only Judge can transition unread → approved/rejected) | Authorization gate on status-mutation MCP tool calls; credential binding cannot be bypassed at the prompt layer | ClickHouse user grant (today, `inbox-ui` MCP/desktop app holds the credential) | IAM-issued hardware-bound credential (PIV/CAC) per § Coupling boundary: IAM. Currently the lab's most sensitive non-ClickHouse-admin credential. |
+
+**Conformance**: CI runs the multi-profile conformance suite (CONF-CD1..11) against **≥ 2 products per seam** from the supported set when IBX is built out for SOM mesh. A seam change that fails any tested profile does not merge (SOM-CD15). For today's POC-in-production state, only the sovereign-reference column is exercised; the alternatives are spec'd as the substitutability boundary that future deployment + migration work (per DR5) preserves.
+
+**Out-of-set substrates**: A deployment using a substrate not listed (e.g., MongoDB for routing audit, Cassandra for claim queue, Keycloak for identity verification) is **not covered by IBX's substitutability claim** — it requires a new profile definition (CONF-CD11), a conformance suite extension to test the seam against it, and the multi-profile run passing per SOM-CD15. This is the same boundary discipline as `SOM-DELIVERY-PACKAGING.md` DP-CD1 (tested-on-named-base-image-set-not-any-Linux).
+
+**Cross-pillar substrate consequences**: per SOM-CD9, no IBX substrate choice may create lock-in for another pillar's substrate. The CD4 split (routing audit vs claim queue) is *itself* an instance of this discipline applied within the pillar — IBX could not have committed to ClickHouse-for-everything without locking PCS-Daemon's worker-pool consumer into a ClickHouse-shaped contract that no other transactional substrate could satisfy.
+
+## Telemetry Contract
+
+Per SOM-MI-11, `agent-inbox-mcp` (the IBX runtime substrate) emits OTLP traces, OTLP metrics, and JSON-structured logs to stderr. The sink is selected by the customer via `OTEL_EXPORTER_OTLP_ENDPOINT`; SOM does not name the backend. Naming convention follows the template: `som.ibx.<operation>` for spans, `som.ibx.<metric>` for metrics.
+
+This section is the per-pillar **manifest** of MI-11's mesh-level **contract** — the spans, metrics, and log events IBX commits to emit. Pillars that consume this telemetry (ACT for chargeback + metering; Patton/Newton for behavioral analysis; future MCC for operator dashboards) build against the names and attributes below.
+
+### Spans
+
+| Operation | Span name | Required attributes (beyond identity, session, service.*) |
+|-----------|-----------|-----------------------------------------------------------|
+| PCT validation + send | `som.ibx.message.send` | `priority`, `recipient`, `pct_validation_outcome` (`ok` / `field_missing` / `validity_missing` / `policy_rejected`) |
+| Query latest-state view by recipient + filter | `som.ibx.message.read` | `filter_status` (e.g., `unread`, `approved`), `result_count` |
+| Append status mutation | `som.ibx.message.mark` | `from_status`, `to_status`, `message_id` |
+| Search by sender / recipient / subject / date range | `som.ibx.message.search` | `filter_kind` (`sender` / `recipient` / `subject` / `date`), `result_count` |
+| Judge-gate trigger on action/urgent send | `som.ibx.judge.gate.fire` | `priority`, `sender`, `recipient` |
+| Judge-gate decision (approved or rejected) via `inbox-ui` | `som.ibx.judge.gate.transition` | `from_status` (`unread`), `to_status` (`approved` or `rejected`), `judge_decision`, `pending_duration_ms` |
+| Atomic claim of worker-pool PCT | `som.ibx.workerpool.claim` | `pool_id`, `lease_duration_ms`, `worker_session_id` |
+| Claim lease expired; PCT returns to queue | `som.ibx.workerpool.lease_expire` | `pool_id`, `worker_session_id`, `attempt_count` |
+| Worker records done; idempotency-key written | `som.ibx.workerpool.complete` | `pool_id`, `idempotency_key`, `worker_session_id` |
+| Dead-letter routing (attempt N+1 retries exhausted) | `som.ibx.workerpool.deadletter` | `pool_id`, `message_id`, `attempt_count`, `last_error_class` |
+
+### Metrics
+
+| Metric name | Type | Unit | Meaning |
+|-------------|------|------|---------|
+| `som.ibx.message.depth` | gauge | count | Current count of messages by status (`unread`, `read`, `in_progress`) per recipient — operational backlog signal |
+| `som.ibx.message.lag_ms` | histogram | milliseconds | Time from send to first read, bucketed by priority — message-pickup latency |
+| `som.ibx.message.action_lag_ms` | histogram | milliseconds | Time from send to `approved` for action/urgent priority — Judge response latency (the load-bearing operator metric) |
+| `som.ibx.judge.gate.pending` | gauge | count | Current count of action/urgent messages awaiting Judge approval — Judge inbox backlog signal |
+| `som.ibx.workerpool.claim_rate` | counter | claims/sec | Per-pool claim throughput |
+| `som.ibx.workerpool.lease_expirations_total` | counter | count | Cumulative lease expiries per pool — crash-recovery signal (high rate = workers crashing mid-claim) |
+| `som.ibx.workerpool.deadletter_total` | counter | count | Cumulative dead-letter routes per pool — poison-message signal |
+| `som.ibx.workerpool.idempotency_collision_total` | counter | count | Cumulative idempotency-key collisions detected at recipient sinks (downstream-reported) — double-execution signal |
+
+### Log events
+
+| Event | Level | Structured fields (beyond required keys) |
+|-------|-------|------------------------------------------|
+| `pct.validation.failed` | `warn` | `missing_field`, `sender`, `priority`, `validation_rule` (one of CD1 fail-strict rules) |
+| `judge.gate.transition` | `info` | `from_status`, `to_status`, `judge_decision`, `message_id`, `pending_duration_ms` |
+| `judge.gate.timeout_warning` | `warn` | `pending_duration_ms`, `message_id`, `sender`, `priority`, `threshold_ms` |
+| `workerpool.lease.expired` | `info` | `pool_id`, `worker_session_id`, `attempt_count`, `message_id` |
+| `workerpool.deadletter.routed` | `error` | `pool_id`, `message_id`, `attempt_count`, `last_error_class` |
+| `substrate.exit_test.violation` | `error` | `substrate_name`, `contract_field`, `expected`, `observed` — fired when a substrate-swap test detects contract drift |
+
+### Required attributes / resource attributes (per MI-11, all events)
+
+- `service.name` = `agent-inbox-mcp` (resource attribute)
+- `service.version` — from `get_version_info` MCP tool (resource attribute)
+- `deployment.environment` — resource attribute (e.g., `lab-9975`, `prod-epyc`)
+- `identity` — PCT principal-id (event attribute; required on every span)
+- `session` — PCT session-id when present (event attribute; required on worker-pool spans)
+- `trace_id`, `span_id` — OpenTelemetry standard (event attributes)
+- `cost-center` — applied when ACT chargeback is wired (post #22 resolution)
+
+### Format
+
+- **Traces + metrics**: OpenTelemetry / OTLP, exported via `OTEL_EXPORTER_OTLP_ENDPOINT` (no specific backend named)
+- **Logs**: JSON to stderr (stdout is reserved for the MCP protocol channel)
+- **Required log keys**: `timestamp`, `level`, `message`, `service.name`, `service.version`, `trace_id`, `span_id`, `identity`, `session` + event-specific fields
+
+### Distinction: audit (MI-1) vs observability (MI-11)
+
+IBX emits **both** audit signals (durable accountability record per SOM-MI-1) and observability signals (operational + cost-attribution per SOM-MI-11). The two streams are distinct:
+
+- **MI-1 (audit)**: every status mutation (`send`, `mark`, judge-gate `approved`/`rejected`) is durably recorded as an accountability event with `identity`, `session`, `operation`, `outcome`, `timestamp` + PCT-specific fields. ACT consumes from this stream. Today the audit record lives in `messages.inbox` itself (append-only append-mostly); the MI-1 contract is what makes that record reliable.
+- **MI-11 (observability)**: the spans, metrics, and log events above. ACT consumes the token + cost metrics from this stream for chargeback.
+
+Per the pillar-spec template's Telemetry Contract guidance, the two streams are named separately so consumers know which contract they're building against. Per `#22` resolution, MI-1 emission may be direct (Path A) or via ACT service-write (Path B); the per-pillar implementation honors whichever path is current.
+
+### Explicitly NOT in this spec
+
+- Collector deployment topology (OTel Collector vs direct OTLP push)
+- Backend choice (App Insights, Datadog, Grafana/Tempo, etc.) — per Telemetry-sink seam in § Substrate Matrix
+- Dashboards, alerts, retention policies — deployment-side concerns
+- Sampling strategy — deployment-side concern
+
+These are governed by the Telemetry-sink seam per SOM-MI-8 substrate-pluggability extending to MI-11 per the SOM-MI-11 final paragraph.
+
+## Closed Decisions (v1.0–v1.1)
 
 Four v0.2 Open Questions are resolved to commitments in v1.0 — the leanings carried in v0.2 had the right discipline and v1.0 commits them as the contract Bob may build against. These do not couple to Increment-2 rulings; they were ready to close.
 
@@ -269,6 +380,10 @@ Four v0.2 Open Questions are resolved to commitments in v1.0 — the leanings ca
 **CD5 (closes v0.2 OQ8 / v1.0 fold-in DR4 — Patton ruling `b2b6a4e1`)**: **Validity stays advisory for `info` priority; the required-at-send rule does NOT extend to info.** Patton's ruling at the v1.0 review gate: *"Validity/expiry exists to prevent stale HIGH-STAKES tasks being actioned late. Info has no task semantic — a stale info message read late is harmless. Requiring validity on info = ceremony with zero risk-reduction."* The required-validity discipline binds where staleness causes ACTION (action/urgent priorities — committed by CD1); info messages may have unset validity indefinitely. This closes the question of whether v1.x extends required-validity to info; the answer is no, on the merits, independent of the Increment-2 session-expiry rulings (per-message PCT validity ≠ session expiry semantics — those are different concerns).
 
 **CD6 (v1.0 — PCT contract-version migration discipline, Patton ruling `b2b6a4e1`)**: **A PCT contract-version change (v1 → v2) is a COORDINATED MIGRATION in which PCS-Daemon participates — not a unilateral IBX change.** Contract-version changes are never made unilaterally. The v2 *content* (which fields, what semantics) is deferred pending Increment-2 rulings that may reshape the v1 surface (DR6 below — narrowed to *content* only). The v2 *migration discipline* (how a version change happens) is committed now: PCS-Daemon's consumer must be updated in coordination with the IBX-side change, both parties review the v2 candidate spec, the bump is gated by Patton review + Judge merge, and no IBX deployment writes `version=2` PCTs until PCS-Daemon's consumer reads them. This is the v1.0 commitment that protects against the exact coupling-churn risk Patton's stability directive targets — it locks in the coordination posture before any v2 content is on the table.
+
+**CD7 (v1.1 — Substrate Matrix commits PG-17 as sovereign reference for worker-pool claim queue; contract is capability-framed)**: Per Bob's CD4-permissive reading (inbox `6316686f`) + Judge's (B) Owed disposition (2026-06-04): IBX-as-SOM-pillar belongs on the SOM substrate (`pg-1`), not the IONIS-lab ClickHouse where today's `messages.inbox` POC sits. **The worker-pool claim queue's sovereign reference is PostgreSQL 17+** with `FOR UPDATE SKIP LOCKED` + unique index on `idempotency-key` (the row-level transactional contract that ClickHouse's OLAP model cannot satisfy per CD4). The contract IBX commits — atomic exactly-once claim, lease/visibility timeout, idempotent claim-completion, retry+dead-letter — is **capability-framed, not constraint-primitive-framed**: the idempotent claim-completion requirement is satisfied either by a native uniqueness constraint (PG-17) OR by application-layer dedup keyed on the PCT `idempotency-key` field (NATS JetStream, Redis Streams, RabbitMQ). § Substrate Matrix names the supported alternatives along with the application-layer dedup pattern each requires; the substitutability claim under SOM-CD15 is honest because the conformance run can succeed against all four substrates without the matrix overclaiming a PG-specific primitive. Routing audit storage remains permissive (ClickHouse OK today; PG-17 OK; migration timing per DR5). This CD does not commit a deployment-side migration plan for the routing audit (that's DR5); it commits the substrate matrix as the substitutability boundary with the capability framing that makes substitutability genuinely measurable.
+
+**CD8 (v1.1 — Telemetry Contract commits the per-pillar MI-11 manifest)**: Per SOM-MI-11 + the pillar-spec template (`planning/PILLAR-SPEC-TEMPLATE.md`): § Telemetry Contract names IBX's specific spans (`som.ibx.message.send`, `som.ibx.judge.gate.fire`, `som.ibx.workerpool.claim`, etc.), metrics (`som.ibx.message.depth`, `som.ibx.judge.gate.pending`, `som.ibx.message.action_lag_ms`, etc.), and log events. `agent-inbox-mcp`'s implementation wires these surfaces to the OTel SDK and emits OTLP to the customer-selected `OTEL_EXPORTER_OTLP_ENDPOINT`. The contract is mandatory per § Acceptance Criteria #2 (Instrumented-by-default). ACT consumes the metrics + spans for chargeback per the MI-11 → MI-1 distinction documented in § Telemetry Contract.
 
 ## Deferred-Pending-Increment-2-Rulings (v1.0)
 
@@ -328,11 +443,27 @@ Per Patton's `87d77f55` discipline (*"don't front-run the seven Increment-2 ruli
 - **`PCS-REGISTRY-FOLD-IN.md`** v1.3 — the PCS-Lifecycle Harness + Daemon split; PCS-Daemon is the primary downstream consumer of this spec's contract.
 - **`CLAUDE.md`** "Agent Message Queue" section — operational reference; what this spec formalizes was previously documented only there.
 
-## Success Criteria
+## Acceptance Criteria
+
+Per the pillar-spec template (`planning/PILLAR-SPEC-TEMPLATE.md` — five non-negotiables given equal weight to security). IBX is not validated until all five hold; below them, the IBX-specific acceptance bars from v1.0 (renamed from § Success Criteria) are preserved as additional pillar-specific evidence.
+
+### Five non-negotiables (template-mandated, equal weight to security)
+
+1. **Secure.** `agent-inbox-mcp` follows the security framework (`planning/MCP-SECURITY-FRAMEWORK.md`): credentials in OS keyring only, no `subprocess`/`shell=True`/`eval`/`exec` on user input, HTTPS to any external surface, parameterized queries to ClickHouse/PG (no SQL string interpolation), input validation on PCT body fields, rate limiting on `inbox_send`. The Judge-gate credential held by `inbox-ui` is the lab's most sensitive non-ClickHouse-admin credential and is handled accordingly. **Measure**: `test_security.py` passes in CI; manual audit before any release confirms no credential leakage in tool results, logs, or error messages.
+
+2. **Instrumented-by-default.** `agent-inbox-mcp` emits the spans + metrics + log events in § Telemetry Contract via OTLP to the customer-selected `OTEL_EXPORTER_OTLP_ENDPOINT`. Mandatory, not "should be considered" — a pillar without OTLP traces + metrics is not finished, because ACT (chargeback) can only meter what pillars emit. **Measure**: an OTel Collector receiving from `agent-inbox-mcp` observes traces with the named span set (`som.ibx.message.send`, `som.ibx.judge.gate.fire`, etc.) and the metric set (`som.ibx.message.depth`, `som.ibx.judge.gate.pending`, etc.); integration test exercises each tool and asserts the corresponding span appears.
+
+3. **JSON logs.** `agent-inbox-mcp` emits structured JSON logs to stderr with the required keys (`timestamp`, `level`, `message`, `service.name`, `service.version`, `trace_id`, `span_id`, `identity`, `session`) per SOM-MI-11. Trace correlation via `trace_id` + `span_id` is mandatory. stdout is reserved for the MCP protocol channel. **Measure**: parsing `agent-inbox-mcp` stderr in CI confirms every line is valid JSON with all required keys; `trace_id` from a log line cross-references a span in the OTLP traces emitted in the same operation.
+
+4. **CLI-first / UI-second.** The six MCP tools (`inbox_check`, `inbox_read`, `inbox_send`, `inbox_mark`, `inbox_search`, `get_version_info`) are the canonical surface for every management function — they are the CLI/API equivalent and exist before any UI. `inbox-ui` (Wails/Go/Svelte desktop app) is a *thin client* of the same authorization-enforced surface, never a privileged path that bypasses the MCP tool layer. Future MCC panes render the MCP/CLI surface; they do not introduce new privileged operations. Build order: function → MCP tool → headless validation → wire `inbox-ui` or MCC pane. **Measure**: any management operation accessible from `inbox-ui` is reachable headless via an MCP tool call with the same authorization gate firing; no `inbox-ui`-only operation exists.
+
+5. **Audit emission.** Every state-affecting operation (`send`, `mark`, judge-gate `approved`/`rejected`, worker-pool `claim`/`complete`/`deadletter`) emits an accountability event per SOM-MI-1. Path A (until `#22` resolves to Path B): events are emitted directly to the MI-1 stream with `identity`, `session`, `operation`, `outcome`, `timestamp` + PCT-specific fields. Path B: `agent-inbox-mcp` calls ACT during the critical path of each state-affecting operation; ACT-unavailable handling per the per-pillar CD (block, fail, or buffer). The author of the implementing build checks `#22` state and uses whichever path is current. **Measure**: audit query against the MI-1 stream after a representative operation set (one send, one mark, one Judge approve, one worker-pool claim+complete cycle) confirms every state mutation has a corresponding audit event with the required fields.
+
+### Additional IBX-specific acceptance bars (preserved from v1.0)
 
 - **PCT nine-field contract is citable and stable.** PCS-Daemon's design references this section without needing to invoke a future fold-in for clarification. **Measure**: PCS-Daemon's design spec (Bob's draft, spec-campaign item 4) cites IBX-SPEC v1.0 § PCT and depends on no fields outside the nine, and does not depend on the scope/authority bounds being collapsed.
-- **Patton dialectical review pass at v1.0.** Single review gate per the simplified workflow (per `feedback_spec_workflow_simplified`). **Measure**: Patton's sign-off inbox message at the v1.0 review gate.
-- **Substrate-swap survives the contract.** When IBX migrates from 9975WX-ClickHouse to EPYC/TrueNAS production substrate (DR5), the nine-field PCT, priority semantics, status workflow, server-enforced Judge gate, and worker-pool claim/lease/retry contract all hold without spec revision. **Measure**: the migration deployment doc references this spec's contract as the invariant the substrate transition must preserve.
+- **Patton dialectical review pass at v1.1.** Single review gate per the simplified workflow (per `feedback_spec_workflow_simplified`). **Measure**: Patton's sign-off comment on the v1.1 review gate (GH-native per the 2026-06-02 PR-review convention).
+- **Substrate-swap survives the contract.** When IBX migrates from 9975WX-ClickHouse to EPYC/TrueNAS production substrate (DR5), the nine-field PCT, priority semantics, status workflow, server-enforced Judge gate, and worker-pool claim/lease/retry contract all hold without spec revision. v1.1 adds the substrate matrix as the substitutability boundary; the migration evidence is the multi-profile conformance run passing across the matrix rows per SOM-CD15. **Measure**: the migration deployment doc references this spec's contract as the invariant the substrate transition must preserve, and the conformance run passes against the new sovereign-reference column.
 - **`info` vs `action`/`urgent` discipline holds in audit.** No agent self-acts on `action` or `urgent` work without an `approved` status transition recorded in `messages.inbox`. **Measure**: spot-check audit query against `messages.inbox` shows zero `action`/`urgent` messages with downstream commits before `approved` timestamp.
 - **Validity-enforcement holds at send (v1.0 CD1).** Action/urgent PCTs without explicit `validity` are rejected at `inbox_send` time. **Measure**: audit query against `messages.inbox` shows zero action/urgent rows with NULL validity after v1.0 substrate change lands; for the pre-v1.0 audit-trail-only-substrate state, recipients have applied context-based staleness judgment without incident.
 - **Worker-pool claim contract testable.** When the worker-pool case lands (Bob's PCS-Daemon work or future document-processing workers), the exactly-once claim, lease/retry, idempotency-key, and mid-action-safe-termination contract is testable end-to-end. **Measure**: integration test in the implementing repo exercises crash recovery (kill worker mid-claim, verify PCT returns to queue after lease expiry) and retry exhaustion (claim N+1 times, verify dead-letter on attempt N+1).
@@ -340,6 +471,9 @@ Per Patton's `87d77f55` discipline (*"don't front-run the seven Increment-2 ruli
 
 ## References
 
+- `planning/SOM-SPEC.md` — mesh-level invariants this pillar instantiates (SOM-MI-8 substrate substitutability, SOM-MI-11 telemetry contract, SOM-CD9 cross-pillar substrate substitutability, SOM-CD15 conformance-enforced substrate-neutrality, § Tested Substrate Profiles named substrate set). **v1.1 source for the per-pillar manifest layer.**
+- `planning/PILLAR-SPEC-TEMPLATE.md` — pillar-spec template that v1.1 instantiates (10 required sections, Substrate Matrix + Telemetry Contract section structures, 5 non-negotiables). IBX-SPEC v1.1 is the first instantiation.
+- `planning/MCP-SECURITY-FRAMEWORK.md` — security framework referenced by Acceptance Criterion 1 (Secure)
 - `planning/SOM-PILLAR-NAMES.md` v1.1 — pillar bindings of record
 - `planning/SOM-PROBLEM-STATEMENT.md` v0.6 — design drivers (§0, §2 with concurrency archetype-determines-pattern coupling, §6.3, §4 Exit Test)
 - `planning/SOM-PRODUCTION-VALIDATION.md` v1.1 — production validation record
@@ -349,3 +483,4 @@ Per Patton's `87d77f55` discipline (*"don't front-run the seven Increment-2 ruli
 - `planning/PCS-REGISTRY-FOLD-IN.md` v1.3 — PCS three-layer anatomy + Lifecycle Daemon scope
 - `shared-context/agent-message-queue.sql` — ClickHouse DDL for `messages.inbox` (v1.0 routing-audit-trail substrate)
 - `CLAUDE.md` "Agent Message Queue" — operational reference predating this spec
+- Issues `KI7MT/som-spec#10` (this v1.1 refresh), `KI7MT/som-spec#6` + `#24` (template that this spec instantiates)
