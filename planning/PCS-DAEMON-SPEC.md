@@ -2,11 +2,12 @@
 title: "PCS Daemon Spec — Lifecycle Daemon Contract"
 doc_type: spec
 status: validated
-version: v1.0
+version: v1.1
 authors:
   - watson
   - patton
-date: "2026-06-02"
+  - bob
+date: "2026-06-05"
 roles:
   - design-intent
   - infrastructure
@@ -22,13 +23,22 @@ references:
   - planning/ACT-SPEC.md
   - planning/SOM-CONCURRENCY-AND-ARCHETYPES.md
   - planning/MCP-SECURITY-FRAMEWORK.md
+  - planning/PILLAR-SPEC-TEMPLATE.md
+  - planning/SOM-SPEC.md
 ---
 
 # PCS Daemon Spec — Lifecycle Daemon Contract
 
 **Scope**: Formalizes the contract for the **PCS-Daemon** — the registry-side service that completes the PCS-Lifecycle layer of the Plugin Control System pillar. PCS-Daemon **wraps** the existing Harness (`pcs-control-plane`, already built and operational as the standalone CLI + library Bob shipped per `PCS-REGISTRY-FOLD-IN.md` v1.3 §Lifecycle Harness/Daemon Split) and adds the registry-side concerns the Harness deliberately doesn't carry: **IBX integration for the Judge-approval gate during plugin promotion**, **PCS-Registry write coordination**, **per-promotion-event audit emission to ACT**, and **the dev-to-production trust-boundary crossing** that distinguishes plugin development from sovereign production release. The contract covers the consume-side of the IBX v1.0 surface (Patton's load-bearing coupling risk per `5fd105cd`), the consume-side of the IAM v1.0 PCS-Lifecycle coupling, the providing-side of the PCS-Registry write API, and the cooperation patterns with PCS-Syntax (validation) and Harness (process orchestration).
 
-**Status**: **Validated v1.0** — item 4 of the spec-campaign queue (per Patton's `87d77f55`). The PCS-Daemon is **not yet built** — the Harness it wraps (`pcs-control-plane`) exists as a standalone CLI + library; the Daemon's IBX-integration + registry-coordination layer is the implementation work this spec contracts. Per `SOM-PRODUCTION-VALIDATION.md` v1.1 PCS row, the PCS pillar is production-validated for its existing surface (Syntax via `pcs-spec`, Registry via `pcs-registry` shell, Lifecycle Harness via `pcs-control-plane`); the Daemon completes the Lifecycle layer per the architectural commitment in `PCS-REGISTRY-FOLD-IN.md` v1.3. This spec is the formal contract for *what Bob builds* when the Daemon implementation begins; the **ruling-dependent parts** (PCS-Daemon's bootstrap credential at process start, per-session credential format for Daemon sessions, session-vs-identity revocation impact on in-flight promotions, sovereignty-vs-multi-mode deployment) stay marked **Deferred-Pending-Increment-2-Rulings** per Patton's "don't front-run the seven rulings" directive. **v1.0 fold-in (Patton `251c9511`)**: CD5 §Atomic Registry Write extended with rollback-path reconciliation clause (closes the latent failure mode where the compensating-delete itself fails — Daemon reconciliation sweep transitions stranded `pending_registration` rows to terminal `registration_failed`); VP-PCS-1 strengthened with explicit cross-spec dependency tracking (ACT v1.0 enum doesn't yet contain `pcs.*`; the required ACT v1.x curation event has PR #66 as originating reference; operational fallback to `act.detection_signal` documented for the bounded window).
+**Status**: **Validated v1.1** — fifth instantiation of the pillar-spec template (`planning/PILLAR-SPEC-TEMPLATE.md`, merged 2026-06-05 at `9c67f57`). v1.1 adds the per-pillar manifest layer (§ Substrate Matrix + § Telemetry Contract) instantiating the mesh-level contracts in `SOM-SPEC.md` (SOM-MI-8, SOM-MI-11, § Tested Substrate Profiles); CD13 + CD14 record the v1.1 commitments. The v1.0 contract surface (promotion lifecycle, IBX/IAM/ACT/Registry/Harness coupling boundaries, the atomic-registry-write contract) is **unchanged**. PCS-Daemon is **design-stage** — the Daemon is not built; the Harness it wraps (`pcs-control-plane`) IS operational, and the substrates the Daemon will use exist in the lab (a PostgreSQL instance on the SOM substrate, TrueNAS storage), but the Daemon's *integration* with them is what this spec contracts. The Substrate Matrix names *seams the build will have*, every row design-stage. **v1.1 substrate correction (Judge, 2026-06-05)**: the Registry metadata store's sovereign reference is a **transactional SQL RDBMS (PostgreSQL 17+ sovereign-ref; any ACID SQL store satisfies the seam)**, not the ClickHouse `pcs.*` POC — the CD5 two-phase `pending_registration`→`registered` status flips are transactional needs ClickHouse (OLAP) does not satisfy. The CD5 atomicity *contract* is unchanged (always substrate-agnostic per the Exit Test); v1.1 capability-frames the seam and names the correct sovereign-ref per Patton's PR #31 lesson, and the v1.0 body's ClickHouse-as-current-impl references are corrected to the transactional metadata store. Capability-framing applies throughout: contract columns name what the substrate must guarantee, not the sovereign-ref's primitive.
+
+**v1.1 adds (additive manifest layer):**
+1. **§ Substrate Matrix** — four PCS-Daemon substrate seams (metadata store, artifact storage, identity/authz source, telemetry sink) as the substitutability boundary per SOM-MI-8 + SOM-CD15 (CD13).
+2. **§ Telemetry Contract** — `som.pcs_daemon.*` spans/metrics/log events per SOM-MI-11, with the MI-1 (`pcs.*` audit to ACT) vs MI-11 (observability) distinction (CD14).
+3. **§ Acceptance Criteria** (renamed from § Success Criteria) — prepends the 5 non-negotiables; the v1.0 PCS-Daemon-specific success criteria are retained below.
+
+**Prior status (v1.0, retained)**: Item 4 of the spec-campaign queue (per Patton's `87d77f55`). The PCS-Daemon is **not yet built** — the Harness it wraps (`pcs-control-plane`) exists as a standalone CLI + library; the Daemon's IBX-integration + registry-coordination layer is the implementation work this spec contracts. Per `SOM-PRODUCTION-VALIDATION.md` v1.1 PCS row, the PCS pillar is production-validated for its existing surface (Syntax via `pcs-spec`, Registry via `pcs-registry` shell, Lifecycle Harness via `pcs-control-plane`); the Daemon completes the Lifecycle layer per the architectural commitment in `PCS-REGISTRY-FOLD-IN.md` v1.3. This spec is the formal contract for *what Bob builds* when the Daemon implementation begins; the **ruling-dependent parts** (PCS-Daemon's bootstrap credential at process start, per-session credential format for Daemon sessions, session-vs-identity revocation impact on in-flight promotions, sovereignty-vs-multi-mode deployment) stay marked **Deferred-Pending-Increment-2-Rulings** per Patton's "don't front-run the seven rulings" directive. **v1.0 fold-in (Patton `251c9511`)**: CD5 §Atomic Registry Write extended with rollback-path reconciliation clause (closes the latent failure mode where the compensating-delete itself fails — Daemon reconciliation sweep transitions stranded `pending_registration` rows to terminal `registration_failed`); VP-PCS-1 strengthened with explicit cross-spec dependency tracking (ACT v1.0 enum doesn't yet contain `pcs.*`; the required ACT v1.x curation event has PR #66 as originating reference; operational fallback to `act.detection_signal` documented for the bounded window).
 
 **Why this spec matters most for the implementation queue**: Patton's `5fd105cd` and forward notes throughout the campaign identified the **PCS-Daemon ↔ IBX coupling** as the single biggest implementation-side risk. The IBX v1.0 contract surface (per `IBX-SPEC.md` v1.0: nine-field PCT, scope/authority-bounds axial split, CD6 coordinated-migration discipline, the may-rely-on / may-NOT-rely-on tables) is **stable and re-verified across the campaign**. PCS-Daemon writes its consumer side against that fixed surface. This spec is the formal seam between the producer (IBX) and the consumer (Daemon).
 
@@ -59,7 +69,7 @@ PCS-Daemon is **not a reimplementation** of the Harness. It is a **service that 
 | PGE compliance check (security framework rules) | Harness (`pcs-control-plane`) | Daemon **calls** Harness PGE-check function; does not reimplement |
 | Manifest parsing + structural integrity | Harness (`pcs-control-plane`) | Daemon **calls** Harness parser; does not reimplement |
 | **Judge-approval gate via IBX** | **Daemon (new)** | Daemon emits `action`-priority PCT to Judge via IBX; polls for `approved`/`rejected` by `message_id` per `IBX-SPEC.md` v1.0 "may rely on" |
-| **PCS-Registry write coordination** | **Daemon (new)** | Daemon writes to Registry artifact store (TrueNAS NFS) + Registry metadata tables (ClickHouse `pcs.*`) atomically on Judge approval |
+| **PCS-Registry write coordination** | **Daemon (new)** | Daemon writes to the Registry artifact store + the transactional metadata store (`pcs.*`) atomically on Judge approval (substrates capability-framed per § Substrate Matrix) |
 | **Per-promotion-event ACT audit emission** | **Daemon (new)** | Daemon emits `ibx.*` and Registry-specific events to ACT per `ACT-SPEC.md` v1.0 CD6 (per-session-per-identity attribution) |
 | **Dev-to-production trust-boundary crossing** | **Daemon (new)** | Daemon enforces "promotion-only via this gate" — Registry writes from any other path are defects |
 | **Promotion lifecycle state machine** | **Daemon (new)** | Daemon tracks promotion candidates through submit → validate → judge-await → approved/rejected → registered |
@@ -129,12 +139,12 @@ The Daemon's promotion flow is **idempotent** at every state. A crash during `va
 When the Daemon transitions `approved` → `registered`, three substrate writes happen and **must all succeed or all roll back**:
 
 1. **Artifact write** to PCS-Registry storage (TrueNAS NFS in the canonical deployment per `PCS-REGISTRY-FOLD-IN.md` v1.3) at the canonical path for the plugin's identity + version
-2. **Metadata write** to PCS-Registry ClickHouse tables (`pcs.plugins`, `pcs.mcp_servers`, `pcs.plugin_versions`, `pcs.promotion_events`) recording the new version row + the promotion event row + the Judge-approval ref
+2. **Metadata write** to the PCS-Registry transactional metadata store (PostgreSQL 17+ sovereign-ref; `pcs.plugins`, `pcs.mcp_servers`, `pcs.plugin_versions`, `pcs.promotion_events`) recording the new version row + the promotion event row + the Judge-approval ref
 3. **ACT event emission** of the promotion event for audit trail
 
 The atomicity contract: **if metadata write succeeds but artifact write fails, the Daemon rolls back the metadata write** (within the same transaction window) before recording the candidate as `approved`-but-not-`registered` and surfacing the failure for retry. ACT event emission is **after** the atomic registry write succeeds, so the audit reflects what landed.
 
-If the substrate cannot support full ACID transactions across heterogeneous targets (NFS + ClickHouse), v1.0 commits the **two-phase compensating-transaction pattern**: write metadata in a `pending_registration` status; write artifact; on artifact success, update metadata to `registered`; on artifact failure, delete the `pending_registration` row. The metadata is the system of record for "what's registered"; the artifact must exist before the metadata says it's registered.
+Because the artifact store (NFS) cannot enlist in the metadata store's transaction — even though the transactional metadata store (PostgreSQL 17+ sovereign-ref) is itself ACID — the cross-target write commits the **two-phase compensating-transaction pattern**: write metadata in a `pending_registration` status; write artifact; on artifact success, update metadata to `registered`; on artifact failure, delete the `pending_registration` row. The metadata is the system of record for "what's registered"; the artifact must exist before the metadata says it's registered.
 
 ### Rollback-path reconciliation (per Patton ruling `251c9511`)
 
@@ -268,7 +278,92 @@ The Daemon **wraps** the Harness. v1.0 commits the wrap pattern:
 - **The Daemon's promotion lifecycle adds states; the Harness's validation does not have states.** Harness is stateless w.r.t. the promotion (same input → same output, no internal lifecycle). Daemon's state machine wraps the stateless validation call inside a stateful candidate lifecycle.
 - **Harness version bumps are coordinated with Daemon deployments.** When `pcs-control-plane` releases a new version, the Daemon deployment bundles the updated Harness; running Daemon instances continue with their bundled Harness version until redeployment. This is the standard library-version coordination pattern; no special governance.
 
-## Closed Decisions (CDs — v1.0 Commitments)
+## Substrate Matrix
+
+**Design-stage caveat first**: this section names the **substrate seams the PCS-Daemon build will have when implementation begins**, not seams the Daemon wires today — the Daemon is not built (the Harness `pcs-control-plane` it wraps IS built and operational). Some substrates physically exist in the lab (a PostgreSQL instance on the SOM substrate, TrueNAS storage); the matrix below is the substitutability boundary the Daemon commits to honor when built (per CD13), not a description of a running Daemon integration. Wording is **role + version floor** — the matrix names *contracts*, not *products* — per Patton's PR #31 capability-framing lesson.
+
+PCS-Daemon depends on four substrate seams. Its peer-pillar couplings (IBX, IAM, ACT) and its Harness library dependency are governed by their § Coupling Boundary sections, **not** the matrix: those are SOM-internal contracts, not substitutable infrastructure substrates.
+
+| Seam | Contract (role + version floor) | Sovereign reference (version floor) | Supported alternatives (version floor) |
+|------|---------------------------------|-------------------------------------|----------------------------------------|
+| **Registry metadata store** (version rows, promotion-event audit, candidate state machine) | **Transactional SQL RDBMS**: ACID transactions; row-level atomic status mutation (the two-phase `pending_registration`→`registered` flip per CD5); append-only version rows (never deleted); promotion-event audit log; parameterized queries | **PostgreSQL 17+** (on the SOM substrate `pg-1`; co-located with IBX's claim queue per IBX-SPEC v1.1 CD7) | Any ACID SQL RDBMS satisfying the transactional contract — SQL Server 2022+, Oracle 19c+, MySQL 8+ / MariaDB 10.6+, **SQLite 3.x** (single-node / embedded deployments). **ClickHouse is explicitly NOT in the set** — OLAP, no row-level transactional semantics; it was the v0.x POC substrate and fails this seam's contract (the same capability-exclusion IBX-SPEC v1.1 applies to its worker-pool claim queue). The seam breaks at *transactional capability*, not product or scale: a one-file embedded store (SQLite) satisfies it; a distributed OLAP cluster does not. |
+| **Registry artifact storage** (promoted plugin / MCP-server binaries) | Content-addressable artifact store with canonical per-identity-per-version paths; durable, read-many; write coordinated atomic-or-compensating with the metadata store (CD5) | TrueNAS NFS (NFSv4.2) | S3-compatible object store, CephFS, MinIO — any POSIX-or-object store meeting the content-addressable + durable-write contract |
+| **Identity / authorization source** (Daemon's own agent identity; author + approver authorization lookup) | Agent-identity attestation + Roster lookup + authorization decision + per-session credential (per § Coupling Boundary: IAM) | **IAM** *(design-stage, briefs-only)* | Cooperative-trust-by-convention *(today, pre-IAM)* — identity asserted by brief, not verified by credential. IAM is the only future binding; until it lands this seam is design-only (see § Coupling Boundary: IAM ↔ PCS-Daemon). |
+| **Telemetry sink** (per SOM-MI-11; OTLP-on-the-wire) | OpenTelemetry / OTLP for traces + metrics; JSON-structured logs to stderr; sink configurable via `OTEL_EXPORTER_OTLP_ENDPOINT` | Grafana / Prometheus / Tempo stack | Azure Monitor / App Insights, Datadog, OCI Monitoring, any OTLP-compatible sink — per SOM-MI-11 final paragraph |
+
+**Conformance**: when the Daemon is built, CI runs the multi-profile conformance suite (CONF-CD1..11) against **≥ 2 products per seam** from the supported set. A seam change that fails any tested profile does not merge (SOM-CD15). For today's design-stage state, no seam is exercised by a running Daemon; the matrix names the substitutability boundary the build commits to honor.
+
+**Out-of-set substrates**: A deployment using a substrate not listed (e.g., a non-transactional store for the metadata seam, a bespoke identity provider) is **not covered by PCS-Daemon's substitutability claim** — it requires a new profile definition (CONF-CD11), a conformance-suite extension, and the multi-profile run passing per SOM-CD15.
+
+**Cross-pillar substrate consequence** (per SOM-CD9): no PCS-Daemon substrate choice may lock in another pillar's substrate. The metadata-store seam consolidating on PostgreSQL `pg-1` (alongside IBX's claim queue) is a deployment co-location convenience, **not** a contract coupling — a deployment may host PCS-Daemon's metadata on a different transactional store than IBX's claim queue and both contracts still hold.
+
+## Telemetry Contract
+
+Per SOM-MI-11, the PCS-Daemon emits OTLP traces, OTLP metrics, and JSON-structured logs to stderr when built; the sink is selected by the customer via `OTEL_EXPORTER_OTLP_ENDPOINT`; SOM does not name the backend. Naming follows the template: `som.pcs_daemon.<operation>` for spans, `som.pcs_daemon.<metric>` for metrics. **Design-stage**: the contract below is what the Daemon emits when built, not signals that flow today (the Daemon is not built).
+
+This section is the per-pillar **manifest** of MI-11's mesh-level **contract**. Consumers (ACT for chargeback / metering, MCC for operator dashboards, Patton / Newton for behavioral analysis) build against the names + attributes below.
+
+### Spans
+
+| Operation | Span name | Required attributes (beyond identity, session, service.*) |
+|-----------|-----------|-----------------------------------------------------------|
+| Candidate submission accepted | `som.pcs_daemon.candidate.submit` | `plugin_id`, `candidate_version`, `submitter_identity` |
+| Harness validation (Syntax + PGE) | `som.pcs_daemon.validate` | `plugin_id`, `candidate_version`, `validation_outcome` (`pass` / `fail`), `failing_rule` (on fail) |
+| Emit action-priority approval PCT to Judge | `som.pcs_daemon.judge.request` | `plugin_id`, `candidate_version`, `message_id` |
+| Poll IBX for approval status | `som.pcs_daemon.judge.poll` | `message_id`, `polled_status` |
+| Atomic registry write (metadata + artifact) | `som.pcs_daemon.registry.write` | `plugin_id`, `candidate_version`, `write_outcome` (`registered` / `rolled_back` / `failed`) |
+| Promotion reaches terminal state | `som.pcs_daemon.promotion.complete` | `plugin_id`, `candidate_version`, `terminal_state` (`registered` / `rejected` / `validation_failed` / `judge_expired`) |
+| Rollback-path reconciliation sweep (CD5) | `som.pcs_daemon.reconciliation.sweep` | `swept_count`, `reason` |
+
+### Metrics
+
+| Metric name | Type | Unit | Meaning |
+|-------------|------|------|---------|
+| `som.pcs_daemon.promotion.candidates_in_flight` | gauge | count | Current candidates per lifecycle state — promotion backlog signal |
+| `som.pcs_daemon.validation.latency_ms` | histogram | milliseconds | Harness validation duration |
+| `som.pcs_daemon.judge.await_duration_ms` | histogram | milliseconds | Time from approval-request send to Judge decision — the load-bearing operator latency (mirrors IBX `action_lag_ms`) |
+| `som.pcs_daemon.registry.write_latency_ms` | histogram | milliseconds | Atomic registry-write duration |
+| `som.pcs_daemon.promotion.rate` | counter | promotions | Cumulative promotions by terminal outcome (`registered` / `rejected` / `expired` / `validation_failed`) |
+| `som.pcs_daemon.registration_failed_total` | counter | count | Cumulative registry-write failures / half-state recoveries — atomicity-health signal |
+| `som.pcs_daemon.reconciliation.swept_total` | counter | count | Cumulative `pending_registration` rows swept to `registration_failed` (CD5 rollback-path) — compensating-delete-failure signal |
+
+### Log events
+
+| Event | Level | Structured fields (beyond required keys) |
+|-------|-------|------------------------------------------|
+| `promotion.state_transition` | `info` | `plugin_id`, `candidate_version`, `from_state`, `to_state` |
+| `validation.failed` | `warn` | `plugin_id`, `candidate_version`, `failing_rule` |
+| `judge.expired` | `warn` | `plugin_id`, `candidate_version`, `message_id`, `validity_deadline` |
+| `registry.write_failed` | `error` | `plugin_id`, `candidate_version`, `failed_target` (`metadata` / `artifact`), `rollback_outcome` |
+| `reconciliation.swept` | `warn` | `promotion_event_id`, `reason` (`compensating_delete_failed_recovered`) |
+| `registry.write.out_of_band_detected` | `error` | `table`, `actor` — fired if a Registry write is detected from any path other than the Daemon (CD3 violation) |
+
+### Required attributes / resource attributes (per MI-11, all events)
+
+- `service.name` = `pcs-daemon` (resource attribute)
+- `service.version` — from `get_version_info` (resource attribute)
+- `deployment.environment` — resource attribute (`lab-design-stage` today; `prod-<host>` when built)
+- `identity` — the Daemon's ARCA-issued principal-id (event attribute)
+- `session` — the Daemon's session-id (event attribute)
+- `trace_id`, `span_id` — OpenTelemetry standard (event attributes)
+- `cost-center` — applied when ACT chargeback is wired (post #22 resolution)
+
+### Format
+
+- **Traces + metrics**: OpenTelemetry / OTLP, exported via `OTEL_EXPORTER_OTLP_ENDPOINT` (no specific backend named)
+- **Logs**: JSON to stderr (stdout is reserved for the MCP protocol channel)
+- **Required log keys**: `timestamp`, `level`, `message`, `service.name`, `service.version`, `trace_id`, `span_id`, `identity`, `session` + event-specific fields
+
+### Distinction: audit (MI-1) vs observability (MI-11)
+
+PCS-Daemon emits **both** signal classes, kept distinct:
+
+- **MI-1 (audit)** — the **`pcs.*` event stream to ACT** (`pcs.candidate_submitted`, `pcs.validation_complete`, `pcs.promotion_approved` / `_rejected` / `_expired`, `pcs.registry_write_*`, `pcs.reconciliation_swept`) per § Coupling Boundary: ACT ↔ PCS-Daemon. This is the durable accountability record — the canonical audit of *what the Daemon did, when, under whose authority*. ACT consumes it. The `pcs.*` namespace extension to ACT's bounded enum is tracked in VP-PCS-1.
+- **MI-11 (observability)** — the `som.pcs_daemon.*` spans + metrics + log events above. The operational + cost-attribution surface.
+
+The two are separate streams with separate contracts: a promotion's *accountability* (who promoted what, the Judge-approval ref) lives in the MI-1 `pcs.*` stream; its *operational characteristics* (validation duration, judge-await latency) live in the MI-11 `som.pcs_daemon.*` stream. Per the template style rule, they are not collapsed.
+
+## Closed Decisions (CDs — v1.0–v1.1 Commitments)
 
 **CD1**: **Daemon wraps Harness; no validation reimplementation.** The Daemon calls Harness's validate function via direct library import; subprocess is forbidden (per security framework + per architectural cleanliness). One validation authority.
 
@@ -293,6 +388,10 @@ The Daemon **wraps** the Harness. v1.0 commits the wrap pattern:
 **CD11**: **Promotion lifecycle is idempotent at every state.** Crash recovery resumes from durable state; partial writes never land in Registry; PCT polling is read-only and side-effect-free.
 
 **CD12**: **The Daemon-Harness coordination is library-version-driven.** Harness bumps land in Daemon deployments via standard package versioning; no special governance contract.
+
+**CD13 (v1.1 — Substrate Matrix is design-stage, capability-framed, PCS-Daemon substitutability boundary)**: Per SOM-MI-8 + § Tested Substrate Profiles + Patton's PR #31 capability-framing lesson. § Substrate Matrix names four PCS-Daemon substrate seams (Registry metadata store, Registry artifact storage, Identity/authorization source, Telemetry sink) **as the Daemon build's substitutability boundary when implementation begins**. Every row is **design-stage** — the Daemon is not built. Contract columns are **capability-framed**: they name what the substrate must guarantee, not the sovereign-ref's primitive. **The metadata-store seam's sovereign reference is a transactional SQL RDBMS (PostgreSQL 17+); ClickHouse — the v0.x POC — is explicitly excluded** because it lacks the row-level transactional semantics the CD5 two-phase `pending_registration`→`registered` flip requires (the same capability-exclusion IBX-SPEC v1.1 applies to its claim queue). This corrects the v1.0 body's ClickHouse-as-current-impl references to the transactional metadata store; the CD5 atomicity *contract* is unchanged (always substrate-agnostic per the Exit Test). Substitutability under SOM-CD15 covers exactly the rows listed; out-of-set substrates require a new conformance run.
+
+**CD14 (v1.1 — Telemetry Contract is design-stage MI-11 manifest; MI-1 `pcs.*` audit vs MI-11 observability kept distinct)**: Per SOM-MI-11 + the pillar-spec template + Patton's audit-vs-observability stream distinction. § Telemetry Contract names PCS-Daemon spans (`som.pcs_daemon.candidate.submit`, `.validate`, `.judge.{request,poll}`, `.registry.write`, `.promotion.complete`, `.reconciliation.sweep`), metrics (`som.pcs_daemon.promotion.candidates_in_flight`, `.validation.latency_ms`, `.judge.await_duration_ms`, `.registry.write_latency_ms`, `.promotion.rate`, `.registration_failed_total`, `.reconciliation.swept_total`), and log events. **Every signal is design-stage** — the contract is what the Daemon emits when built, not what flows today. The two stream classes are distinct: the **MI-1 audit stream is the `pcs.*` event sequence to ACT** (durable promotion accountability, per § Coupling Boundary: ACT ↔ PCS-Daemon, VP-PCS-1); the **MI-11 observability stream is `som.pcs_daemon.*`** (operational + cost-attribution). The AC5 audit-emission path (Path A vs Path B) follows `#22` at build time.
 
 ## Deferred-Pending-Increment-2-Rulings (DRs)
 
@@ -344,7 +443,31 @@ The Daemon **wraps** the Harness. v1.0 commits the wrap pattern:
 - **`pcs-spec`** v0.2-draft (separate repo) — the Syntax schema the Harness consumes; Daemon depends on Harness consuming this transitively.
 - **`pcs-registry`** (separate repo, shell exists) — the Registry storage layer the Daemon writes to.
 
-## Success Criteria
+## Acceptance Criteria
+
+A pillar spec is not validated until all five non-negotiables (per `planning/PILLAR-SPEC-TEMPLATE.md`) hold, equal weight to security. PCS-Daemon is **design-stage**; each Measure names the design-stage gap and what becomes testable when the Daemon build begins.
+
+### 1. Secure
+
+The Daemon conforms to the security framework (`planning/MCP-SECURITY-FRAMEWORK.md`): credentials in OS keyring / IAM-issued session credential only; **no subprocess / shell-exec** (the Harness is called via direct library import per CD1 — also the security-framework `subprocess` prohibition); parameterized queries on all metadata-store writes; input validation on submitted manifests; rate-limiting on the submission API (per § Failure Modes). **Measure (design-stage)**: when built, `test_security.py` passes + manual audit confirms no credential leakage and no injection surface in the submission/promotion path.
+
+### 2. Instrumented-by-default
+
+The Daemon emits the OTLP traces + metrics of § Telemetry Contract. **Measure (design-stage)**: when built, an OTel Collector observes the full `som.pcs_daemon.*` span + metric sets during an end-to-end promotion; a missing named span/metric is a non-conformance.
+
+### 3. JSON logs
+
+The Daemon emits structured JSON logs to stderr with the required keys + trace correlation per SOM-MI-11. **Measure (design-stage)**: when built, every stderr line is valid JSON carrying `trace_id` + `span_id`.
+
+### 4. CLI-first, UI-second
+
+Every Daemon management function (submit candidate, query promotion state, list candidates, trigger reconciliation sweep) is runnable on a CLI/API surface before any MCC pane exists; the MCC pane is a thin client per SOM-CD14. **Measure (design-stage)**: when built, the full promotion lifecycle is drivable headless via CLI/MCP; the MCC pane renders only existing CLI/API surfaces.
+
+### 5. Audit emission
+
+The Daemon emits an accountability event for every state-affecting promotion operation — the `pcs.*` event stream per § Coupling Boundary: ACT ↔ PCS-Daemon (`pcs.candidate_submitted` … `pcs.reconciliation_swept`). Per **Path A** (emission-as-build-standard, default until `#22` resolves to Path B), these land on the SOM-MI-1 stream ACT consumes downstream; VP-PCS-1 tracks the `pcs.*` enum extension ACT must absorb. The author checks `KI7MT/som-spec#22` at build time and uses whichever path is current. **Measure (design-stage)**: when built, every promotion lifecycle transition has a corresponding durable `pcs.*` audit event; a transition with no audit event is a no-bypass violation.
+
+### v1.0 PCS-Daemon-specific success criteria (retained)
 
 - **Daemon's PCT consumer parses and emits per IBX v1.0 contract.** Field-by-field validation of inbound and outbound PCTs matches the contract; no field is renamed, retyped, or has semantic drift. **Measure**: integration test in the Daemon implementation exercises PCT round-trip (Daemon emits action-priority promotion-approval PCT, Judge approves via inbox-ui, Daemon polls and detects approval, Daemon transitions to `registered`) end-to-end.
 - **Atomic registry write succeeds or rolls back.** Crash injection during the registry write does not leave half-promoted plugins. **Measure**: chaos test in the Daemon implementation: kill the Daemon process during artifact write; restart Daemon; verify Registry state is either `registered` (artifact written, metadata reflects) or `pending_registration`-rolled-back (metadata removed, artifact storage clean).
@@ -356,6 +479,8 @@ The Daemon **wraps** the Harness. v1.0 commits the wrap pattern:
 
 ## References
 
+- `planning/SOM-SPEC.md` — mesh-level invariants (SOM-MI-8, SOM-MI-11, § Tested Substrate Profiles) the v1.1 manifest instantiates
+- `planning/PILLAR-SPEC-TEMPLATE.md` — the v1.1 manifest-section template + acceptance criteria
 - `planning/SOM-PILLAR-NAMES.md` v1.1 — PCS pillar entry of record
 - `planning/SOM-PRODUCTION-VALIDATION.md` v1.1 — PCS row (Syntax + Registry shell + Harness production-validated; Daemon completion pending)
 - `planning/PCS-REGISTRY-FOLD-IN.md` v1.3 — three-layer anatomy + Harness/Daemon split + EPYC/Proxmox deployment
