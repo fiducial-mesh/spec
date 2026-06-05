@@ -2,11 +2,12 @@
 title: "DPG Spec — Deterministic Proving Ground Pillar Contract"
 doc_type: spec
 status: validated
-version: v1.0
+version: v1.1
 authors:
   - watson
   - patton
-date: "2026-06-02"
+  - bob
+date: "2026-06-05"
 roles:
   - design-intent
   - infrastructure
@@ -24,13 +25,22 @@ references:
   - planning/PCS-DAEMON-SPEC.md
   - planning/CUDA-PREFLIGHT.md
   - planning/MCP-SECURITY-FRAMEWORK.md
+  - planning/PILLAR-SPEC-TEMPLATE.md
+  - planning/SOM-SPEC.md
 ---
 
 # DPG Spec — Deterministic Proving Ground Pillar Contract
 
-**Scope**: Formalizes the contract for **DPG** (Deterministic Proving Ground), the Compute-Plane pillar that provides the ephemeral isolation boundary in which agent-emitted code is compiled, tested, and validated before it can touch production state. Covers the **ephemeral-isolation contract** (what the boundary guarantees and what it does not), the **code-execution contract** (Python/CUDA/Bash workloads under deterministic conditions), the **validation gates** any DPG execution must pass before its outputs return through the attested channel, the **return-channel contract** (single attested path from DPG to the rest of SOM, no side-channel exfiltration), the **substrate options** (git worktrees as the v1.0 reference substrate, with containerized DPG via nspawn/firecracker as Exit-Test-substitutable), and the **coupling boundaries** with IBX (execution requests), IAM (DPG runner identity), PGE (double-guardrail enforcement), PCS-Daemon (pre-promotion validation), ACT (audit emissions), and Workforce (the agents that emit code into DPG).
+**Scope**: Formalizes the contract for **DPG** (Deterministic Proving Ground), the Compute-Plane pillar that provides the ephemeral isolation boundary in which agent-emitted code is compiled, tested, and validated before it can touch production state. Covers the **ephemeral-isolation contract** (what the boundary guarantees and what it does not), the **code-execution contract** (Python/CUDA/Bash workloads under deterministic conditions), the **validation gates** any DPG execution must pass before its outputs return through the attested channel, the **return-channel contract** (single attested path from DPG to the rest of SOM, no side-channel exfiltration), the **substrate options** (the isolation-runtime substitutability set — Podman rootless as the v1.1 sovereign reference, git worktrees retained as the Tier-2 floor + operational precedent, nspawn/gVisor/Firecracker/Kata across the trust tiers — per § Substrate Matrix and the Exit Test), and the **coupling boundaries** with IBX (execution requests), IAM (DPG runner identity), PGE (double-guardrail enforcement), PCS-Daemon (pre-promotion validation), ACT (audit emissions), and Workforce (the agents that emit code into DPG).
 
-**Status**: **Validated v1.0** — item 5a of the spec-campaign queue (per Patton's `87d77f55` + ruling `251c9511` that DPG and CRB are separate specs; DPG first). The DPG pillar **has an operational precedent** — the **CUDA-preflight flow** documented in `planning/CUDA-PREFLIGHT.md` and `SOM-PRODUCTION-VALIDATION.md` v1.1 §DPG, in which Bob's Phase-4 "High-Heat" CUDA kernels (Maidenhead-to-LatLon, Haversine, Solar Join) were securely compiled and tested within the DPG boundary before touching production `wspr.silver`. The **substrate primitive** is **git worktrees** (per `CLAUDE.md` § Subagent Policy and `SOM-PRODUCTION-VALIDATION.md` DPG verifier path — subagents needing write access use `isolation: "worktree"` for OS-level Git isolation). What does NOT yet exist is the **generalized reusable substrate** that turns the precedent into a fleet-callable service: the CUDA-preflight pattern works ad-hoc per kernel; the DPG-as-pillar contract turns it into a chokepoint any code-emitting agent must pass through. This spec is the formal contract for *what gets built* when the generalized DPG substrate is implemented; the **ruling-dependent parts** (DPG-runner bootstrap credential, per-session credential format, in-flight execution termination semantics) stay marked **Deferred-Pending-Increment-2-Rulings** per the spec-campaign discipline. **v1.0 fold-in (Patton `58db3413`)**: VP-DPG-1 extended with shared-ACT-v1.x-curation-event cross-reference (closes BOTH VP-DPG-1 and VP-PCS-1 in one curation event citing PR #66 + PR #67 — prevents half-extended-enum failure mode); new CD13 commits the runner reconciliation sweep formally (promoted from Failure-Modes prose; analog to PCS-Daemon CD5 rollback-path reconciliation; closes the audit-gap-during-boundary-destruction failure mode as a CD rather than a referenced mitigation).
+**Status**: **Validated v1.1** — sixth instantiation of the pillar-spec template (`planning/PILLAR-SPEC-TEMPLATE.md`, merged 2026-06-05 at `9c67f57`). v1.1 adds the per-pillar manifest layer (§ Substrate Matrix + § Telemetry Contract) instantiating the mesh-level contracts in `SOM-SPEC.md` (SOM-MI-8, SOM-MI-11, § Tested Substrate Profiles); CD14 + CD15 record the v1.1 commitments. The v1.0 contract surface (the five ephemeral-isolation properties, the code-execution contract, the validation gates, the attested return channel, the coupling boundaries, CD1–CD13) is **unchanged**. DPG is **design-stage** — the generalized DPG-as-service is not built; the operational precedent is the ad-hoc CUDA-preflight flow + subagent `isolation:worktree`, but no fleet-callable DPG chokepoint exists yet. The Substrate Matrix names *seams the generalized build will have*, every row design-stage. **v1.1 substrate decision (Judge, 2026-06-05)**: the isolation-runtime seam's sovereign reference is **Podman 5+ rootless (Tier-1)** — the fleet container runtime (per the dev-tooling baseline + DP-CD1 base-image direction) — with **git worktrees retained as the Tier-2 lightweight floor + operational precedent**, and Firecracker/Kata as Tier-0. This supersedes the v1.0 "reference substrate = git worktrees" framing for the *sovereign-ref slot*; the Exit-Test substitutability and the five ephemeral-isolation properties (the v1.0 *contract*) are unchanged — worktrees remains a fully valid Tier-2 substrate. Capability-framing applies throughout (Patton's PR #31 lesson), most sharply on the isolation-runtime seam where the alternatives diverge mechanically.
+
+**v1.1 adds (additive manifest layer):**
+1. **§ Substrate Matrix** — four DPG substrate seams (isolation runtime, base image, network egress control, telemetry sink) as the substitutability boundary per SOM-MI-8 + SOM-CD15 (CD14).
+2. **§ Telemetry Contract** — `som.dpg.*` spans/metrics/log events per SOM-MI-11, with the MI-1 (`dpg.*` audit to ACT) vs MI-11 (observability) distinction (CD15).
+3. **§ Acceptance Criteria** (renamed from § Success Criteria) — prepends the 5 non-negotiables; the v1.0 DPG-specific success criteria are retained below.
+
+**Prior status (v1.0, retained)**: Item 5a of the spec-campaign queue (per Patton's `87d77f55` + ruling `251c9511` that DPG and CRB are separate specs; DPG first). The DPG pillar **has an operational precedent** — the **CUDA-preflight flow** documented in `planning/CUDA-PREFLIGHT.md` and `SOM-PRODUCTION-VALIDATION.md` v1.1 §DPG, in which Bob's Phase-4 "High-Heat" CUDA kernels (Maidenhead-to-LatLon, Haversine, Solar Join) were securely compiled and tested within the DPG boundary before touching production `wspr.silver`. The **substrate primitive** is **git worktrees** (per `CLAUDE.md` § Subagent Policy and `SOM-PRODUCTION-VALIDATION.md` DPG verifier path — subagents needing write access use `isolation: "worktree"` for OS-level Git isolation). What does NOT yet exist is the **generalized reusable substrate** that turns the precedent into a fleet-callable service: the CUDA-preflight pattern works ad-hoc per kernel; the DPG-as-pillar contract turns it into a chokepoint any code-emitting agent must pass through. This spec is the formal contract for *what gets built* when the generalized DPG substrate is implemented; the **ruling-dependent parts** (DPG-runner bootstrap credential, per-session credential format, in-flight execution termination semantics) stay marked **Deferred-Pending-Increment-2-Rulings** per the spec-campaign discipline. **v1.0 fold-in (Patton `58db3413`)**: VP-DPG-1 extended with shared-ACT-v1.x-curation-event cross-reference (closes BOTH VP-DPG-1 and VP-PCS-1 in one curation event citing PR #66 + PR #67 — prevents half-extended-enum failure mode); new CD13 commits the runner reconciliation sweep formally (promoted from Failure-Modes prose; analog to PCS-Daemon CD5 rollback-path reconciliation; closes the audit-gap-during-boundary-destruction failure mode as a CD rather than a referenced mitigation).
 
 ## Purpose / Problem Restatement
 
@@ -52,9 +62,9 @@ DPG-as-pillar has three architectural components that v1.0 commits, plus one sub
 | Component | Role |
 |---|---|
 | **DPG Runner** | The service that accepts execution requests, provisions the ephemeral boundary, runs the requested code, validates the outputs, and returns the structured execution record. May run as a singleton (one runner) or a Worker pool (many concurrent runners) per the deployment's parallelism needs. |
-| **Ephemeral Boundary** | The single-use isolation boundary in which the execution runs. v1.0's reference substrate is a git worktree (per `CLAUDE.md` § Subagent Policy `isolation: "worktree"`); v1.x substrates include nspawn containers, firecracker microVMs, or any substrate that satisfies the ephemeral-isolation contract per the Exit Test. |
+| **Ephemeral Boundary** | The single-use isolation boundary in which the execution runs. The v1.1 sovereign-ref isolation runtime is **Podman rootless** (Tier-1, per § Substrate Matrix / CD14); git worktrees (per `CLAUDE.md` § Subagent Policy `isolation: "worktree"`) is the Tier-2 floor + operational precedent; nspawn/gVisor (Tier-1) and Firecracker/Kata (Tier-0) span the remaining tiers — any substrate satisfying the ephemeral-isolation contract per the Exit Test. |
 | **Validation Gates** | The pass/fail checks applied to the execution's outputs before they return through the attested channel. Includes Syntax conformance (per `pcs-spec`), PGE compliance (per `MCP-SECURITY-FRAMEWORK.md`), test-suite execution (per the requested execution's test specification), and resource-limit attestation (CPU, memory, time, network). |
-| **Substrate primitive (v1.0 reference)** | Git worktrees, per the existing precedent. |
+| **Isolation runtime (v1.1 sovereign-ref)** | Podman rootless (Tier-1) per § Substrate Matrix; git worktrees retained as the Tier-2 floor + operational precedent. |
 
 ### Runner / Boundary / Gates separation
 
@@ -160,11 +170,12 @@ A DPG execution **passes** when all four standard gates plus any request-specifi
 
 ## Substrate Options (Per Exit Test)
 
-v1.0 commits the **Exit Test substitutability** for the substrate primitive. Three substrate classes are admissible:
+v1.0 commits the **Exit Test substitutability** for the isolation-runtime substrate (per § Substrate Matrix); the admissible substrate classes span three trust tiers. The **v1.1 sovereign reference is Podman rootless (Tier-1)** (Judge 2026-06-05, per CD14); git worktrees — the operational precedent — is retained as the Tier-2 lightweight floor:
 
-- **Git worktrees** (v1.0 reference substrate). Lightweight, fast provisioning, OS-level filesystem isolation via git worktree primitives, process isolation via OS user separation. Acceptable at Tier-2; insufficient side-channel isolation for Tier-0 workloads handling sensitive data.
-- **nspawn containers**. Linux container-style isolation, stronger filesystem and network isolation than worktrees, intermediate ceremony. Acceptable at Tier-1; arguable Tier-0.
-- **Firecracker microVMs**. VM-level isolation, strongest substrate-level guarantees (separate kernel per execution), highest ceremony. Acceptable at Tier-0.
+- **Git worktrees + cgroups** (Tier-2; the operational precedent + lightweight floor). Fast provisioning, OS-level filesystem isolation via git worktree primitives, process isolation via OS user separation, resource limits via cgroup wrapping. Acceptable at Tier-2; insufficient side-channel isolation for Tier-0 workloads handling sensitive data.
+- **Podman rootless** (Tier-1; **v1.1 sovereign reference**). Rootless OCI containers — kernel-namespace process/network/filesystem isolation, cgroup resource limits, UBI9-minimal base (DP-CD1), no root daemon. The fleet container runtime (dev-tooling baseline). Acceptable at Tier-1.
+- **systemd-nspawn / gVisor** (Tier-1). nspawn: Linux container-style isolation, stronger fs/network isolation than worktrees. gVisor: syscall-interception sandbox. Acceptable at Tier-1.
+- **Firecracker microVMs / Kata Containers** (Tier-0). VM-level isolation, strongest substrate-level guarantees (separate kernel per execution), highest ceremony. Acceptable at Tier-0.
 
 Per `SOM-PROBLEM-STATEMENT.md` v0.6 §4 Exit Test discipline: the substrate change does not change the DPG contract. Whichever substrate the deployment chooses, the five ephemeral-isolation contract properties (single-use, filesystem, network, resource, process+identity) must hold; the runner's behavior contract holds; the validation gates' interface holds. Substrate is a deployment-architecture choice; contract is what this spec commits.
 
@@ -265,9 +276,93 @@ Workforce agents (Watson, Bob, Patton, Einstein, Newton) are the principal sourc
 - **Workforce agents do NOT execute code in production directly.** Code emitted by Workforce intended to affect production state passes through DPG. This is enforced by PGE at the agent-action policy point (intent-side enforcement) and by IBX/Judge gate (action-priority for promotion).
 - **Subagent worktree isolation** (per `CLAUDE.md` § Subagent Policy, `isolation: "worktree"` flag on Anthropic Agent SDK) is a **lightweight DPG** — agent-spawned subagents writing code use OS-level git worktree isolation as a Tier-2-equivalent DPG boundary. Subagent worktrees do NOT yet run the four standard validation gates (Syntax/PGE/test/resource), so they are precursor-to-DPG-as-pillar, not equivalent. v1.0 commits that subagent worktrees graduate to full DPG conformance when the implementation lands.
 
-## Closed Decisions (CDs — v1.0 Commitments)
+## Substrate Matrix
 
-**CD1**: **DPG is three architecturally distinct components** — Runner (service), Boundary (substrate-specific), Gates (substrate-agnostic) — operating against one substrate primitive (v1.0 reference: git worktrees; Exit-Test-substitutable).
+**Design-stage caveat first**: this section names the **substrate seams the generalized DPG build will have when implementation begins**, not seams wired today — the generalized DPG-as-service is not built (the operational precedent is the ad-hoc CUDA-preflight flow + subagent `isolation:worktree`). The matrix is the substitutability boundary DPG commits to honor when built (per CD14), not running infrastructure. Wording is **role + version floor** per Patton's PR #31 capability-framing lesson — and the **isolation-runtime seam is where this matters most**: the alternatives diverge mechanically (a worktree, a rootless container, and a microVM enforce isolation by entirely different primitives), so the contract column names the *isolation guarantee*, never the primitive.
+
+DPG depends on four substrate seams. Its peer-pillar couplings (IBX, IAM, PGE, ACT, PCS-Daemon, CRB, Workforce) are governed by their § Coupling Boundary sections, not the matrix.
+
+| Seam | Contract (role + version floor) | Sovereign reference (version floor) | Supported alternatives (version floor) |
+|------|---------------------------------|-------------------------------------|----------------------------------------|
+| **Isolation runtime** (the ephemeral boundary) | **Ephemeral single-use isolation boundary**: kernel-enforced process / network / filesystem isolation; per-execution teardown with guaranteed state cleanup; resource limits (CPU / memory / wall-clock / disk) enforceable at the runtime layer; the five § Ephemeral-Isolation-Contract properties hold. **Tier-gradable** — stronger substrates satisfy higher trust tiers (per § Substrate Options). | **Podman 5+ (rootless)** — Tier-1; the fleet container runtime (dev-tooling baseline + DP-CD1) | **git worktrees + cgroups** (Tier-2; the operational precedent + lightweight floor), **systemd-nspawn** (Tier-1), **gVisor** (Tier-1, syscall interception), **Firecracker microVM** (Tier-0, separate kernel per execution), **Kata Containers** (Tier-0). The seam breaks at the *isolation guarantee + tier*, not the primitive. |
+| **Base image** (for container / microVM isolation runtimes) | Minimal OCI base image meeting the security floor; per-environment selectable (per `SOM-DELIVERY-PACKAGING.md` DP-CD1) | UBI9-minimal | Wolfi, distroless, scratch-equivalent — per the `ContainerBaseImage` parameter (DP-CD1). N/A for the worktree substrate (no image). |
+| **Network egress control** (the default-deny boundary) | Default-deny egress; per-execution allowlist (declared hostnames/ports in the execution request); no inbound listeners; egress attempts captured in the boundary audit | nftables-based egress proxy | Cilium, Calico, Envoy proxy — any substrate enforcing declarative per-execution egress allowlists |
+| **Telemetry sink** (per SOM-MI-11; OTLP-on-the-wire) | OTLP traces + metrics; JSON logs to stderr; sink via `OTEL_EXPORTER_OTLP_ENDPOINT` | Grafana / Prometheus / Tempo stack | Azure Monitor / App Insights, Datadog, OCI Monitoring, any OTLP-compatible sink |
+
+**Conformance**: when the generalized DPG is built, CI runs the multi-profile conformance suite (CONF-CD1..11) against **≥ 2 products per seam** from the supported set — and the **isolation-runtime seam's conformance is the load-bearing one**: the same adversarial containment battery (fork-bomb containment, unauthorized-egress containment, out-of-boundary-write containment, per § Success Criteria) must produce identical containment outcomes across the tested isolation runtimes. A seam change that fails any tested profile does not merge (SOM-CD15).
+
+**Out-of-set substrates**: a deployment using an isolation runtime not listed is **not covered** by DPG's substitutability claim — it requires a new profile definition (CONF-CD11), a conformance-suite extension (the adversarial battery against the new runtime), and the multi-profile run passing per SOM-CD15. This discipline matters most here: an unvetted isolation runtime is a security boundary, not a convenience substrate.
+
+**Tier note**: the isolation-runtime row's T0/T1/T2 annotations map to § Substrate Options. The sovereign reference (Podman rootless, Tier-1) is the generalized-DPG default; Tier-0 workloads handling sensitive data require a Tier-0 substrate (Firecracker / Kata); the Tier-2 worktree floor remains valid for low-sensitivity validation (the operational precedent's tier).
+
+## Telemetry Contract
+
+Per SOM-MI-11, the DPG runner emits OTLP traces, OTLP metrics, and JSON-structured logs to stderr when built; the sink is selected by the customer via `OTEL_EXPORTER_OTLP_ENDPOINT`; SOM does not name the backend. Naming follows the template: `som.dpg.<operation>` for spans, `som.dpg.<metric>` for metrics. **Design-stage**: the contract below is what the runner emits when built, not signals that flow today.
+
+### Spans
+
+| Operation | Span name | Required attributes (beyond identity, session, service.*) |
+|-----------|-----------|-----------------------------------------------------------|
+| Provision the ephemeral boundary | `som.dpg.sandbox.create` | `execution_id`, `substrate_type`, `isolation_tier`, `workload_type` |
+| Run the requested workload | `som.dpg.sandbox.execute` | `execution_id`, `workload_type`, `outcome` |
+| Apply a validation gate | `som.dpg.gate.evaluate` | `execution_id`, `gate` (`syntax` / `pge` / `test` / `resource`), `gate_outcome` (`pass` / `fail`), `failing_rule` (on fail) |
+| Destroy the boundary | `som.dpg.sandbox.terminate` | `execution_id`, `substrate_type`, `teardown_outcome` |
+| Return result through the attested channel | `som.dpg.return.attest` | `execution_id`, `outcome`, `return_artifact_count` |
+| Lost-completion reconciliation sweep (CD13) | `som.dpg.reconciliation.sweep` | `swept_count`, `reason` |
+
+### Metrics
+
+| Metric name | Type | Unit | Meaning |
+|-------------|------|------|---------|
+| `som.dpg.sandbox.executions_total` | counter | count | Cumulative executions by outcome (`success` / `validation_failed` / `resource_limit_exceeded` / `crashed` / `timeout`) — DPG throughput |
+| `som.dpg.sandbox.lifecycle_ms` | histogram | milliseconds | Boundary create→execute→teardown duration |
+| `som.dpg.gate.rejection_rate` | counter | rejections | Cumulative validation-gate failures by gate — policy-friction signal (PGE-gate failures couple to PGE CD8) |
+| `som.dpg.resource.limit_exceeded_total` | counter | count | Cumulative `resource_limit_exceeded` terminations — limit-tuning + fork-bomb-attempt signal |
+| `som.dpg.escape.attempt_total` | counter | count | Cumulative detected boundary-escape attempts (out-of-boundary write, undeclared egress, privilege escalation) — the load-bearing security signal |
+| `som.dpg.sandbox.in_flight` | gauge | count | Current executions per runner pool — DPG backlog signal |
+| `som.dpg.reconciliation.swept_total` | counter | count | Cumulative lost-completion recoveries (CD13) |
+
+### Log events
+
+| Event | Level | Structured fields (beyond required keys) |
+|-------|-------|------------------------------------------|
+| `sandbox.lifecycle` | `info` | `execution_id`, `phase` (`create` / `execute` / `terminate`), `substrate_type`, `isolation_tier` |
+| `gate.rejected` | `warn` | `execution_id`, `gate`, `failing_rule` |
+| `resource.limit_exceeded` | `warn` | `execution_id`, `limit_kind` (`cpu` / `memory` / `time` / `disk`), `declared`, `observed` |
+| `escape.detected` | `error` | `execution_id`, `escape_kind` (`fs_out_of_boundary` / `undeclared_egress` / `privilege_escalation`), `substrate_type` |
+| `network.egress_denied` | `warn` | `execution_id`, `attempted_target` |
+| `reconciliation.swept` | `warn` | `execution_id`, `reason` (`lost_completion_recovered`) |
+
+### Required attributes / resource attributes (per MI-11, all events)
+
+- `service.name` = `dpg-runner` (resource attribute)
+- `service.version` — from `get_version_info` (resource attribute)
+- `deployment.environment` — resource attribute (`lab-design-stage` today; `prod-<host>` when built)
+- `identity` — the DPG runner's ARCA-issued principal-id (event attribute)
+- `session` — the runner's session-id (event attribute; distinguishes concurrent worker-pool runners)
+- `trace_id`, `span_id` — OpenTelemetry standard (event attributes)
+- `cost-center` — applied when ACT chargeback is wired (post #22 resolution)
+
+### Format
+
+- **Traces + metrics**: OpenTelemetry / OTLP, exported via `OTEL_EXPORTER_OTLP_ENDPOINT` (no specific backend named)
+- **Logs**: JSON to stderr (stdout is reserved for the MCP protocol channel)
+- **Required log keys**: `timestamp`, `level`, `message`, `service.name`, `service.version`, `trace_id`, `span_id`, `identity`, `session` + event-specific fields
+
+### Distinction: audit (MI-1) vs observability (MI-11)
+
+DPG emits **both** signal classes, kept distinct:
+
+- **MI-1 (audit)** — the **`dpg.*` event stream to ACT** (`dpg.code_emitted` from the upstream agent, `dpg.execution_complete` from the runner, `dpg.execution_request_rejected` per VP-DPG-1, plus the CD13 `lost_completion_recovered` recovery event). The durable accountability record — *what code ran, under whose identity, with what containment outcome*. The `boundary_audit_summary` (process tree, egress attempted-vs-allowed, out-of-boundary reads) is part of this stream.
+- **MI-11 (observability)** — the `som.dpg.*` spans + metrics + log events above. Operational + cost-attribution.
+
+The two are separate streams: an execution's *accountability* (who ran what, containment outcome) lives in the MI-1 `dpg.*` stream; its *operational characteristics* (lifecycle latency, gate-rejection rate) live in the MI-11 `som.dpg.*` stream. Per the template style rule, they are not collapsed.
+
+**Audit-content gap note (SOM-OQ-6)**: CD13 recovers the *fact* of a lost completion; the *content* of in-boundary telemetry that died before flushing to ACT remains the mesh-level SOM-OQ-6 open question. The MI-11 spans above are subject to the same boundary-local-to-ACT-ingest gap.
+
+## Closed Decisions (CDs — v1.0–v1.1 Commitments)
+
+**CD1**: **DPG is three architecturally distinct components** — Runner (service), Boundary (substrate-specific), Gates (substrate-agnostic) — operating against the isolation-runtime substrate (v1.1 sovereign-ref: Podman rootless; git worktrees as the Tier-2 floor; Exit-Test-substitutable per § Substrate Matrix / CD14).
 
 **CD2**: **The five ephemeral-isolation properties are non-negotiable** — single-use creation/destruction, filesystem isolation, network isolation (default no-network), resource limits, process and identity isolation.
 
@@ -287,7 +382,7 @@ Workforce agents (Watson, Bob, Patton, Einstein, Newton) are the principal sourc
 
 **CD10**: **Deterministic execution where possible**; same inputs + command + validation spec → same result. Where external nondeterminism is required, declared seeds permit deterministic replay. CUDA workloads admit best-effort determinism (numerical drift allowed; recorded).
 
-**CD11**: **Substrate substitutability via Exit Test.** Git worktrees → nspawn → firecracker microVMs are all admissible substrates; the contract is what holds across substrate change.
+**CD11**: **Substrate substitutability via Exit Test.** Podman rootless (v1.1 sovereign reference, Tier-1) + git worktrees (Tier-2 floor) + systemd-nspawn / gVisor (Tier-1) + Firecracker microVMs / Kata (Tier-0) are all admissible isolation runtimes; the contract (the five ephemeral-isolation properties per CD2) is what holds across substrate change. Sovereign-ref per CD14.
 
 **CD12**: **DPG result emits `dpg.execution_complete` to ACT** per ACT v1.0 CD4. `dpg.code_emitted` is emitted by the upstream code-emitting agent, not by DPG. New event-type `dpg.execution_request_rejected` proposed for ACT v1.x curation event (tracked in VP-DPG-1).
 
@@ -301,6 +396,10 @@ Workforce agents (Watson, Bob, Patton, Einstein, Newton) are the principal sourc
 CD13 closes the audit-gap-during-boundary-destruction failure mode (per § Failure Modes below) as a formal commitment rather than a mitigation that's only referenced in prose. Forward-completion ordering remains correct; lost-completion failures are caught by reconciliation; reconciliation is idempotent. Same pattern shape as PCS-Daemon CD5; the relocated half-state failure mode is shut.
 
 **Scope limit (per Einstein cross-substrate pass finding #4, `dc6ca481`)**: CD13 recovers the *fact* a completion was lost — the synthetic terminal `lost_completion_recovered` event marks that the execution's completion never reached ACT. CD13 does NOT recover the *content* of in-boundary telemetry that died before flushing to ACT (reasoning spans, intermediate tool calls, partial execution record). The boundary-local-to-ACT-ingest interval is unprotected; SOM-MI-1 retains what arrived at ACT, but the gap is at event-generation-to-event-arrival. This seam is tracked at mesh level as **SOM-OQ-6** with four candidate resolutions (accept-and-bound / stream-before-act / boundary-local durable spool / hybrid) — see `SOM-SPEC.md` § SOM-OQ-6. The cross-pillar design decision is pending Judge selection; v1.0 commits CD13's fact-of-loss recovery as the audit floor, with content recovery as the SOM-OQ-6 question.
+
+**CD14 (v1.1 — Substrate Matrix is design-stage, capability-framed, DPG substitutability boundary)**: Per SOM-MI-8 + § Tested Substrate Profiles + Patton's PR #31 capability-framing lesson. § Substrate Matrix names four DPG substrate seams (isolation runtime, base image, network egress control, telemetry sink) as the generalized DPG build's substitutability boundary. Every row is **design-stage** — the generalized DPG is not built. Contract columns are **capability-framed**. **The isolation-runtime seam's sovereign reference is Podman 5+ rootless (Tier-1)** — the fleet container runtime — with **git worktrees retained as the Tier-2 lightweight floor + operational precedent**, nspawn/gVisor at Tier-1, and Firecracker/Kata at Tier-0 (per Judge 2026-06-05). This supersedes the v1.0 "reference substrate = git worktrees" framing for the *sovereign-ref slot*; the Exit-Test substitutability (CD11) and the five ephemeral-isolation properties (CD2 — the v1.0 *contract*) are unchanged — worktrees remains a fully valid Tier-2 substrate. The isolation-runtime conformance is load-bearing: the adversarial containment battery must produce identical outcomes across tested runtimes. Substitutability under SOM-CD15 covers exactly the rows listed; out-of-set isolation runtimes require a new conformance run (an unvetted isolation runtime is a security boundary, not a convenience substrate).
+
+**CD15 (v1.1 — Telemetry Contract is design-stage MI-11 manifest; MI-1 `dpg.*` audit vs MI-11 observability kept distinct)**: Per SOM-MI-11 + the pillar-spec template + Patton's audit-vs-observability stream distinction. § Telemetry Contract names DPG spans (`som.dpg.sandbox.{create,execute,terminate}`, `som.dpg.gate.evaluate`, `som.dpg.return.attest`, `som.dpg.reconciliation.sweep`), metrics (`som.dpg.sandbox.executions_total`, `.sandbox.lifecycle_ms`, `.gate.rejection_rate`, `.resource.limit_exceeded_total`, `.escape.attempt_total`, `.sandbox.in_flight`, `.reconciliation.swept_total`), and log events. Every signal is **design-stage**. The two stream classes are distinct: the **MI-1 audit stream is the `dpg.*` event sequence to ACT** (durable containment accountability incl. the `boundary_audit_summary`, per § Coupling Boundary: ACT ↔ DPG); the **MI-11 observability stream is `som.dpg.*`** (operational + cost-attribution). The AC5 audit-emission path (Path A vs Path B) follows `#22` at build time. The boundary-local-to-ACT-ingest *content* gap is the mesh-level SOM-OQ-6 (CD13 recovers fact-of-loss only).
 
 ## Deferred-Pending-Increment-2-Rulings (DRs)
 
@@ -353,7 +452,31 @@ CD13 closes the audit-gap-during-boundary-destruction failure mode (per § Failu
 - **`MCP-SECURITY-FRAMEWORK.md`** — PGE rule corpus that DPG applies as the second guardrail
 - **`CLAUDE.md`** § Subagent Policy — the subagent `isolation: "worktree"` precedent for the substrate primitive
 
-## Success Criteria
+## Acceptance Criteria
+
+A pillar spec is not validated until all five non-negotiables (per `planning/PILLAR-SPEC-TEMPLATE.md`) hold, equal weight to security. DPG is **design-stage**; each Measure names the design-stage gap and what becomes testable when the generalized DPG build begins.
+
+### 1. Secure
+
+DPG conforms to the security framework (`planning/MCP-SECURITY-FRAMEWORK.md`) — and DPG *is itself a security boundary*: the isolation-runtime seam enforces process/network/filesystem isolation (CD2), the PGE gate runs inside the boundary (CD8), no credential leaks into the boundary, no injection surface in the runner. **Measure (design-stage)**: when built, `test_security.py` passes + the adversarial containment battery (fork-bomb, unauthorized egress, out-of-boundary write — per the v1.0 success criteria below) is contained on every tested isolation runtime.
+
+### 2. Instrumented-by-default
+
+The runner emits the OTLP traces + metrics of § Telemetry Contract. **Measure (design-stage)**: when built, an OTel Collector observes the full `som.dpg.*` span + metric sets across a sample execution; a missing named span/metric is a non-conformance.
+
+### 3. JSON logs
+
+The runner emits structured JSON logs to stderr with the required keys + trace correlation per SOM-MI-11. **Measure (design-stage)**: when built, every stderr line is valid JSON carrying `trace_id` + `span_id`.
+
+### 4. CLI-first, UI-second
+
+Every DPG management function (submit execution, query execution state, list runners, trigger reconciliation sweep) is runnable on a CLI/API surface before any MCC pane exists; the MCC pane is a thin client per SOM-CD14. **Measure (design-stage)**: when built, the full execution lifecycle is drivable headless via CLI/MCP; the MCC pane renders only existing CLI/API surfaces.
+
+### 5. Audit emission
+
+DPG emits an accountability event for every execution — the `dpg.*` event stream per § Coupling Boundary: ACT ↔ DPG (`dpg.code_emitted`, `dpg.execution_complete`, `dpg.execution_request_rejected`, plus the CD13 `lost_completion_recovered` recovery event), each carrying the `boundary_audit_summary`. Per **Path A** (emission-as-build-standard, default until `#22` resolves to Path B), these land on the SOM-MI-1 stream ACT consumes downstream; VP-DPG-1 tracks the `dpg.execution_request_rejected` enum extension. The author checks `KI7MT/som-spec#22` at build time. **Measure (design-stage)**: when built, every execution has a corresponding durable `dpg.*` completion event (the CD13 reconciliation sweep guarantees this even on lost-completion); an execution with no completion event is a no-bypass violation. *(Content of in-boundary telemetry lost before ACT flush is the SOM-OQ-6 mesh gap — CD13 recovers fact-of-loss, not content.)*
+
+### v1.0 DPG-specific success criteria (retained)
 
 - **DPG runner emits all four standard validation gates on every execution.** No execution returns to the caller without all four gate results in the validation_results record. **Measure**: integration test in the implementation runs a sample execution and verifies all four gates fired.
 - **Ephemeral isolation provably holds.** A malicious execution cannot write outside the boundary, cannot access network outside declared egress, cannot exceed declared resource limits. **Measure**: chaos test in the implementation runs adversarial executions (attempting fork-bomb, attempting unauthorized network egress, attempting filesystem write outside boundary) and verifies all are contained.
