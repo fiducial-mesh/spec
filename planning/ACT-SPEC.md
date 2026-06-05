@@ -2,11 +2,11 @@
 title: "ACT Spec — Agent Cognitive Telemetry Pillar Contract"
 doc_type: spec
 status: validated
-version: v1.0
+version: v1.1
 authors:
   - watson
   - patton
-date: "2026-06-02"
+date: "2026-06-05"
 roles:
   - design-intent
   - infrastructure
@@ -15,6 +15,8 @@ author_id: watson
 violates_invariant: false
 invariant_class: ""
 references:
+  - planning/SOM-SPEC.md
+  - planning/PILLAR-SPEC-TEMPLATE.md
   - planning/SOM-PILLAR-NAMES.md
   - planning/SOM-PRODUCTION-VALIDATION.md
   - planning/SOM-PROBLEM-STATEMENT.md
@@ -28,7 +30,17 @@ references:
 
 **Scope**: Formalizes the contract for ACT (Agent Cognitive Telemetry), the State-Plane pillar that provides an immutable, locally hosted audit trail of every reasoning span, token, tool call, and cognitive event the agent fleet produces. Covers the two-layer architecture (Record Layer for capture + Detect Layer for ITDR analytics) per Patton's forward note (`5492e684`), the cognitive-event schema, the storage substrate (append-only on ClickHouse), the consume side of three coupling boundaries the upstream specs already named (IAM ↔ ACT, IBX ↔ ACT, Concurrency ↔ ACT), the Judge-audit + PGE-compliance read paths, and the ITDR (Identity Threat Detection and Response) detection layer in its two operational modes (behavioral anomaly + policy-violating access).
 
-**Status**: **Validated v1.0** — item 3 of the spec-campaign queue (per Patton's `87d77f55`). ACT has **no implementation today** — neither the Record Layer nor the Detect Layer is built; the pillar is at specification phase per `SOM-PRODUCTION-VALIDATION.md` v1.1 ACT row. This spec is the formal contract for *what Bob builds* when implementation begins; it does NOT promote ACT to operational. The stable contract parts are validated and downstream consumers (PGE compliance, Judge audit, ITDR detection) may build against them; the **ruling-dependent parts** (ITDR scope, specific detection signal definitions, dissent-detection thresholds, runtime delivery semantics for terminator failure-mode) stay marked **Deferred-Pending-Increment-2-Rulings** per Patton's "don't front-run the seven rulings" directive. **v1.0 fold-in (Patton `a1bb2eb0`)**: DR-ACT-3 split into audit-invariant (NOT deferred — append-only is non-negotiable per CD3 + CD12) + runtime-delivery (deferred to DR-IAM-4); `act.chain_checkpoint` event type added to the CD4 bounded enum (was used in mitigation prose without being declared); `act-event-schemas.md` added to a new "Deferred Supporting Documents" section so it's tracked rather than floating.
+**Status**: **Validated v1.1** — third instantiation of the pillar-spec template (`planning/PILLAR-SPEC-TEMPLATE.md`, merged 2026-06-05 at `9c67f57`). v1.1 adds the per-pillar manifest layer (§ Substrate Matrix + § Telemetry Contract) that instantiates the mesh-level contracts in `SOM-SPEC.md` (SOM-MI-8, SOM-MI-11, § Tested Substrate Profiles). ACT is **not built today** — neither the Record Layer nor the Detect Layer exists; v1.1 names the substrate seams and telemetry surface the ACT build commits to when implementation begins. CD13 + CD14 record the v1.1 commitments. v1.0 contract surface unchanged. Capability-framing applied per Patton's PR #31 lesson: contract column names what the substrate must guarantee, not the sovereign-ref's specific primitive. **ACT-specific double role**: ACT is the consumer of the mesh's MI-1 audit stream AND emits its own MI-11 observability for the Record + Detect Layer operations; § Telemetry Contract covers the self-emission side.
+
+**Prior status (v1.0, retained)**: Item 3 of the spec-campaign queue (per Patton's `87d77f55`). ACT has **no implementation today** — neither the Record Layer nor the Detect Layer is built; the pillar is at specification phase per `SOM-PRODUCTION-VALIDATION.md` v1.1 ACT row. This spec is the formal contract for *what Bob builds* when implementation begins; it does NOT promote ACT to operational. The stable contract parts are validated and downstream consumers (PGE compliance, Judge audit, ITDR detection) may build against them; the **ruling-dependent parts** (ITDR scope, specific detection signal definitions, dissent-detection thresholds, runtime delivery semantics for terminator failure-mode) stay marked **Deferred-Pending-Increment-2-Rulings** per Patton's "don't front-run the seven rulings" directive. **v1.0 fold-in (Patton `a1bb2eb0`)**: DR-ACT-3 split into audit-invariant (NOT deferred — append-only is non-negotiable per CD3 + CD12) + runtime-delivery (deferred to DR-IAM-4); `act.chain_checkpoint` event type added to the CD4 bounded enum (was used in mitigation prose without being declared); `act-event-schemas.md` added to a new "Deferred Supporting Documents" section so it's tracked rather than floating.
+
+**v1.1 additions (this version)**:
+1. **§ Substrate Matrix** (new section) — names 5 ACT substrate seams (Event store, Detect Layer ML runtime, Telemetry sink, Chain verification crypto, Cold-storage tier). Every row is design-stage. CD13 commits the matrix as the substitutability boundary per SOM-CD15. Existing CD7 (substrate substitutability Exit Test) is extended by the matrix formalization — the matrix is what makes CD7's Exit Test discipline mechanically checkable.
+2. **§ Telemetry Contract** (new section) — ACT-specific spans (`som.act.ingest.write`, `som.act.chain.verify`, `som.act.detect.evaluate`, `som.act.query.execute`, `som.act.signal.emit`, etc.), metrics (`som.act.ingest_rate`, `som.act.chain_verification_latency_ms`, `som.act.detect_signal_rate`, etc.), log events per SOM-MI-11. CD14 commits this as ACT's MI-11 manifest. **Important: ACT's MI-11 emission is about ACT's own operations (ingest health, chain verification, detect-layer signal generation); ACT's role as consumer of the mesh's MI-1 audit stream is covered by the existing § Cognitive-Event Schema + the IAM/IBX coupling sections.**
+3. **§ Acceptance Criteria** (renamed from § Success Criteria) — prepends the 5 non-negotiables from the template with ACT-specific Python-stack framing where relevant. Existing v1.0 ACT-specific success criteria preserved below.
+4. **CD13 + CD14** record the substrate matrix + telemetry contract commitments respectively.
+
+The v1.0 contract surface (two-layer architecture, append-only semantics, cognitive-event schema, IAM/IBX/Concurrency/PGE/Judge coupling boundaries, ITDR two-mode framing, watcher-not-executioner discipline, recursive tamper-evidence) is **unchanged**. v1.1 is purely additive — it adds the manifest layer.
 
 ACT is the **consuming-side** pillar in three couplings that the upstream specs have already committed the providing-side surfaces for:
 
@@ -286,7 +298,109 @@ Both modes emit `act.detection_signal` events. The signals route to PGE for resp
 
 This separation mirrors the `IAM-CORE-SPEC.md` CD6 delegation seam (two principals each authorized for their own part) applied at the pillar level: ACT is one principal (with detection authority); PGE is another principal (with response authority); the seam between them runs through IBX PCT, which is itself gated by the Judge approval mechanism for response actions that warrant it.
 
-## Closed Decisions (CDs — v1.0 Commitments)
+## Substrate Matrix
+
+Per SOM-MI-8 + `SOM-SPEC.md` § Tested Substrate Profiles + CD13 + the pre-existing CD7 (substrate substitutability Exit Test). This matrix formalizes the per-seam substitutability claim CD7 already committed at the prose level — making the claim **mechanically checkable** rather than asserted-in-prose (the exact Patton-PR-#31 lesson at the ACT layer). ACT's substitutability claim covers exactly the rows listed; out-of-set substrates require a new profile definition (per CONF-CD11), conformance suite extension, and the multi-profile run passing per SOM-CD15.
+
+**Design-stage caveat**: ACT has no implementation today — the matrix names the seams the ACT build will have when implementation begins. The Record Layer + Detect Layer architectural split (CD1) is the foundation for the seam decomposition below.
+
+ACT exposes five substrate seams. The Record Layer drives three (event store, chain crypto, cold-storage tier); the Detect Layer adds the ML-runtime seam; and per SOM-MI-11, ACT's own observability adds a telemetry-sink seam.
+
+| Seam | Contract (role + version floor, capability-framed) | Sovereign reference (version floor) | Supported alternatives (version floor) |
+|------|----------------------------------------------------|-------------------------------------|----------------------------------------|
+| **Event store** (append-only cognitive-event store per CD3 + CD5; Record Layer driver) | Append-only persistence with high-throughput columnar/analytical access; per-event-id uniqueness for `correcting_event_id` references; LowCardinality-indexed enum support for event-type taxonomy (CD4); JOIN-heavy query support for CLCA reconstruction patterns; sustained ingest under load (no silent drop — CD3 + Failure Mode 1) | **ClickHouse 23.8+** with append-only `act.events` table (per CD7 v1.0 reference; today's lab POC target) | PostgreSQL 17+ with append-only schema + columnar extension (`pg_columnar` / `cstore_fdw`), NATS JetStream 2.10+ (event-store mode), Apache Kafka 3.6+ (compacted topics + KSQL), OpenTelemetry-compatible backend (Tempo + Loki). **Per CD7, substrate-substitutable; the Exit Test holds across substrate change.** |
+| **Detect Layer ML runtime** (CD2 — Python; Detect Layer driver) | Capability to load, evaluate, and update ML models for behavioral-anomaly + policy-violating-access detection (CD9 two-mode framing); supports batch + streaming evaluation modes; integration with the event store as read source; emits `act.detection_signal` events back to the event store | **Python 3.10+** with the lab's Python ML stack (PyTorch/scikit-learn/Polars), per CD2 | Python 3.11+ / 3.12+, alternative ML stacks (TensorFlow, JAX, ONNX Runtime), embedded ML runtime (Triton Inference Server) for high-throughput Detect Layer deployments. **Design-stage**: Detect Layer is most-deferred ACT component; CD2 commits Python direction, deployment-architecture picks the specific ML framework. |
+| **Telemetry sink** (per SOM-MI-11 for ACT's own observability — distinct from ACT's role as consumer of the mesh's MI-1 audit stream) | OpenTelemetry / OTLP for traces + metrics; JSON-structured logs to stderr; sink configurable via `OTEL_EXPORTER_OTLP_ENDPOINT` | Grafana/Prometheus/Tempo stack | Azure Monitor / App Insights, Datadog, OCI Monitoring, any OTLP-compatible sink — per SOM-MI-11 final paragraph |
+| **Chain-verification crypto** (CD3 + CD12; per-session cryptographic chaining + tamper-evidence) | Cryptographic hash function suitable for chaining (collision-resistant, fast verification, FIPS-validated when deployment requires it); per-event hash computation; chain-checkpoint hash aggregation (per `act.chain_checkpoint` event type added in v1.0 fold-in) | **SHA-256** (default; widely supported; FIPS 140-2 / 140-3 validated implementations available) | SHA-3-256, BLAKE3 (faster, lower-overhead but newer FIPS path), HMAC-keyed variants for additional tamper resistance. **OQ-A1-adjacent**: hash choice has cold-storage migration implications; chain re-verification across hash change requires migration discipline. |
+| **Cold-storage tier** (per OQ-A1 — deferred; future ACT extension when event volume crosses retention threshold) | Cheaper persistence tier for events older than N days that retains chain-verifiability through the migration; readable on demand for compliance queries | **Deferred (OQ-A1)** — sovereign-ref selection pending operational sizing | S3-compatible object storage (MinIO, AWS S3, Azure Blob, OCI Object Storage), Apache Iceberg + Parquet on S3-compatible, ClickHouse cold-storage tier with tiered TTL. **Design-stage; OQ-A1 names the open question.** |
+
+**Conformance**: when ACT is built, CI runs the multi-profile conformance suite (CONF-CD1..11) against **≥ 2 products per seam** from the supported set. A seam change that fails any tested profile does not merge (SOM-CD15). For today's design-stage state, no seam is exercised; CD7's Exit Test discipline becomes mechanically-checked when the build runs.
+
+**Out-of-set substrates**: A deployment using a substrate not listed (e.g., Splunk for event store, custom-rolled hash for chain crypto) is **not covered by ACT's substitutability claim** — it requires a new profile definition (CONF-CD11), conformance suite extension, and the multi-profile run passing per SOM-CD15. Same boundary discipline as `SOM-DELIVERY-PACKAGING.md` DP-CD1.
+
+**Capability-framing discipline (per Patton's PR #31 lesson)**: each row's Contract column names the *capability* the substrate must guarantee (append-only persistence with columnar access, ML model load/evaluate, OTLP-on-the-wire, collision-resistant hash chaining), not the *specific mechanism* the sovereign-ref uses (ClickHouse `MergeTree`, PyTorch, SHA-256 specifically). The IBX equivalent was PG-17's `FOR UPDATE SKIP LOCKED`; ACT's "ClickHouse `MergeTree` engine" would have been the same shear if written into the event-store contract column.
+
+## Telemetry Contract
+
+Per SOM-MI-11, ACT's own runtime (Record Layer + Detect Layer) emits OTLP traces, OTLP metrics, and JSON-structured logs to stderr. The sink is selected by the customer via `OTEL_EXPORTER_OTLP_ENDPOINT`; SOM does not name the backend. Naming convention follows the template: `som.act.<operation>` for spans, `som.act.<metric>` for metrics.
+
+**ACT's double role — critical distinction**: ACT is the **consumer** of the mesh's MI-1 audit stream (per § Cognitive-Event Schema + the IAM/IBX coupling sections) AND **emitter** of its own MI-11 observability for its operations. This section is the per-pillar MI-11 manifest for ACT's self-emission — *not* the cognitive-event schema (which is ACT's consumer-side contract for MI-1 audit data). The two streams are kept distinct: ACT's `som.act.*` MI-11 signals describe ACT's own health (ingest throughput, chain verification latency, detect-layer signal rate); the cognitive-event schema's `act.events` records describe what other pillars did (IAM logins, IBX messages, etc.).
+
+### Spans
+
+| Operation | Span name | Required attributes (beyond identity, session, service.*) |
+|-----------|-----------|-----------------------------------------------------------|
+| Record Layer ingest write (event arrives, validates, writes to event store) | `som.act.ingest.write` | `event_type`, `principal_id`, `session_id`, `event_source` (`iam` / `ibx` / `workforce` / `quorum` / `dpg` / `act_self`), `ingest_outcome` (`written` / `rejected_schema` / `rejected_attribution` / `rejected_duplicate`) |
+| Record Layer chain verification (per-session chain end-to-end check) | `som.act.chain.verify` | `session_id`, `events_verified`, `chain_outcome` (`ok` / `mismatch_detected` / `checkpoint_invalid`), `verification_latency_ms` |
+| Chain checkpoint emission (per CD4 `act.chain_checkpoint` event type) | `som.act.chain.checkpoint` | `session_id`, `events_since_last_checkpoint`, `checkpoint_hash` (fingerprint only, not the full hash) |
+| Detect Layer signal evaluation (model evaluates event/session against baseline) | `som.act.detect.evaluate` | `event_type`, `session_id`, `detect_mode` (`behavioral_anomaly` / `policy_violating_access` per CD9), `evaluation_outcome` (`no_signal` / `signal_emitted`), `evaluation_latency_ms` |
+| Detection signal emit (Detect Layer routes signal to PGE) | `som.act.signal.emit` | `event_type` (`behavioral_anomaly` / `policy_violating_access`), `severity` (`info` / `warn` / `escalate`), `target_session_id`, `target_principal_id`, `routing_target` (`pge`) |
+| Compliance query execution (Judge or PGE reads ACT) | `som.act.query.execute` | `query_class` (`compliance` / `forensic` / `itdr_baseline`), `query_principal` (who issued the query), `result_count`, `query_latency_ms` |
+| Tamper-evidence validation failure (`act.validation_failure` per CD12) | `som.act.validation.failure` | `session_id`, `event_id_at_failure`, `validation_class` (`chain_break` / `schema_violation` / `attribution_missing`), `detection_phase` (`ingest` / `chain_verify` / `checkpoint`) |
+| Backpressure activation (slow-path / write-ahead buffer engaged) | `som.act.backpressure.activate` | `buffer_depth`, `ingest_rate_at_activation`, `activation_reason` (`disk_io_bound` / `cpu_bound` / `detect_layer_starvation`) |
+
+### Metrics
+
+| Metric name | Type | Unit | Meaning |
+|-------------|------|------|---------|
+| `som.act.ingest_rate` | gauge | events/sec | Current Record Layer ingest throughput per event source (`event_source` label) |
+| `som.act.ingest_failures_total` | counter | count | Cumulative ingest rejections labeled by `rejection_class` (`schema_violation` / `attribution_missing` / `duplicate_event_id`) — data-quality signal for upstream pillars |
+| `som.act.chain_verification_latency_ms` | histogram | milliseconds | Per-session chain verification end-to-end latency, bucketed |
+| `som.act.chain_verification_mismatches_total` | counter | count | Cumulative chain verification failures — tamper-evidence signal (per CD12) |
+| `som.act.detect_signal_rate` | counter | signals/sec | Detection signal emission rate per `detect_mode` + `severity` label — ITDR operational signal |
+| `som.act.detect_evaluation_latency_ms` | histogram | milliseconds | Detect Layer evaluation latency, bucketed — model performance signal |
+| `som.act.query_latency_ms` | histogram | milliseconds | Compliance/forensic query latency, bucketed by `query_class` — consumer experience signal |
+| `som.act.events_stored_total` | counter | count | Cumulative events stored — operational + capacity-planning signal |
+| `som.act.backpressure_activations_total` | counter | count | Cumulative backpressure activations — ingest-pipeline health signal (high rate = approaching capacity limit) |
+| `som.act.event_store.size_bytes` | gauge | bytes | Current event store size — cold-storage migration trigger (per OQ-A1) |
+
+### Log events
+
+| Event | Level | Structured fields (beyond required keys) |
+|-------|-------|------------------------------------------|
+| `act.ingest.rejected` | `warn` | `event_type`, `event_source`, `rejection_class`, `principal_id_at_attempt`, `session_id_at_attempt` |
+| `act.chain.verification.failure` | `error` | `session_id`, `event_id_at_failure`, `validation_class`, `detection_phase` (per `act.validation_failure` event class — CD12) |
+| `act.detect.signal.emit` | `info` | `event_type`, `severity`, `target_session_id`, `target_principal_id`, `routing_target` |
+| `act.detect.threshold.degraded` | `warn` | `detect_mode`, `false_positive_rate_observed`, `degradation_action` (`monitor_only` / `disabled`) — per Failure Mode 4 mitigation |
+| `act.backpressure.activated` | `warn` | `buffer_depth`, `ingest_rate_at_activation`, `activation_reason`, `expected_recovery_ms` |
+| `act.query.executed` | `info` | `query_class`, `query_principal`, `result_count`, `query_latency_ms` — audit trail for who-queried-what |
+| `act.event_store.cold_storage.migration` | `info` | `migration_outcome` (`scheduled` / `started` / `completed` / `failed`), `events_migrated`, `target_tier` (per OQ-A1 future) |
+
+### Required attributes / resource attributes (per MI-11, all events)
+
+- `service.name` = `agent-act-mcp` (or equivalent, named at ACT build time; the lab's working name is `agent-act-mcp` for the Record Layer + `agent-act-detect` for the Detect Layer)
+- `service.version` — from `get_version_info` MCP tool
+- `deployment.environment` — resource attribute
+- `identity` — PCT principal-id of the *querier* for query operations; `null` for ingest operations (the ingest principal is the event source, recorded in `event_source` attribute instead)
+- `session` — session-id when applicable
+- `trace_id`, `span_id` — OpenTelemetry standard
+- `cost-center` — when ACT chargeback applies (ACT meters everyone else; ACT itself is also metered per the Tier-0 self-attribution discipline)
+
+### Format
+
+- **Traces + metrics**: OpenTelemetry / OTLP, exported via `OTEL_EXPORTER_OTLP_ENDPOINT` (no specific backend named)
+- **Logs**: JSON to stderr (stdout is reserved for MCP protocol channel + the Record Layer ingest channel)
+- **Required log keys**: `timestamp`, `level`, `message`, `service.name`, `service.version`, `trace_id`, `span_id`, `identity`, `session` + event-specific fields
+
+### Distinction: ACT-as-MI-1-consumer vs ACT-as-MI-11-emitter
+
+ACT plays both roles in the mesh telemetry architecture, and the two roles operate on **distinct streams with distinct contracts**:
+
+- **ACT as MI-1 consumer** (the audit stream): ACT reads, schematizes, and persists every other pillar's audit events into the `act.events` event store per § Cognitive-Event Schema. The consumer-side contract is the cognitive-event schema (12 required fields, bounded event-type taxonomy per CD4, per-session chain crypto per CD3). This role is **what makes ACT the mesh's audit pillar** — the durable accountability record for the entire mesh sits in ACT's event store.
+- **ACT as MI-11 emitter** (this section's contract): ACT emits OTLP traces, OTLP metrics, and JSON-structured logs describing its *own runtime operations* — ingest throughput, chain verification latency, detection signal rates, backpressure activations. This is ACT's per-pillar observability contract per SOM-MI-11, distinct from the cognitive-event schema.
+
+**Per `#22` resolution**: ACT consumes from the MI-1 stream (Path A = direct emission to ACT; Path B = ACT-as-service-write). For ACT specifically, Path A vs Path B determines whether `agent-act-mcp` is *called* by every pillar (Path B) or *receives* OTel-shipped events from every pillar (Path A). Both shapes preserve the cognitive-event schema; the difference is the wiring discipline. CD14 commits the manifest; the Path A/B resolution will name the implementation discipline.
+
+### Explicitly NOT in this spec
+
+- Collector deployment topology for ACT's own telemetry
+- Backend choice for ACT's MI-11 sink — per § Substrate Matrix Telemetry-sink seam
+- Dashboards, alerts, retention policies for ACT's MI-11 observability — deployment-side
+- Sampling strategy for ACT's own telemetry — deployment-side (ACT's MI-1 audit stream has zero sampling per CD3 append-only; ACT's MI-11 self-observability may sample per deployment policy)
+
+These are governed by the Telemetry-sink seam per SOM-MI-8 substrate-pluggability extending to MI-11 per the SOM-MI-11 final paragraph.
+
+## Closed Decisions (CDs — v1.0–v1.1 Commitments)
 
 **CD1**: **Two-layer architecture — Record Layer (capture) + Detect Layer (analytics).** Both operate against the same storage substrate (append-only on ClickHouse) but evolve at their own rates against the same authoritative event store.
 
@@ -311,6 +425,10 @@ This separation mirrors the `IAM-CORE-SPEC.md` CD6 delegation seam (two principa
 **CD11**: **Read-only access for PGE/Judge consumers.** PGE never writes to ACT; ACT is the source of truth for the audit trail. Compliance attestations and forensic reconstructions cite ACT queries.
 
 **CD12**: **Tamper-evident chain is recursive — ACT detects its own tampering.** Verification mismatch emits an `act.validation_failure` event that flows through the Detect Layer for ITDR signal.
+
+**CD13 (v1.1 — Substrate Matrix formalizes CD7's Exit Test discipline at the per-seam level)**: Per SOM-MI-8 + § Tested Substrate Profiles + Patton's PR #31 capability-framing lesson. § Substrate Matrix names five ACT substrate seams (Event store, Detect Layer ML runtime, Telemetry sink, Chain-verification crypto, Cold-storage tier) **as the per-seam decomposition of CD7's substrate substitutability Exit Test**. v1.0 CD7 committed substitutability at the prose level; v1.1 CD13 makes it mechanically checkable via the per-seam contract columns. The contract column is **capability-framed** (collision-resistant hash chaining, append-only persistence with columnar access, ML model load/evaluate) not constraint-primitive-framed (SHA-256, ClickHouse `MergeTree`, PyTorch specifically) — so the multi-profile conformance run under SOM-CD15 can succeed across the alternatives without overclaiming. Sovereign-ref column names the specific reference (ClickHouse 23.8+, Python 3.10+, SHA-256); supported-alternatives name what else satisfies the capability. Substitutability claim under SOM-CD15 covers exactly the rows listed; out-of-set substrates are a new conformance run.
+
+**CD14 (v1.1 — Telemetry Contract for ACT-as-MI-11-emitter; distinct from ACT-as-MI-1-consumer)**: Per SOM-MI-11 + the pillar-spec template + Patton's lesson on the audit-vs-observability stream distinction. § Telemetry Contract names ACT-specific spans (`som.act.ingest.write`, `som.act.chain.verify`, `som.act.detect.evaluate`, `som.act.signal.emit`, `som.act.query.execute`, etc.), metrics (`som.act.ingest_rate`, `som.act.chain_verification_latency_ms`, `som.act.detect_signal_rate`, etc.), and log events. **Critical distinction maintained**: ACT plays two roles in the mesh telemetry architecture — ACT-as-MI-1-consumer (the audit stream, governed by § Cognitive-Event Schema) AND ACT-as-MI-11-emitter (this contract, governed by § Telemetry Contract). The two operate on distinct streams with distinct contracts; CD14 commits the MI-11 emitter contract, the cognitive-event schema commits the MI-1 consumer contract, and they do not collapse into each other. Per `#22` resolution, MI-1 consumption may be Path A (direct emission to ACT) or Path B (ACT-as-service-write); CD14 commits the manifest contract, the Path A/B resolution will name the wiring discipline.
 
 ## Deferred-Pending-Increment-2-Rulings (DRs)
 
@@ -371,7 +489,25 @@ Per Patton flag at v1.0 review (`a1bb2eb0`): supporting documents named in this 
 - **`MCP-SECURITY-FRAMEWORK.md`** — PGE's de facto spec; the read-only-from-ACT discipline applies to PGE's compliance reports against ACT.
 - **`temp/som-increment2-package/SOM-IAM-THREAT-MODEL-INCREMENT.md`** (staged, not yet folded) — Increment-2 design including the ITDR specification; the seven Judge rulings reshape ITDR scope (DR-ACT-1) when they resolve.
 
-## Success Criteria
+## Acceptance Criteria
+
+Per the pillar-spec template (`planning/PILLAR-SPEC-TEMPLATE.md` — five non-negotiables given equal weight to security). ACT is the audit pillar — the security framework applies with extra rigor on the consumer-side (no-tamper of the cognitive-event store) and on Python-stack-specific patterns (Detect Layer ML runtime). ACT is not validated until all five hold; below them, the ACT-specific acceptance bars from v1.0 (renamed from § Success Criteria) are preserved as additional evidence.
+
+**Design-stage caveat**: ACT has no implementation today. Most Measures specify what becomes testable when Bob builds the Record Layer + Detect Layer. The Measures are committed now so the build's acceptance gate is concretely defined.
+
+### Five non-negotiables (template-mandated, equal weight to security)
+
+1. **Secure.** `agent-act-mcp` (Record Layer) + `agent-act-detect` (Detect Layer) follow the security framework (`planning/MCP-SECURITY-FRAMEWORK.md`). **Python-stack-specific**: no `eval`/`exec` on event payloads (a payload-driven `eval` is an ACT-substrate code-execution vector); no `subprocess`/`shell=True` for any ingest path; input validation on every event field per CD5 (12-field required schema); ML model loading paths validate model artifact signatures (a poisoned model in the Detect Layer is a watcher-becomes-attacker vector). Parameterized queries to ClickHouse/PG (no SQL string interpolation). The cognitive-event store is the mesh's audit substrate; its integrity is the foundation of every downstream compliance claim. **Measure**: when ACT is built, `test_security.py` passes in CI; payload-injection-attack tests (eval injection, SQL injection through `payload` field, ML model poisoning attempts) fail at ingest validation; security audit before any release.
+
+2. **Instrumented-by-default.** ACT's own runtime emits the spans + metrics + log events in § Telemetry Contract via OTLP. Mandatory — ACT is the meter for the rest of the mesh and must itself be metered (Tier-0 self-attribution discipline). A Detect Layer that isn't instrumented is one whose false-positive rate (Failure Mode 4) cannot be observed; instrumentation is the operational safety net. **Measure**: when ACT is built, an OTel Collector receiving from `agent-act-mcp` + `agent-act-detect` observes the full span set (`som.act.ingest.write`, `som.act.chain.verify`, `som.act.detect.evaluate`, `som.act.signal.emit`, etc.) and metric set (`som.act.ingest_rate`, `som.act.chain_verification_latency_ms`, `som.act.detect_signal_rate`, etc.); integration test exercises each Record Layer + Detect Layer operation and asserts both the span and the corresponding metric are present.
+
+3. **JSON logs.** ACT emits structured JSON logs to stderr with the required keys (`timestamp`, `level`, `message`, `service.name`, `service.version`, `trace_id`, `span_id`, `identity`, `session`) per SOM-MI-11. stdout is reserved for the MCP protocol channel + the Record Layer ingest channel. **Measure**: when ACT is built, parsing `agent-act-mcp` + `agent-act-detect` stderr in CI confirms every line is valid JSON with required keys; `trace_id` cross-references the OTLP traces emitted in the same operation.
+
+4. **CLI-first / UI-second.** Every ACT management function — compliance query execution, forensic reconstruction, ITDR baseline review, Detect Layer threshold configuration, cold-storage migration trigger — is reachable via CLI/API before any UI exists. Future MCC panes for ACT (compliance dashboard, ITDR signal view, query interface) render the CLI/API surface, never bypass. Build order: function → CLI/API → headless validation → wire MCC pane. **ACT-specific note**: Judge's audit-read path (per § Coupling Boundary: Judge ↔ ACT) is CLI-first by Tier-0 discipline — Judge runs compliance queries via the same MCP/CLI surface auditors use, not a UI shortcut. **Measure**: when ACT is built, every operation reachable from any ACT UI is reachable headless via an MCP/CLI tool; no UI-only operation exists; Judge's audit-read path uses the same CLI surface as external auditors.
+
+5. **Audit emission.** ACT is **doubly load-bearing for audit**: it is the *consumer* of every other pillar's MI-1 audit stream (per § Cognitive-Event Schema) AND emits its own MI-1 audit events for its own state-affecting operations (chain verification failures, validation failures, detection signal emissions, query executions, baseline updates). Path A (until `#22` resolves to Path B): ACT's own audit events emitted directly to the MI-1 stream (which means ACT writes some events to itself — a tight loop that requires care to prevent recursive loop amplification). Path B: ACT calls itself as a service for self-audit emission (still tight). **ACT-specific Tier-0 constraint**: a Path-A or Path-B failure path that loses an ACT audit event compromises the recursive tamper-evidence discipline (CD12). Implementation must protect ACT's own audit emission with the same fail-strict discipline IAM applies to authorization-decision audit events. **Measure**: when ACT is built, audit query against the MI-1 stream after a representative ACT operation set (one ingest, one chain verification, one detection signal emission, one query execution) confirms every state mutation has a corresponding audit event; recursive-loop test confirms ACT's self-audit doesn't infinitely amplify (e.g., logging an audit event emission as itself an audit event).
+
+### Additional ACT-specific acceptance bars (preserved from v1.0)
 
 - **Schema commitment holds across v1.x.** A compliance query written against v1.0 schema continues to return correct results when run against v1.x data — required-field schema is stable. **Measure**: regression test in the implementing repo runs v1.0 queries against v1.x event records and confirms result correctness.
 - **Per-session chain verification is end-to-end correct.** Given a session's events in chronological order, the chain hash from session start to session end is recomputable and matches each stored `event_hash`. **Measure**: integration test in the implementing repo replays a known-good session and verifies the chain end-to-end.
@@ -380,15 +516,18 @@ Per Patton flag at v1.0 review (`a1bb2eb0`): supporting documents named in this 
 - **Watcher-not-executioner discipline holds in audit.** No ACT version writes response actions; all responses come from PGE. **Measure**: code review confirms no `auto_*` action functions exist in ACT; runtime audit log confirms zero direct-from-ACT response writes.
 - **Compliance query reproducibility.** The same query against the same date range returns the same result indefinitely (per append-only + tamper-evident chain). **Measure**: compliance attestation cites a specific ACT query; future audits replay the query and get identical results.
 - **PGE compliance reports cite ACT.** PGE's compliance reports (release gates, regulatory attestations) source their data from ACT queries with cited query IDs/timestamps for audit reproducibility. **Measure**: PGE compliance reports include "ACT query:" footers naming the queries; auditors can re-execute and verify.
-- **Patton dialectical sign-off at v1.0.** Single review gate per the simplified workflow. **Measure**: Patton's sign-off inbox message after file-based review of `ACT-SPEC.md` from `/Users/gbeam/workspace/ionis-devel/planning/ACT-SPEC.md`.
+- **Patton dialectical sign-off at v1.1.** Single review gate per the simplified workflow. **Measure**: Patton's sign-off comment on the v1.1 review gate (GH-native per the 2026-06-02 convention).
 
 ## References
 
+- `planning/SOM-SPEC.md` — mesh-level invariants this pillar instantiates (SOM-MI-8 substrate substitutability, SOM-MI-11 telemetry contract, SOM-CD15 conformance-enforced substrate-neutrality, § Tested Substrate Profiles). **v1.1 source for the per-pillar manifest layer.**
+- `planning/PILLAR-SPEC-TEMPLATE.md` — pillar-spec template that v1.1 instantiates (10 required sections, Substrate Matrix + Telemetry Contract section structures, 5 non-negotiables). ACT-SPEC v1.1 is the third instantiation after IBX-SPEC + IAM-CORE-SPEC.
+- `planning/IBX-SPEC.md` v1.1 — first pillar instantiation; capability-framing discipline (CD7 lesson) applied to ACT's substrate matrix per CD13.
+- `planning/IAM-CORE-SPEC.md` v1.1 — IAM providing-side surface ACT consumes; second pillar instantiation.
 - `planning/SOM-PILLAR-NAMES.md` v1.1 — ACT pillar entry of record
 - `planning/SOM-PRODUCTION-VALIDATION.md` v1.1 — ACT row (spec phase → validated by this PR; not operational)
 - `planning/SOM-PROBLEM-STATEMENT.md` v0.6 — design drivers including §6.4 ACT scope boundaries
 - `planning/SOM-DESIGN-PHILOSOPHY.md` — capability/constraint duality (continuous accountability)
 - `planning/SOM-CONCURRENCY-AND-ARCHETYPES.md` — quorum-dissent-as-health-signal, archetype baselines, per-session attribution
-- `planning/IAM-CORE-SPEC.md` v1.0 — IAM providing-side surface ACT consumes
-- `planning/IBX-SPEC.md` v1.0 — IBX `(principal_id, session_id)` attribution ACT consumes
-- `planning/MCP-SECURITY-FRAMEWORK.md` — PGE de facto spec until item 6 of spec campaign lands a formal capstone
+- `planning/MCP-SECURITY-FRAMEWORK.md` — security framework referenced by Acceptance Criterion 1 + PGE de facto spec until item 6 of spec campaign lands a formal capstone
+- Issues `KI7MT/som-spec#12` (this v1.1 refresh), `KI7MT/som-spec#6` + `#24` (template that this spec instantiates)
