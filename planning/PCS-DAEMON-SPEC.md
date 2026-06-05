@@ -69,7 +69,7 @@ PCS-Daemon is **not a reimplementation** of the Harness. It is a **service that 
 | PGE compliance check (security framework rules) | Harness (`pcs-control-plane`) | Daemon **calls** Harness PGE-check function; does not reimplement |
 | Manifest parsing + structural integrity | Harness (`pcs-control-plane`) | Daemon **calls** Harness parser; does not reimplement |
 | **Judge-approval gate via IBX** | **Daemon (new)** | Daemon emits `action`-priority PCT to Judge via IBX; polls for `approved`/`rejected` by `message_id` per `IBX-SPEC.md` v1.0 "may rely on" |
-| **PCS-Registry write coordination** | **Daemon (new)** | Daemon writes to Registry artifact store (TrueNAS NFS) + the transactional metadata store (PostgreSQL 17+ sovereign-ref; `pcs.*`) atomically on Judge approval |
+| **PCS-Registry write coordination** | **Daemon (new)** | Daemon writes to the Registry artifact store + the transactional metadata store (`pcs.*`) atomically on Judge approval (substrates capability-framed per § Substrate Matrix) |
 | **Per-promotion-event ACT audit emission** | **Daemon (new)** | Daemon emits `ibx.*` and Registry-specific events to ACT per `ACT-SPEC.md` v1.0 CD6 (per-session-per-identity attribution) |
 | **Dev-to-production trust-boundary crossing** | **Daemon (new)** | Daemon enforces "promotion-only via this gate" — Registry writes from any other path are defects |
 | **Promotion lifecycle state machine** | **Daemon (new)** | Daemon tracks promotion candidates through submit → validate → judge-await → approved/rejected → registered |
@@ -479,6 +479,8 @@ The Daemon emits an accountability event for every state-affecting promotion ope
 
 ## References
 
+- `planning/SOM-SPEC.md` — mesh-level invariants (SOM-MI-8, SOM-MI-11, § Tested Substrate Profiles) the v1.1 manifest instantiates
+- `planning/PILLAR-SPEC-TEMPLATE.md` — the v1.1 manifest-section template + acceptance criteria
 - `planning/SOM-PILLAR-NAMES.md` v1.1 — PCS pillar entry of record
 - `planning/SOM-PRODUCTION-VALIDATION.md` v1.1 — PCS row (Syntax + Registry shell + Harness production-validated; Daemon completion pending)
 - `planning/PCS-REGISTRY-FOLD-IN.md` v1.3 — three-layer anatomy + Harness/Daemon split + EPYC/Proxmox deployment
