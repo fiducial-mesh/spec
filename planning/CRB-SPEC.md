@@ -494,6 +494,8 @@ The broker emits an accountability event for every dispatch — the `crb.*` even
 
 ## References
 
+- `planning/SOM-SPEC.md` — mesh-level invariants (SOM-MI-8, SOM-MI-11, § Tested Substrate Profiles) the v1.1 manifest instantiates
+- `planning/PILLAR-SPEC-TEMPLATE.md` — the v1.1 manifest-section template + acceptance criteria
 - `planning/SOM-PILLAR-NAMES.md` v1.1 — CRB pillar entry of record
 - `planning/SOM-PRODUCTION-VALIDATION.md` v1.1 — CRB codified-by-convention status
 - `planning/SOM-PROBLEM-STATEMENT.md` v0.6 — §6.2 The Workload Classification driver
