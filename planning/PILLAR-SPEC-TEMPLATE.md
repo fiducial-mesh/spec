@@ -31,7 +31,7 @@ The template is the discipline that keeps the 7 manifests structurally identical
 
 ## Required frontmatter
 
-Per `.claude/skills/akb-doc` — every pillar spec is AKB-conformant. Required fields:
+Per the `akb-doc` skill at `ionis-devel/.claude/skills/akb-doc/SKILL.md` — every pillar spec is AKB-conformant. Required fields:
 
 ```yaml
 ---
@@ -219,7 +219,7 @@ Either path: **accountability events are a build standard**, not optional instru
 ## Dependencies
 
 - Mesh-level invariants in `SOM-SPEC.md`: SOM-MI-8 (substrate substitutability), SOM-MI-11 (telemetry contract), SOM-MI-12 (Spec-Harness-Registry primitive), SOM-CD15 (conformance-enforced substrate-neutrality), § Tested Substrate Profiles (the named substrate set)
-- AKB frontmatter conventions: `.claude/skills/akb-doc`
+- AKB frontmatter conventions: `ionis-devel/.claude/skills/akb-doc/SKILL.md`
 - Security framework: `planning/MCP-SECURITY-FRAMEWORK.md`
 
 ## Acceptance Criteria (for the template itself)
@@ -236,5 +236,5 @@ Either path: **accountability events are a build standard**, not optional instru
 - `planning/SOM-SPEC.md` — mesh-level invariants the per-pillar manifests instantiate
 - `planning/SOM-DELIVERY-PACKAGING.md` — DP-CD5 supply-chain integrity (informs the telemetry-pipeline build)
 - `planning/MCP-SECURITY-FRAMEWORK.md` — security framework referenced by Acceptance Criterion 1
-- `.claude/skills/akb-doc` — AKB frontmatter contract
+- `ionis-devel/.claude/skills/akb-doc/SKILL.md` — AKB frontmatter contract
 - Issues `KI7MT/som-spec#6`, `KI7MT/som-spec#24` — origin issues for this template's sections + acceptance criteria
