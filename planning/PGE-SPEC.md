@@ -2,11 +2,11 @@
 title: "PGE Spec — Policy Guardrail Engine Pillar Capstone"
 doc_type: spec
 status: validated
-version: v1.0
+version: v1.1
 authors:
   - watson
   - patton
-date: "2026-06-02"
+date: "2026-06-05"
 roles:
   - design-intent
   - infrastructure
@@ -14,6 +14,8 @@ author_id: watson
 violates_invariant: false
 invariant_class: ""
 references:
+  - planning/SOM-SPEC.md
+  - planning/PILLAR-SPEC-TEMPLATE.md
   - planning/SOM-PILLAR-NAMES.md
   - planning/SOM-PRODUCTION-VALIDATION.md
   - planning/SOM-PROBLEM-STATEMENT.md
@@ -31,9 +33,19 @@ references:
 
 **Scope**: Formalizes the contract for **PGE** (Policy Guardrail Engine), the Control-Plane pillar that provides deterministic compliance enforcement across the SOM fleet — replacing vendor-mediated safety filters with explicit, auditable, code-resident rules. Covers the **rule corpus** (today's enforcement set sourced from `MCP-SECURITY-FRAMEWORK.md`), the **double-guardrail architecture** (agent-action enforcement at IBX submission + sandbox-execution enforcement inside DPG, per `SOM-PROBLEM-STATEMENT.md` v0.6 §6 note on PGE), the **enforcement surfaces** (CI release gates, `PreToolUse` hook, per-server `test_security.py` suites), the **rule lifecycle** (how a rule enters, how it is amended, how it is retired), and the **coupling boundaries** with IBX (action-policy enforcement at the chokepoint), DPG (sandbox-execution policy enforcement at the boundary), PCS-Daemon (rule application at promotion gate), CRB (rule application at dispatch chokepoint), IAM (authorization rules reference identity claims), ACT (rule decision audit emission), and the Workforce (subagent-guard hook).
 
-**Status**: **Validated v1.0** — item 6 of the spec-campaign queue. Per Patton's `ea67f2ac` forward note on PGE: *"it's the one pillar already operational-by-de-facto-spec (`MCP-SECURITY-FRAMEWORK.md` + per-server test suites + PreToolUse hook). So item 6 is a different shape than the others — less 'spec a build target,' more 'promote the de facto spec to a formal capstone and resolve the forward-references that DPG/PCS-Daemon/CRB all point at it.' When you bring it, the key question I'll be testing: does the capstone change any behavior, or purely formalize what's already enforced? If it changes behavior, that's a re-validation; if it formalizes, it's a capstone. Name which up front."*
+**Status**: **Validated v1.1** — fourth pillar instantiation of the pillar-spec template (`planning/PILLAR-SPEC-TEMPLATE.md`, merged 2026-06-05 at `9c67f57`). v1.1 adds the per-pillar manifest layer (§ Substrate Matrix + § Telemetry Contract) that instantiates the mesh-level contracts in `SOM-SPEC.md` (SOM-MI-8, SOM-MI-11, § Tested Substrate Profiles). CD13 + CD14 record the v1.1 commitments. v1.0 contract surface is unchanged. **v1.1 maintains the pure-capstone discipline (CD1)**: no new rules added, no existing rules altered, no enforcement points added or removed. The new sections **formalize** PGE's pre-existing substrate substitutability (CD8) and ACT audit emission (CD9) into the per-pillar manifest format with capability-framing per Patton's PR #31 lesson — they do not change PGE's behavior.
+
+**Prior status (v1.0, retained for history)**: Item 6 of the spec-campaign queue. Per Patton's `ea67f2ac` forward note on PGE: *"it's the one pillar already operational-by-de-facto-spec (`MCP-SECURITY-FRAMEWORK.md` + per-server test suites + PreToolUse hook). So item 6 is a different shape than the others — less 'spec a build target,' more 'promote the de facto spec to a formal capstone and resolve the forward-references that DPG/PCS-Daemon/CRB all point at it.' When you bring it, the key question I'll be testing: does the capstone change any behavior, or purely formalize what's already enforced? If it changes behavior, that's a re-validation; if it formalizes, it's a capstone. Name which up front."*
 
 **Named up front — PGE v1.0 is a PURE CAPSTONE (formalization, NOT behavior change).** This spec promotes the de facto enforcement surface — `MCP-SECURITY-FRAMEWORK.md` v1.0 (2026-03-04) + `.claude/hooks/subagent-guard.sh` + per-server `test_security.py` suites + `publish.yml` CI release gate — into the pillar contract. **No new rule is added at v1.0. No existing rule is altered at v1.0. No enforcement point is added or removed at v1.0.** The pillar's behavior is unchanged from production-validated state.
+
+**v1.1 additions (this version — also pure capstone, no behavior change)**:
+1. **§ Substrate Matrix** (new section) — names 4 PGE substrate seams (Rule corpus storage, Policy evaluation engine, Enforcement surface, Telemetry sink) per SOM-MI-8 + § Tested Substrate Profiles. **Formalizes the existing § Substrate Substitutability (Per Exit Test) into the per-seam template format.** CD13 commits the matrix as the substitutability boundary per SOM-CD15. Capability-framed throughout: contract column names what the substrate must guarantee, not the sovereign-ref's specific primitive.
+2. **§ Telemetry Contract** (new section) — PGE-specific spans (`som.pge.gate1.evaluate`, `som.pge.gate2.evaluate`, `som.pge.promotion_gate.evaluate`, `som.pge.rule.lifecycle`, etc.), metrics (`som.pge.gate1.decisions_total`, `som.pge.gate2.decisions_total`, `som.pge.rule_evaluation_latency_ms`, etc.), log events per SOM-MI-11. **Formalizes the pre-existing CD9 `pge.*` event commitment into per-pillar MI-11 manifest format.** CD14 commits this; the cross-spec curation event for `pge.*` already tracked in VP-PGE-1 still applies.
+3. **§ Acceptance Criteria** (renamed from § Success Criteria) — prepends the 5 non-negotiables from the template. Existing v1.0 PGE-specific success criteria preserved below.
+4. **CD13 + CD14** record the substrate matrix + telemetry contract commitments respectively.
+
+The v1.0 contract surface (pure-capstone discipline, two-stratum rule corpus, double-guardrail architecture, distributed enforcement surfaces, single-source-of-policy-truth, ACT audit integration, all coupling boundaries) is **unchanged**. v1.1 is purely additive — it adds the manifest layer formalizing what CD8 + CD9 already commit. **No new rules added; no existing rules altered; no enforcement points added or removed.**
 
 What this spec does add:
 1. **Names the pillar contract**: what PGE structurally commits as a pillar (rule corpus + double-guardrail architecture + lifecycle + coupling boundaries) so that future versions of PGE — or substrate substitutions to OPA/Cedar/per-pillar policy engines per `SOM-PROBLEM-STATEMENT.md` v0.6 §6 — have a contract to satisfy rather than mining `MCP-SECURITY-FRAMEWORK.md` for implicit semantics.
@@ -318,7 +330,112 @@ Workforce agents (Watson, Bob, subagents spawned by them) are governed by PGE at
 - **Subagent policy soft-enforcement** (CLAUDE.md text) is the process surface — Watson and Bob read CLAUDE.md at session start and apply the subagent restrictions in their delegation decisions.
 - **The two surfaces compose**: soft enforcement guides typical behavior; hard enforcement catches the residual case where soft enforcement is bypassed or unreliable.
 
-## Closed Decisions (CDs — v1.0 Commitments)
+## Substrate Matrix
+
+Per SOM-MI-8 + `SOM-SPEC.md` § Tested Substrate Profiles + CD13 + the pre-existing § Substrate Substitutability (Per Exit Test) + CD8 (substrate substitutability via Exit Test). **This matrix formalizes the existing v1.0 substitutability claim into the per-seam template format** — making the claim mechanically checkable per SOM-CD15 rather than asserted-in-prose. Pure-capstone discipline holds: the matrix names the seams PGE already commits to under CD8; it does not change PGE's behavior.
+
+**Capability-framed per Patton's PR #31 lesson**: the contract column names what the substrate must guarantee (deterministic policy evaluation, distributed enforcement composition, rule corpus version-controlled-and-citable), not the sovereign-ref's specific primitive (`test_security.py` per-server, OPA Rego, etc.). PGE's substitutability claim covers exactly the rows listed; out-of-set substrates require a new profile definition (per CONF-CD11), conformance suite extension, and the multi-profile run passing per SOM-CD15.
+
+PGE exposes four substrate seams. The first three are the core policy-engine seams (where rules live, what evaluates them, where decisions get applied); the fourth is telemetry per SOM-MI-11.
+
+| Seam | Contract (role + version floor, capability-framed) | Sovereign reference (version floor) | Supported alternatives (version floor) |
+|------|----------------------------------------------------|-------------------------------------|----------------------------------------|
+| **Rule corpus storage** (where the rule set lives + how it is versioned + how it is cited) | Version-controlled rule corpus with two-stratum tagging (CD2 — Stratum 1 non-negotiable / Stratum 2 implementation pattern); per-rule identifier stable across rule lifecycle (CD10); citable from audit events (`pge.*_evaluated` events carry the rule identifier per CD9 + CD11) | **Git-versioned Markdown** (`MCP-SECURITY-FRAMEWORK.md` v1.0 + per-server `test_security.py` files) — today's de facto reference per CD1 pure-capstone | OPA Rego policy bundle (per-package versioning), Cedar policy file (per-policy versioning), database-backed corpus with explicit version table, hybrid (Markdown for Stratum 1 + Rego for Stratum 2). **Per CD8 + CD5, admissible v1.x; not v1.0 commitments.** |
+| **Policy evaluation engine** (what evaluates rules at runtime/gate time) | Deterministic policy evaluation: same inputs → same decision; evaluation emits trace events per CD11 (gate decision + matching rule on reject); supports distributed-per-surface OR centralized-service composition per CD3 double-guardrail | **Distributed per-surface enforcement** — per-server `test_security.py` runtime (Python 3.10+ pytest) + `subagent-guard.sh` (Bash 5+) + CI release gate (GitHub Actions) — today's reference per CD1 + CD5 | OPA (Open Policy Agent) 0.60+ with Rego eval, Cedar runtime with declarative policy engine, per-pillar embedded policy engines (IBX action-policy module + DPG sandbox-policy module + ...), hybrid centralized + per-surface. **Per CD8 + DR-PGE-1, admissible v1.x with substrate-migration trigger deferred.** |
+| **Enforcement surface** (where evaluation decisions get applied) | Surface that intercepts the action and applies the gate decision (allow/reject); per CD3 + § Enforcement Surfaces — double-guardrail composition (Gate 1 at IBX submission, Gate 2 at DPG boundary) + supplemental surfaces (CI release gate, `PreToolUse` hook, subagent guard) | **Distributed multi-surface** — `subagent-guard.sh` PreToolUse hook + IBX submission chokepoint + DPG ephemeral boundary + CI release gate (per `publish.yml`) + per-server test suite — today's reference per CD1 | OPA-sidecar middleware at IBX/DPG, Cedar runtime sidecar, custom enforcement library per-pillar, hybrid. **Per CD8, admissible v1.x; CD3 double-guardrail composition is invariant across substrate change.** |
+| **Telemetry sink** (per SOM-MI-11; OTLP-on-the-wire contract) | OpenTelemetry / OTLP for traces + metrics; JSON-structured logs to stderr; sink configurable via `OTEL_EXPORTER_OTLP_ENDPOINT`. **Distinct from ACT audit emission** (CD9, `pge.*` events) — the telemetry sink seam is PGE's own MI-11 observability, separate from the `pge.*` audit-event class that flows to ACT | Grafana/Prometheus/Tempo stack | Azure Monitor / App Insights, Datadog, OCI Monitoring, any OTLP-compatible sink — per SOM-MI-11 final paragraph |
+
+**Conformance**: when PGE's substrate evolves (per DR-PGE-1 substrate migration trigger), CI runs the multi-profile conformance suite (CONF-CD1..11) against **≥ 2 products per seam** from the supported set. A seam change that fails any tested profile does not merge (SOM-CD15). For today's distributed-per-surface state, the sovereign-ref column is operationally exercised in production; the alternatives are the substitutability boundary CD8 commits future migrations may use.
+
+**Out-of-set substrates**: A deployment using a substrate not listed (e.g., a vendor-mediated content-filter as the enforcement surface) is **not covered by PGE's substitutability claim** — it requires a new profile definition (CONF-CD11), conformance suite extension, and the multi-profile run passing per SOM-CD15. Same boundary discipline as `SOM-DELIVERY-PACKAGING.md` DP-CD1.
+
+**Architectural invariants that bind across substrate change** (per CD3 + CD8): the **double-guardrail composition** (Gate 1 + Gate 2) and the **single-source-of-policy-truth** (CD12) are invariants regardless of which substrate engine evaluates rules. A centralized OPA service still applies both gates; a per-pillar engine still consumes from one corpus. The matrix admits substrate variation; the architectural commitments do not.
+
+**Cross-reference**: the existing § Substrate Substitutability (Per Exit Test) section above contains the prose substitutability argument (why per-server-tests + hook is the right v1.0 reference, why centralization is admissible-future-not-premature). § Substrate Matrix is the per-seam manifest version of the same claim, with capability-framing applied so the conformance run under SOM-CD15 is mechanically checkable.
+
+## Telemetry Contract
+
+Per SOM-MI-11, PGE's own runtime (evaluation engine + enforcement surfaces) emits OTLP traces, OTLP metrics, and JSON-structured logs to stderr. The sink is selected by the customer via `OTEL_EXPORTER_OTLP_ENDPOINT`; SOM does not name the backend. Naming convention follows the template: `som.pge.<operation>` for spans, `som.pge.<metric>` for metrics.
+
+**PGE's double role — critical distinction**: PGE plays two roles in the mesh audit/observability architecture:
+- **PGE as MI-1 audit emitter via `pge.*` events**: per CD9 + CD11 + § Coupling Boundary: ACT ↔ PGE — PGE emits `pge.action_policy_evaluated`, `pge.sandbox_policy_evaluated`, `pge.promotion_gate_evaluated`, `pge.*_rejected`, `pge.rule_added`, `pge.rule_amended`, `pge.rule_retired` events to ACT as durable audit records. **VP-PGE-1** tracks the cross-spec curation event that extends ACT's CD4 enum.
+- **PGE as MI-11 observability emitter via `som.pge.*` signals** (this section): per-pillar observability for PGE's own runtime — gate evaluation latency, decision rates, rule-engine throughput, enforcement-surface health. **Distinct from the `pge.*` audit class**: the audit events go to ACT for durable accountability; the `som.pge.*` MI-11 signals go to the customer-selected OTLP sink for operational observability.
+
+The two streams do not collapse: a PGE deployment without `som.pge.*` MI-11 emission still satisfies CD9 (ACT audit emission); a PGE deployment without `pge.*` ACT emission violates CD9 regardless of MI-11 emission.
+
+### Spans
+
+| Operation | Span name | Required attributes (beyond identity, session, service.*) |
+|-----------|-----------|-----------------------------------------------------------|
+| Gate 1 (agent-action policy) evaluation at IBX submission | `som.pge.gate1.evaluate` | `pct_message_id`, `principal_id`, `priority`, `decision` (`allow` / `reject`), `matching_rule_id` (when reject), `rule_corpus_version` |
+| Gate 2 (sandbox-execution policy) evaluation at DPG boundary | `som.pge.gate2.evaluate` | `workload_id`, `principal_id`, `decision` (`allow` / `reject`), `matching_rule_id` (when reject), `rule_corpus_version` |
+| Promotion-gate evaluation (PCS-Daemon application) | `som.pge.promotion_gate.evaluate` | `plugin_id`, `plugin_version`, `decision` (`allow` / `reject`), `failing_rule_id` (when reject), `rule_corpus_version` |
+| Dispatch-chokepoint evaluation (CRB application) | `som.pge.dispatch.evaluate` | `dispatch_target`, `principal_id`, `decision`, `matching_rule_id` (when reject), `rule_corpus_version` |
+| Subagent-guard hook evaluation (Workforce surface) | `som.pge.subagent_guard.evaluate` | `tool_name`, `caller_identity`, `decision` (`allow` / `block`), `blocked_operation_class` (when block) |
+| Rule lifecycle event (entry / amend / retire) | `som.pge.rule.lifecycle` | `rule_id`, `lifecycle_event` (`added` / `amended` / `retired`), `stratum` (`stratum_1` / `stratum_2`), `corpus_version_before`, `corpus_version_after` |
+| Rule evaluation engine query (centralized substrate path) | `som.pge.engine.query` | `query_class` (`gate_decision` / `corpus_lookup` / `lifecycle`), `query_latency_ms` |
+
+### Metrics
+
+| Metric name | Type | Unit | Meaning |
+|-------------|------|------|---------|
+| `som.pge.gate1.decisions_total` | counter | count | Cumulative Gate 1 evaluations labeled by `decision` (`allow` / `reject`) — operational signal for action-policy traffic |
+| `som.pge.gate2.decisions_total` | counter | count | Cumulative Gate 2 evaluations labeled by `decision` — operational signal for sandbox-execution traffic |
+| `som.pge.promotion_gate.decisions_total` | counter | count | Cumulative promotion-gate evaluations labeled by `decision` — PCS-Daemon coupling signal |
+| `som.pge.dispatch.decisions_total` | counter | count | Cumulative dispatch-chokepoint evaluations labeled by `decision` — CRB coupling signal |
+| `som.pge.subagent_guard.blocks_total` | counter | count | Cumulative subagent-guard blocks labeled by `blocked_operation_class` — Workforce-surface enforcement signal |
+| `som.pge.rule_evaluation_latency_ms` | histogram | milliseconds | Per-gate evaluation latency, bucketed by `gate` (`gate1` / `gate2` / `promotion_gate` / `dispatch` / `subagent_guard`) |
+| `som.pge.rule_corpus.size` | gauge | count | Current rule count per stratum (`stratum_1` / `stratum_2`) — corpus-health signal |
+| `som.pge.rule_lifecycle.events_total` | counter | count | Cumulative lifecycle events labeled by `lifecycle_event` — corpus-stability signal |
+| `som.pge.rule_corpus.version` | gauge | string | Current corpus version identifier (label-only gauge; emits 1) — citable in audit query joins |
+
+### Log events
+
+| Event | Level | Structured fields (beyond required keys) |
+|-------|-------|------------------------------------------|
+| `pge.gate1.rejected` | `warn` | `pct_message_id`, `principal_id`, `matching_rule_id`, `rule_corpus_version` — operator visibility into rejected agent actions |
+| `pge.gate2.rejected` | `warn` | `workload_id`, `principal_id`, `matching_rule_id`, `rule_corpus_version` — operator visibility into rejected sandbox workloads |
+| `pge.promotion_gate.rejected` | `warn` | `plugin_id`, `plugin_version`, `failing_rule_id`, `rule_corpus_version` — promotion-gate blocked plugin |
+| `pge.subagent_guard.blocked` | `warn` | `tool_name`, `caller_identity`, `blocked_operation_class` — runtime block via PreToolUse hook |
+| `pge.rule.lifecycle` | `info` | `rule_id`, `lifecycle_event`, `stratum`, `corpus_version_before`, `corpus_version_after` |
+| `pge.corpus.drift.detected` | `error` | `expected_version`, `observed_version`, `enforcement_surface` — Failure Mode 1 (corpus-drift) detection signal |
+| `pge.gate.bypass.attempted` | `error` | `gate` (`gate1` / `gate2`), `attempt_pattern`, `principal_id_at_attempt` — Failure Mode 2/3 (gate-bypass attempt) signal |
+
+### Required attributes / resource attributes (per MI-11, all events)
+
+- `service.name` — `agent-pge-mcp` (or the equivalent per-surface emitter; today's distributed substrate has each surface emit with its own `service.name` — `test_security_runner`, `subagent_guard`, etc. — and the rule_corpus_version attribute correlates them)
+- `service.version` — from `get_version_info` MCP tool (when the central PGE service exists per DR-PGE-1) or per-surface version
+- `deployment.environment` — resource attribute
+- `identity` — PCT principal-id of the actor whose action is being evaluated
+- `session` — session-id when applicable
+- `trace_id`, `span_id` — OpenTelemetry standard
+- `cost-center` — when ACT chargeback applies
+- `rule_corpus_version` — citable across all PGE telemetry for audit-replay support
+
+### Format
+
+- **Traces + metrics**: OpenTelemetry / OTLP, exported via `OTEL_EXPORTER_OTLP_ENDPOINT` (no specific backend named)
+- **Logs**: JSON to stderr (stdout is reserved for the MCP protocol channel + the enforcement-surface decision channels where applicable)
+- **Required log keys**: `timestamp`, `level`, `message`, `service.name`, `service.version`, `trace_id`, `span_id`, `identity`, `session` + event-specific fields + `rule_corpus_version` for evaluation events
+
+### Distinction: ACT-bound `pge.*` audit events vs `som.pge.*` MI-11 observability
+
+PGE emits two distinct telemetry streams:
+- **`pge.*` events to ACT** (per CD9 + § Coupling Boundary: ACT ↔ PGE): durable accountability records — `pge.action_policy_evaluated`, `pge.sandbox_policy_evaluated`, `pge.promotion_gate_evaluated`, `pge.*_rejected`, `pge.rule_added`/`amended`/`retired`. ACT consumes these into the cognitive-event store; they are the **audit truth** for rule decisions. **VP-PGE-1 tracks the cross-spec curation event** (four-pillar shared curation per Patton's standing direction).
+- **`som.pge.*` MI-11 signals to OTLP sink** (this section): operational observability — gate evaluation latency, decision rate, rule-engine throughput, corpus drift detection. The customer's OTLP sink consumes these for dashboards, alerts, and capacity planning.
+
+The streams correlate via `rule_corpus_version` (citable in both) and `trace_id` (when a gate decision span and an ACT audit event share the same trace context), but they do not collapse: the `pge.*` audit events are PGE's durable-record contract; the `som.pge.*` MI-11 signals are PGE's operational-observability contract. CD14 commits the MI-11 manifest; CD9 + CD11 + VP-PGE-1 commit the ACT audit emission contract.
+
+### Explicitly NOT in this spec
+
+- Collector deployment topology for PGE's MI-11 signals
+- Backend choice for the OTLP sink — per § Substrate Matrix Telemetry-sink seam
+- Dashboards, alerts, retention policies — deployment-side
+- Sampling strategy for PGE's MI-11 — deployment-side (the `pge.*` ACT audit stream has zero sampling per CD11 audit-completeness; the `som.pge.*` MI-11 stream may sample per deployment policy)
+
+These are governed by the Telemetry-sink seam per SOM-MI-8 substrate-pluggability extending to MI-11 per the SOM-MI-11 final paragraph.
+
+## Closed Decisions (CDs — v1.0–v1.1 Commitments)
 
 **CD1**: **PGE v1.0 is a pure capstone, not a behavior change.** No new rules added; no existing rules amended; no enforcement points added or removed. The spec promotes the de facto enforcement surface (`MCP-SECURITY-FRAMEWORK.md` v1.0 + `subagent-guard.sh` + `test_security.py` + CI release gates) into formal pillar contract.
 
@@ -343,6 +460,10 @@ Workforce agents (Watson, Bob, subagents spawned by them) are governed by PGE at
 **CD11**: **The double-guardrail is symmetric in audit treatment**: both Gate 1 rejections and Gate 2 rejections emit `pge.*_rejected` events with the failing rule identifier; audit completeness applies to both gates equally.
 
 **CD12**: **Single source of policy truth** — DPG (CD8), PCS-Daemon (promotion gate), CRB (dispatch chokepoint) consume rules from PGE, not from their own embedded corpora. PGE is the policy hub; downstream pillars are enforcement points.
+
+**CD13 (v1.1 — Substrate Matrix formalizes CD8 substitutability + Exit Test discipline at the per-seam level; pure capstone)**: Per SOM-MI-8 + § Tested Substrate Profiles + Patton's PR #31 capability-framing lesson. § Substrate Matrix names four PGE substrate seams (Rule corpus storage, Policy evaluation engine, Enforcement surface, Telemetry sink) **as the per-seam decomposition of CD8's substrate substitutability commitment and the pre-existing § Substrate Substitutability prose section**. v1.0 CD8 + § Substrate Substitutability committed substitutability at the prose level; v1.1 CD13 makes it mechanically checkable via the per-seam contract columns. The contract column is **capability-framed** (deterministic policy evaluation, version-controlled rule corpus citable from audit, distributed-or-centralized enforcement composition supporting CD3 double-guardrail) — not constraint-primitive-framed (Python pytest, Markdown, Bash hooks specifically). Sovereign-ref column names the specific reference (per-server `test_security.py` + `subagent-guard.sh` + CI release gate); supported-alternatives name what else satisfies the capability (OPA, Cedar, per-pillar engines, hybrid). **Pure-capstone discipline holds (CD1)**: this CD formalizes pre-existing v1.0 commitments into manifest format; it does not change PGE's behavior.
+
+**CD14 (v1.1 — Telemetry Contract for `som.pge.*` MI-11 observability; distinct from `pge.*` ACT audit emission; pure capstone)**: Per SOM-MI-11 + the pillar-spec template + Patton's lesson on the audit-vs-observability stream distinction. § Telemetry Contract names PGE-specific `som.pge.*` spans (`som.pge.gate1.evaluate`, `som.pge.gate2.evaluate`, `som.pge.promotion_gate.evaluate`, `som.pge.dispatch.evaluate`, `som.pge.subagent_guard.evaluate`, `som.pge.rule.lifecycle`, `som.pge.engine.query`), metrics (`som.pge.gate1.decisions_total`, `som.pge.gate2.decisions_total`, `som.pge.rule_evaluation_latency_ms`, etc.), and log events. **Critical distinction maintained**: PGE emits two telemetry streams — the existing `pge.*` ACT audit emission (CD9 + CD11 + VP-PGE-1) for durable accountability records, and the new `som.pge.*` MI-11 observability for operational signals. The two streams operate on distinct contracts and do not collapse. **Pure-capstone discipline holds (CD1)**: this CD formalizes the MI-11 observability surface that PGE's existing distributed enforcement is already capable of emitting (today via per-surface OTel SDK wiring); it does not change PGE's behavior or add new `pge.*` audit events. Per `#22` resolution, the `pge.*` audit events route via Path A (direct emission to ACT) or Path B (PGE calls ACT as service-write); the resolution does not affect the `som.pge.*` MI-11 stream.
 
 ## Deferred-Pending-Increment-2-Rulings (DRs)
 
@@ -395,28 +516,49 @@ Workforce agents (Watson, Bob, subagents spawned by them) are governed by PGE at
 - **`CLAUDE.md`** § Security clauses, § Subagent Policy — process-level enforcement surface
 - **`.claude/hooks/subagent-guard.sh`** — runtime enforcement surface
 
-## Success Criteria
+## Acceptance Criteria
 
-- **Pure-capstone discipline holds.** No new rule added at v1.0; no existing rule altered; no enforcement point added/removed. **Measure**: `MCP-SECURITY-FRAMEWORK.md` v1.0 diff from pre-PGE-spec to post-merge state is text-cosmetic only (no rule-set changes).
+Per the pillar-spec template (`planning/PILLAR-SPEC-TEMPLATE.md` — five non-negotiables given equal weight to security). PGE is the policy-enforcement pillar — the security framework applies *as PGE's own corpus*; PGE's acceptance criteria are recursively the framework PGE enforces on everyone else. PGE is not validated until all five hold; below them, the PGE-specific acceptance bars from v1.0 (renamed from § Success Criteria) are preserved as additional evidence.
+
+**Pure-capstone caveat**: PGE is operational today. The 5 non-negotiables are formalizing what PGE already does in production — not specifying new build behavior. Measures cite existing production state where applicable.
+
+### Five non-negotiables (template-mandated, equal weight to security)
+
+1. **Secure.** PGE *is* the security framework — `MCP-SECURITY-FRAMEWORK.md` is PGE's de facto v1.0 rule corpus. The recursive case: PGE follows its own rule corpus across PGE's own runtime. Stratum 1 guarantees (10 today) bind PGE's own implementation: PGE evaluation code has no `subprocess`/`shell=True` on rule inputs, no `eval`/`exec` on rule expressions, HTTPS only, parameterized queries to ACT, input validation on every rule lookup. The rule-corpus drift failure mode (Failure Mode 1) is the PGE-specific application of this criterion. **Measure**: PGE's own implementation (today: `subagent-guard.sh` + per-server `test_security.py` runners + CI hooks) passes `test_security.py` against itself; rule-corpus-drift detection (CD11 audit-completeness symmetry) is operationally exercised in CI.
+
+2. **Instrumented-by-default.** PGE emits the `som.pge.*` spans + metrics + log events in § Telemetry Contract via OTLP. Mandatory — PGE is the gate the rest of the mesh trusts to enforce policy; an uninstrumented PGE is a gate whose evaluation latency, decision rate, and corpus health are invisible. **PGE-specific double-emission**: PGE also emits `pge.*` events to ACT for durable audit (CD9 + CD11). Both streams are mandatory. **Measure**: an OTel Collector receiving from PGE's enforcement surfaces (today's distributed substrate: `subagent_guard`, `test_security_runner`, CI gate emitters) observes the full `som.pge.*` span set + metric set; ACT query confirms the `pge.*` audit event coverage per CD11. Both observed simultaneously confirms the dual-emission discipline.
+
+3. **JSON logs.** PGE emits structured JSON logs to stderr with the required keys per SOM-MI-11. **PGE-specific**: every log event carries `rule_corpus_version` so a log line cross-references a citable corpus version — essential for audit replay against historical rule sets. stdout is reserved for the MCP protocol channel + the enforcement-surface decision channels. **Measure**: parsing PGE's distributed-substrate stderr in CI confirms every line is valid JSON with required keys plus `rule_corpus_version` on evaluation events; `trace_id` cross-references the OTLP traces emitted in the same evaluation.
+
+4. **CLI-first / UI-second.** Every PGE management function — rule corpus inspection, lifecycle event execution (rule add/amend/retire), gate decision query, corpus-drift verification — is reachable via CLI/API before any UI exists. Future MCC panes for PGE (rule corpus browser, gate-decision dashboard, lifecycle action interface) render the CLI/API surface, never bypass. **PGE-specific note**: rule-lifecycle operations (CD10 curation events) are CLI-only operations carrying high authority — there is no UI shortcut for amending or retiring a rule; both operations require explicit CLI invocation with Judge-approved credential. **Measure**: every operation reachable from any PGE UI is reachable headless via an MCP/CLI tool with the same authorization gate; rule-lifecycle operations have no UI surface at all.
+
+5. **Audit emission.** PGE emits `pge.*` events to ACT for every state-affecting operation (gate decisions, rule-lifecycle events). Per CD9 + CD11 + VP-PGE-1. Path A (until `#22` resolves to Path B): events emitted directly to ACT's MI-1 stream with the rule identifier, decision, principal, corpus version + PGE-specific fields. Path B: PGE calls ACT during the critical path of each evaluation. **PGE-specific Tier-0 constraint**: a Path-B failure path that loses a `pge.*` audit event is a policy-decision-without-audit-trail violation — Failure Mode 7 (audit incomplete on rule-amendment race) generalizes to all gate-decision audit emission, and the resolution must hold under Path B unavailability (buffer-and-halt-or-retry per fail-strict). **Measure**: audit query against the MI-1 stream after a representative operation set (one Gate 1 evaluation, one Gate 2 evaluation, one promotion-gate evaluation, one rule lifecycle event) confirms every state mutation has a corresponding `pge.*` event with all required fields including `rule_corpus_version`.
+
+### Additional PGE-specific acceptance bars (preserved from v1.0)
+
+- **Pure-capstone discipline holds.** No new rule added at v1.0; no existing rule altered; no enforcement point added/removed. **v1.1 maintains this**: § Substrate Matrix + § Telemetry Contract formalize pre-existing CD8 + CD9 commitments; they do not change PGE's behavior. **Measure**: `MCP-SECURITY-FRAMEWORK.md` diff from pre-PGE-spec to post-merge state is text-cosmetic only (no rule-set changes).
 - **Forward-reference sweep completes within next-touch cycle.** DPG / PCS-Daemon / CRB / IAM references to `MCP-SECURITY-FRAMEWORK.md` as PGE source update to `PGE-SPEC.md` on their next touch. **Measure**: at each next-spec-version commit, the reference table reflects `PGE-SPEC.md` as PGE source.
 - **Double-guardrail enforced at both gates.** Every PCT submission passes Gate 1; every workload execution passes Gate 2. **Measure**: ACT query shows `pge.action_policy_evaluated` events on every PCT submission and `pge.sandbox_policy_evaluated` events on every workload execution.
 - **Single source of policy truth held.** DPG, PCS-Daemon, CRB do not embed their own rule corpora. **Measure**: code review on any consuming-pillar version rejects embedded policy rules per their CD's source-from-PGE commitment.
-- **Substrate substitutability holds.** PGE contract is expressible in per-server-tests + hook + CI gate (v1.0 reference), OPA, Cedar, per-pillar engines, and hybrid substrates. **Measure**: substrate-swap exercise during deployment migration verifies contract holds; no contract revision required.
+- **Substrate substitutability holds.** PGE contract is expressible in per-server-tests + hook + CI gate (v1.0 reference), OPA, Cedar, per-pillar engines, and hybrid substrates. **v1.1 makes this mechanically checkable per § Substrate Matrix + SOM-CD15.** **Measure**: substrate-swap exercise during deployment migration verifies contract holds via multi-profile conformance run; no contract revision required.
 - **Audit completeness.** Every rule decision (Gate 1 + Gate 2 + promotion-gate + lifecycle) has corresponding ACT event coverage. **Measure**: ACT query shows complete event coverage for sampled rule decisions.
-- **Patton dialectical sign-off at v1.0.** Single review gate per the simplified workflow; file-based review per the discipline established at PR #65. **Measure**: Patton's sign-off inbox message.
+- **Patton dialectical sign-off at v1.1.** Single review gate per the simplified workflow; file-based review per the discipline established at PR #65 + continued through the v1.1 batch. **Measure**: Patton's sign-off comment on the v1.1 review gate (GH-native per the 2026-06-02 convention).
 
 ## References
 
+- `planning/SOM-SPEC.md` — mesh-level invariants this pillar instantiates (SOM-MI-8 substrate substitutability, SOM-MI-11 telemetry contract, SOM-CD15 conformance-enforced substrate-neutrality, § Tested Substrate Profiles). **v1.1 source for the per-pillar manifest layer.**
+- `planning/PILLAR-SPEC-TEMPLATE.md` — pillar-spec template that v1.1 instantiates (10 required sections, Substrate Matrix + Telemetry Contract section structures, 5 non-negotiables). PGE-SPEC v1.1 is the fourth instantiation after IBX-SPEC + IAM-CORE-SPEC + ACT-SPEC.
+- `planning/IBX-SPEC.md` v1.1 — Gate 1 surface; first pillar instantiation (capability-framing discipline applied to PGE's matrix per CD13)
+- `planning/IAM-CORE-SPEC.md` v1.1 — identity consumed by PGE; second pillar instantiation
+- `planning/ACT-SPEC.md` v1.1 — `pge.*` audit events; VP-PGE-1 four-pillar curation event; third pillar instantiation
 - `planning/SOM-PILLAR-NAMES.md` v1.1 — PGE pillar entry of record
 - `planning/SOM-PRODUCTION-VALIDATION.md` v1.1 — PGE row (operational status; this spec capstones it)
 - `planning/SOM-PROBLEM-STATEMENT.md` v0.6 — §6 PGE double-guardrail note
 - `planning/SOM-TECHNICAL-OVERVIEW.md` v0.2 — Control Plane framing
-- `planning/MCP-SECURITY-FRAMEWORK.md` v1.0 — de facto PGE spec; canonical corpus reference
-- `planning/IBX-SPEC.md` v1.0 — Gate 1 surface
-- `planning/IAM-CORE-SPEC.md` v1.0 — identity consumed by PGE
-- `planning/ACT-SPEC.md` v1.0 — pge.* events; VP-PGE-1 four-pillar curation event
+- `planning/MCP-SECURITY-FRAMEWORK.md` v1.0 — de facto PGE spec; canonical corpus reference; security framework referenced by Acceptance Criterion 1
 - `planning/PCS-DAEMON-SPEC.md` v1.0 — promotion-gate consumer
 - `planning/DPG-SPEC.md` v1.0 — Gate 2 substrate
 - `planning/CRB-SPEC.md` v1.0 — dispatch-chokepoint consumer
 - `CLAUDE.md` § Security clauses, § Subagent Policy
 - `.claude/hooks/subagent-guard.sh` — runtime enforcement surface
+- Issues `KI7MT/som-spec#16` (this v1.1 refresh), `KI7MT/som-spec#6` + `#24` (template that this spec instantiates)
