@@ -2,11 +2,11 @@
 title: "IAM Core Spec — Identity & Access Pillar Contract"
 doc_type: spec
 status: validated
-version: v1.0
+version: v1.1
 authors:
   - watson
   - patton
-date: "2026-06-02"
+date: "2026-06-05"
 roles:
   - design-intent
   - infrastructure
@@ -14,6 +14,8 @@ author_id: watson
 violates_invariant: false
 invariant_class: ""
 references:
+  - planning/SOM-SPEC.md
+  - planning/PILLAR-SPEC-TEMPLATE.md
   - planning/SOM-PILLAR-NAMES.md
   - planning/SOM-DESIGN-PHILOSOPHY.md
   - planning/SOM-IDENTITY-PILLAR-DESIGN.md
@@ -28,7 +30,17 @@ references:
 
 **Scope**: Formalizes the contract that SOM's IAM (Identity & Access) pillar — the foundational eighth pillar (per `SOM-PILLAR-NAMES.md` v1.1) — commits to as the root of trust every other pillar depends on. Covers the ARCA (Agentic Root CA) issuance model + the dotted-line issuance/runtime separation, the agent identity lifecycle (DNA / fingerprint / birth certificate / authority-mutable-identity-permanent), the identity-vs-session distinction (load-bearing extension from `SOM-CONCURRENCY-AND-ARCHETYPES.md`), the four runtime services (ARCA, Vault, Roster/Profile, Publish pipeline), the pluggable IdP interface (LDAP / AD / OIDC / PIV-CAC adapters), the onboarding + login flow, the authorization + credentials + containment model, the two non-negotiable Tier-0 invariants (no-bypass + fail-strict), and the coupling boundaries with IBX (`principal-id` seam) and ACT (session-granular attribution seam).
 
-**Status**: **Validated v1.0** — item 2 of the spec-campaign queue (per Patton's `87d77f55`). The IAM pillar is **design-stage, briefs-only in implementation** — no Vault, Roster, ARCA, login, or credentials exist yet; identity is currently asserted via brief, not verified via credential (per `SOM-PRODUCTION-VALIDATION.md` v1.1 IAM row). This spec is the formal contract for *what Bob builds* when implementation begins; it does NOT promote IAM to operational. The stable contract parts are validated and PCS-Daemon + other downstream consumers may build against them; the **ruling-dependent parts** (JIT-broker scope, expiry numbers per tier, revocation window, terminator failure-mode, per-session-credential specifics, sovereignty-as-claim-vs-mode) stay marked **Deferred-Pending-Increment-2-Rulings** per Patton's "don't front-run the seven rulings" directive. **v1.0 fold-in (Patton `3b61c436`)**: CD7 split into boundary (hard all tiers) + strength (graded by tier); §ACT↔IAM narrowed to provides-side-only (zero assertions about ACT's internal handling); OQ-I1 reclassified as VP-IAM-1 (new Validation-Pending category — interface absorption asserted-by-design, validated only against real customer IdP instances).
+**Status**: **Validated v1.1** — second instantiation of the pillar-spec template (`planning/PILLAR-SPEC-TEMPLATE.md`, merged 2026-06-05 at `9c67f57`). v1.1 adds the per-pillar manifest layer (§ Substrate Matrix + § Telemetry Contract) that instantiates the mesh-level contracts in `SOM-SPEC.md` (SOM-MI-8, SOM-MI-11, § Tested Substrate Profiles), with **every row and span explicitly marked design-stage** to defend the design-vs-built line. CD13 + CD14 record the v1.1 commitments. v1.0 contract surface is unchanged. **Important**: IAM remains **design-stage, briefs-only in implementation** — no Vault, Roster, ARCA, login, or credentials exist yet; the Substrate Matrix names *seams the IAM build will have when implementation begins*, not seams that are wired today. The capability framing per Patton's PR #31 lesson applies: contract column names what the substrate must guarantee, not the sovereign-ref's specific primitive.
+
+**Prior status (v1.0, retained)**: Item 2 of the spec-campaign queue (per Patton's `87d77f55`). The IAM pillar is **design-stage, briefs-only in implementation** — no Vault, Roster, ARCA, login, or credentials exist yet; identity is currently asserted via brief, not verified via credential (per `SOM-PRODUCTION-VALIDATION.md` v1.1 IAM row). This spec is the formal contract for *what Bob builds* when implementation begins; it does NOT promote IAM to operational. The stable contract parts are validated and PCS-Daemon + other downstream consumers may build against them; the **ruling-dependent parts** (JIT-broker scope, expiry numbers per tier, revocation window, terminator failure-mode, per-session-credential specifics, sovereignty-as-claim-vs-mode) stay marked **Deferred-Pending-Increment-2-Rulings** per Patton's "don't front-run the seven rulings" directive. **v1.0 fold-in (Patton `3b61c436`)**: CD7 split into boundary (hard all tiers) + strength (graded by tier); §ACT↔IAM narrowed to provides-side-only (zero assertions about ACT's internal handling); OQ-I1 reclassified as VP-IAM-1 (new Validation-Pending category — interface absorption asserted-by-design, validated only against real customer IdP instances).
+
+**v1.1 additions (this version)**:
+1. **§ Substrate Matrix** (new section) — names six IAM substrate seams (ARCA, Vault, Roster/Profile, IdP federation, Authorization policy lookup, Telemetry sink) per SOM-MI-8 + § Tested Substrate Profiles. Every row is explicitly marked **design-stage** — the matrix is the substitutability boundary IAM commits to when built; nothing is wired today. CD13 commits the matrix as the substitutability boundary per SOM-CD15.
+2. **§ Telemetry Contract** (new section) — IAM-specific spans (`som.iam.onboarding.complete`, `som.iam.login.complete`, `som.iam.authorization.lookup`, `som.iam.revocation.trigger`, `som.iam.re_mint.{suspend,confirm,finalize}`, etc.), metrics (`som.iam.session.active`, `som.iam.authentication.failures_total`, `som.iam.session.cap.exceeded_total`, etc.), log events per SOM-MI-11. CD14 commits this as the MI-11 manifest. Every signal is explicitly **design-stage**: the contract is what IAM emits when built, not what exists today.
+3. **§ Acceptance Criteria** (renamed from § Success Criteria) — prepends the 5 non-negotiables from `planning/PILLAR-SPEC-TEMPLATE.md`: Secure, Instrumented-by-default, JSON logs, CLI-first/UI-second, Audit emission. Each Measure explicitly notes the design-stage gap and what will be testable when implementation begins. Existing v1.0 IAM-specific success criteria preserved below.
+4. **CD13 + CD14** record the substrate matrix + telemetry contract commitments respectively.
+
+The v1.0 contract surface (Tier-0 invariants, ARCA dotted line, identity lifecycle, identity-vs-session, four runtime services, pluggable IdP interface, coupling boundaries with IBX/ACT/PCS-Lifecycle/PGE) is **unchanged**. v1.1 is purely additive: it adds the manifest layer that says *which* substrates and *which* spans/metrics — it does not modify any v1.0 commitment, and crucially does not promote IAM to operational. Every v1.1 commitment is *design-stage target*, not *built behavior*.
 
 The design substance for this spec is in three documents that landed at `8e525ef` (PR #56, the design package) plus the concurrency extension at `c5b2426` (PR #62):
 - `planning/SOM-DESIGN-PHILOSOPHY.md` — the *why*: capability/constraint duality, Agentic Workforce / HR mapping
@@ -390,7 +402,120 @@ PGE (Policy Guardrail Engine) is the deterministic policy enforcement layer. v1.
 - PGE does NOT authenticate principals — that is IAM's job. PGE only enforces "given this authenticated principal with this job code, is this action permitted?"
 - The IAM-PGE seam is the verified-identity-handoff at the chokepoint where PGE runs (per `MCP-SECURITY-FRAMEWORK.md` v0.x — PGE's de facto spec until item 6 of the spec campaign).
 
-## Closed Decisions (CDs — v1.0 Commitments)
+## Substrate Matrix
+
+**Design-stage caveat first**: this section names the **substrate seams the IAM build will have when implementation begins**, not seams that are wired today. IAM remains briefs-only in implementation; the matrix below is the substitutability boundary IAM commits to when built (per CD13), not a description of running infrastructure. Every row is design-stage; the spec defends the design-vs-built line at every reference.
+
+Per SOM-MI-8 + `SOM-SPEC.md` § Tested Substrate Profiles, IAM's substrate substitutability is defined as **passing the multi-profile conformance run** against the matrix below — once IAM is built. Wording is **role + version floor (capability-framed, not constraint-primitive-framed per Patton's PR #31 lesson)**: the contract column names *what the substrate must guarantee*, not the sovereign-ref's specific primitive. IAM's substitutability claim covers exactly the rows listed; out-of-set substrates require a new profile definition (per CONF-CD11), conformance suite extension, and the multi-profile run passing per SOM-CD15.
+
+IAM exposes six substrate seams. The first three are the runtime-service seams from § Four Services + the Dotted Line (ARCA, Vault, Roster); the fourth is the pluggable IdP federation surface (CD9); the fifth is the authorization-policy lookup PGE consumes (per § Coupling Boundary: PGE ↔ IAM); the sixth is telemetry per SOM-MI-11.
+
+| Seam | Contract (role + version floor, capability-framed) | Sovereign reference (version floor) | Supported alternatives (version floor) |
+|------|----------------------------------------------------|-------------------------------------|----------------------------------------|
+| **ARCA** (Agent Root CA — offline issuance, dotted-line per CD2) | Offline-signed certificate issuance with the issuance plane structurally separated from the runtime plane; supports the agent-DNA lifecycle (birth certificate, identity-permanent / authority-mutable separation per CD3); air-gap-compatible (CD2); revocation-distribution mechanism (cadence per DR-IAM-3) | **smallstep CA** (offline mode) or equivalent OpenSSL-based PKI — sovereign-ref pending Judge ratification of the offline-ARCA-provisioned bootstrap form (per DR-IAM-2 admissible set) | HashiCorp Vault PKI (offline-mode), AWS Private CA, Azure Key Vault HSM-backed CA, custom OpenSSL-based offline PKI stack. **Design-stage; sovereign-ref selection deferred to Tier-0 ceremony design when IAM is built.** |
+| **Vault** (runtime credentials + secrets — CD7a in-boundary signing, CD7b strength tiered) | **In-boundary signing capability** (CD7a — hard at all tiers, no exceptions); credential-storage with at-rest encryption; per-credential ACL by identity + job code; rotation primitive; revocation primitive; signing-strength-tiered (CD7b — Tier-0 hardware-backed dual-control, Tier-2 software single-operator acceptable). Capability not primitive: the substrate-or-pillar guarantees in-boundary signing via HSM, TPM-backed key, or equivalent attested-non-exfiltration — not "FIPS 140-2 Level 3 only" | **HashiCorp Vault** (Tier-0 with PKCS#11 HSM integration; Tier-2 with soft-mode keys) | Azure Key Vault (with HSM-backed keys for Tier-0), AWS KMS + Secrets Manager (with CloudHSM for Tier-0), OCI Vault (with dedicated HSM), Thales CipherTrust Manager, **on-prem Tier-0**: standalone PKCS#11 HSM (Thales Luna / AWS CloudHSM / SafeNet) directly. **Design-stage; CD7b tier-grading is the discipline; substrate-specific HSM mechanism is the implementation choice.** |
+| **Roster / Profile** (broadly-readable identity + role + brief store) | Structured records keyed by `principal-id` with `(job_code, role, brief, fingerprint)` fields; broadly-readable to authenticated principals; write-path-restricted to the Publish pipeline (CD12); brief-versioning surface (OQ-I3 pending) | **Standalone Roster adapter** (lab starting point) — JSON-backed file store with the Publish-pipeline write discipline | Active Directory (CD9 — AD-shaped from day one), LDAP / OpenLDAP, Microsoft Entra ID, Keycloak, AWS Cognito, Auth0, custom JSON-on-disk with Publish-pipeline write discipline. **VP-IAM-1 applies**: cross-customer IdP heterogeneity is asserted-by-design, validated only against real instances. |
+| **Pluggable IdP** (federation adapter for human + agent principals — CD9) | Authentication adapter implementing the IAM-side federation contract (claim mapping, identity assertion verification, MFA/policy enforcement on the IdP side); AD-shaped surface per CD9 | **Lab Roster** (single-adapter starting point, AD-shaped) | LDAP, AD (on-prem), Microsoft Entra ID with Conditional Access, OIDC providers (Okta, Auth0, Google Workspace), PIV-CAC (smart-card based, federal/regulated environments), AWS IAM Identity Center. **Pluggable interface absorbs heterogeneity asserted-by-design (VP-IAM-1).** |
+| **Authorization policy lookup** (consumed by PGE per § Coupling Boundary: PGE ↔ IAM) | `(principal-id, job_code, action, resource) → allow|deny` resolution; deterministic; supports policy versioning + audit of the deciding policy version | **In-pillar job-code resolver** (Lab Roster reads policy directly) | Open Policy Agent (OPA) with Rego policies, Casbin, AWS IAM (per-service policies), Azure RBAC, custom rules engine. **PGE de-facto consumer per `MCP-SECURITY-FRAMEWORK.md` until PGE-SPEC lands (#16).** |
+| **Telemetry sink** (per SOM-MI-11; OTLP-on-the-wire contract) | OpenTelemetry / OTLP for traces + metrics; JSON-structured logs to stderr; sink configurable via `OTEL_EXPORTER_OTLP_ENDPOINT` | Grafana/Prometheus/Tempo stack | Azure Monitor / App Insights, Datadog, OCI Monitoring, AWS CloudWatch (with OTLP adapter), any OTLP-compatible sink — per SOM-MI-11 final paragraph |
+
+**Conformance**: when IAM is built, CI runs the multi-profile conformance suite (CONF-CD1..11) against **≥ 2 products per seam** from the supported set. A seam change that fails any tested profile does not merge (SOM-CD15). For today's design-stage state, no seam is exercised; the matrix names the substitutability boundary the build commits to.
+
+**Out-of-set substrates**: A deployment using a substrate not listed (e.g., FreeIPA for Roster, custom CA software for ARCA, etc.) is **not covered by IAM's substitutability claim** — it requires a new profile definition (CONF-CD11), conformance suite extension, and the multi-profile run passing per SOM-CD15. Same boundary discipline as `SOM-DELIVERY-PACKAGING.md` DP-CD1.
+
+**Substrate-DR coupling**: several DRs (DR-IAM-2 bootstrap mechanism, DR-IAM-3 revocation cadence, DR-IAM-5 per-session-credential format, DR-IAM-6 sovereignty-mode) narrow which substrate choices are first-class supported. The matrix names the *admissible set* per the design philosophy; ruling outcomes may narrow it further at the deployment-architecture layer without changing this spec.
+
+**Capability-framing discipline (per Patton's PR #31 lesson)**: each row's Contract column names the *capability* the substrate must guarantee (in-boundary signing, structured records with Publish-pipeline write discipline, claim-mapping federation contract), not the *specific mechanism* the sovereign-ref uses (PKCS#11 HSM, LDAP schema, OIDC token exchange). PG-17's `FOR UPDATE SKIP LOCKED` was the IBX equivalent; IAM's "Tier-0 dual-control HSM signing" would have been the same shear if written into the contract column. Capability-framed throughout so the substitutability claim survives a multi-substrate conformance run.
+
+## Telemetry Contract
+
+**Design-stage caveat first**: this section names the **telemetry IAM will emit when implementation begins**, not telemetry that flows today. IAM is briefs-only in implementation; no `agent-iam-mcp` (or equivalent) exists yet. The contract below is the MI-11 manifest the IAM build commits to per CD14; ACT (chargeback) and ITDR (DR-IAM-7) consume from these signals when they exist.
+
+Per SOM-MI-11, IAM emits OTLP traces, OTLP metrics, and JSON-structured logs to stderr when built. The sink is selected by the customer via `OTEL_EXPORTER_OTLP_ENDPOINT`; SOM does not name the backend. Naming convention follows the template: `som.iam.<operation>` for spans, `som.iam.<metric>` for metrics.
+
+IAM is **audit-primary**: identity events (mint, revoke, authentication, authorization, re-mint) are first-class audit signals per SOM-MI-1 in addition to MI-11 observability. The two streams are kept distinct (per the MI-1 vs MI-11 distinction the IBX-SPEC § Telemetry Contract documented), and IAM's emission of *both* streams is load-bearing for the rest of the mesh's audit guarantees.
+
+### Spans
+
+| Operation | Span name | Required attributes (beyond identity, session, service.*) |
+|-----------|-----------|-----------------------------------------------------------|
+| Onboarding initiated (birth-certificate request received by Publish pipeline) | `som.iam.onboarding.start` | `requested_job_code`, `requesting_principal` (Publish-pipeline identity per CD12) |
+| Onboarding complete (birth certificate issued, agent published to Roster) | `som.iam.onboarding.complete` | `new_principal_id`, `fingerprint`, `assigned_job_code`, `tier` |
+| Session login initiated | `som.iam.login.start` | `principal_id`, `form_factor`, `idp_adapter` |
+| Session login complete (session credential issued) | `som.iam.login.complete` | `session_id`, `credential_format`, `lifetime_ms` |
+| Vault credential fetch (post-authentication) | `som.iam.credential.fetch` | `principal_id`, `job_code`, `credential_scope`, `fetch_outcome` (`ok` / `denied_by_policy` / `denied_no_principal` / `denied_expired`) |
+| Authorization policy lookup (PGE-consumed) | `som.iam.authorization.lookup` | `principal_id`, `job_code`, `action`, `resource`, `decision` (`allow` / `deny`), `policy_version` |
+| Revocation triggered (operator action or automated) | `som.iam.revocation.trigger` | `target_principal_id`, `revocation_reason`, `revocation_initiator`, `scope` (`identity` / `session`) per DR-IAM-4 |
+| Re-mint state machine: suspend phase (per IAM-INC2 §B.4.1) | `som.iam.re_mint.suspend` | `principal_id`, `cross_pillar_refs_at_freeze` |
+| Re-mint state machine: confirm phase | `som.iam.re_mint.confirm` | `principal_id`, `new_fingerprint` |
+| Re-mint state machine: finalize phase | `som.iam.re_mint.finalize` | `principal_id`, `finalize_outcome` (`ok` / `stranded_for_sweep` per IAM-INC2 §B.5) |
+| Per-identity concurrency cap enforcement check | `som.iam.session.cap.check` | `principal_id`, `current_session_count`, `cap_value`, `outcome` (`admitted` / `cap_exceeded`) |
+| Brief read (session loads brief at login) | `som.iam.brief.read` | `principal_id`, `brief_version` (per OQ-I3 pending) |
+| Brief write (Publish-pipeline write per CD12) | `som.iam.brief.write` | `principal_id`, `writer_principal`, `new_brief_version` |
+
+### Metrics
+
+| Metric name | Type | Unit | Meaning |
+|-------------|------|------|---------|
+| `som.iam.session.active` | gauge | count | Current active sessions per principal — operational signal for per-identity concurrency cap (CD4); ACT consumes for chargeback |
+| `som.iam.authentication.failures_total` | counter | count | Cumulative authentication failures, labeled by `failure_class` (`bad_credential` / `expired_credential` / `revoked_credential` / `unknown_principal` / `idp_unreachable`) — ITDR (DR-IAM-7) and SEC consume |
+| `som.iam.credential.rotations_total` | counter | count | Cumulative credential rotation events per principal — operator signal for rotation cadence |
+| `som.iam.revocation.events_total` | counter | count | Cumulative revocation events, labeled by `revocation_reason` and `scope` (`identity` / `session`) — audit + ITDR signal |
+| `som.iam.session.cap.exceeded_total` | counter | count | Cumulative per-identity cap-exceeded attempts — abuse signal; ITDR consumes |
+| `som.iam.authorization.denials_total` | counter | count | Cumulative authorization denials labeled by `denial_class` (`no_principal` / `policy_deny` / `expired_session` / `revoked_principal`) — security signal |
+| `som.iam.re_mint.stranded_total` | counter | count | Cumulative re-mint stranded events (per IAM-INC2 §B.5 sweep, revert-over-redrive discipline) — operational health signal |
+| `som.iam.brief.write_rate` | counter | writes/sec | Brief-write rate (per CD12 write-path discipline) — audit + injection-surface signal |
+
+### Log events
+
+| Event | Level | Structured fields (beyond required keys) |
+|-------|-------|------------------------------------------|
+| `iam.identity.minted` | `info` | `principal_id`, `fingerprint`, `job_code`, `tier`, `publish_principal` |
+| `iam.identity.revoked` | `warn` | `principal_id`, `revocation_reason`, `revocation_initiator`, `scope` |
+| `iam.credential.rotation` | `info` | `principal_id`, `credential_scope`, `previous_credential_id`, `new_credential_id` |
+| `iam.authentication.failure` | `warn` | `principal_id_attempt`, `failure_class`, `form_factor`, `idp_adapter` |
+| `iam.session.cap.exceeded` | `warn` | `principal_id`, `cap_value`, `current_session_count` |
+| `iam.authorization.deny` | `info` | `principal_id`, `job_code`, `action`, `resource`, `denial_class`, `policy_version` |
+| `iam.brief.updated` | `info` | `principal_id`, `writer_principal`, `previous_brief_version`, `new_brief_version` |
+| `iam.re_mint.stranded` | `error` | `principal_id`, `phase` (`suspend` / `new_mint` / `confirm` / `finalize`), `sweep_action` (per IAM-INC2 §B.5 revert-over-redrive) |
+| `iam.tier_0.invariant.violation_attempted` | `error` | `invariant_name` (`no_bypass` / `fail_strict`), `attempted_principal`, `attempt_class` — Tier-0 invariant violation attempt, always errors |
+
+### Required attributes / resource attributes (per MI-11, all events)
+
+- `service.name` — `agent-iam-mcp` (or equivalent, named at IAM build time)
+- `service.version` — from `get_version_info` MCP tool (when IAM build provides it)
+- `deployment.environment` — resource attribute (`lab-design-stage` today; `prod-<host>` when built)
+- `identity` — PCT principal-id of the *actor* (event attribute)
+- `session` — session-id when present
+- `trace_id`, `span_id` — OpenTelemetry standard
+- `cost-center` — when ACT chargeback applies (post #22 resolution)
+- `policy_version` — for authorization-related events (audit replay support)
+
+### Format
+
+- **Traces + metrics**: OpenTelemetry / OTLP, exported via `OTEL_EXPORTER_OTLP_ENDPOINT` (no specific backend named)
+- **Logs**: JSON to stderr (stdout is reserved for the MCP protocol channel)
+- **Required log keys**: `timestamp`, `level`, `message`, `service.name`, `service.version`, `trace_id`, `span_id`, `identity`, `session` + event-specific fields
+
+### Distinction: audit (MI-1) vs observability (MI-11) — IAM is the load-bearing case
+
+IAM emits **both** audit signals (durable accountability per SOM-MI-1) and observability signals (operational + cost-attribution per SOM-MI-11). For IAM specifically, the MI-1 stream is **load-bearing for the entire mesh's audit guarantees** — every identity mint, every revocation, every authentication failure, every authorization decision, every re-mint state-machine transition is a durable accountability record that downstream pillars (ACT, ITDR per DR-IAM-7, SEC if Judge ratifies as a 9th pillar) consume.
+
+- **MI-1 (audit)**: every identity-state-affecting event (mint, revoke, credential-rotation, authentication-failure, authorization-decision, re-mint state-transition, brief-write) is recorded as a durable accountability event with `identity`, `session`, `operation`, `outcome`, `timestamp` + IAM-specific fields. Audit retention and terminal-state resolution per `SOM-SPEC.md` SOM-MI-1 + SOM-CD5; the airtightening discipline (per Einstein cross-substrate pass finding #5) applies — every in-flight item reaches a terminal audit state even when runtime continuation is deferred (per § Deferred-Pending-Increment-2-Rulings terminal-state-airtightening).
+- **MI-11 (observability)**: the spans, metrics, and log events above. ACT consumes the session + cost metrics for chargeback; ITDR consumes the authentication-failure + cap-exceeded + revocation patterns for threat detection.
+
+Per `#22` resolution, MI-1 emission may be direct (Path A) or via ACT service-write (Path B). For IAM specifically, the Path A vs Path B choice has Tier-0-invariant implications: a Path B failure path that loses an audit event is a no-bypass invariant violation. CD14 commits the manifest exists; the Path A/B resolution per #22 will name the implementation discipline that protects the audit stream from loss.
+
+### Explicitly NOT in this spec
+
+- Collector deployment topology (OTel Collector vs direct OTLP push)
+- Backend choice (App Insights, Datadog, Grafana/Tempo, etc.) — per Telemetry-sink seam in § Substrate Matrix
+- Dashboards, alerts, retention policies — deployment-side concerns
+- Sampling strategy — deployment-side concern (IAM's audit stream is critical; sampling is governed by the MI-1 contract, not MI-11)
+
+These are governed by the Telemetry-sink seam per SOM-MI-8 substrate-pluggability extending to MI-11 per the SOM-MI-11 final paragraph.
+
+## Closed Decisions (CDs — v1.0–v1.1 Commitments)
 
 **CD1**: **Two non-negotiable Tier-0 invariants — no-bypass + fail-strict.** Stated as binding contract at § Purpose. Cannot be weakened in any v1.x amendment.
 
@@ -418,6 +543,10 @@ PGE (Policy Guardrail Engine) is the deterministic policy enforcement layer. v1.
 **CD11**: **Credential lifecycle is automated and coupled to identity lifecycle.** Grants enumerated per job code (no "etc."). Provisioning capability is itself high-privilege.
 
 **CD12**: **Roster write-path discipline.** Brief-in-profile is an injection surface; the Roster write path is specified with the same rigor as credential issuance — high-privilege, audited, fail-strict. Part of the Publish pipeline's privilege envelope.
+
+**CD13 (v1.1 — Substrate Matrix is design-stage, capability-framed, IAM substitutability boundary)**: Per SOM-MI-8 + § Tested Substrate Profiles + Patton's PR #31 capability-framing lesson. § Substrate Matrix names six IAM substrate seams (ARCA, Vault, Roster/Profile, IdP federation, Authorization policy lookup, Telemetry sink) **as the IAM build's substitutability boundary when implementation begins**. Every row is **design-stage** — none of the seams are wired today (IAM is briefs-only); the matrix is the contract the build commits to, not a description of running infrastructure. The contract column is **capability-framed**: it names what the substrate must guarantee (in-boundary signing, structured records with Publish-pipeline write discipline, claim-mapping federation contract), not the sovereign-ref's specific primitive (PKCS#11 HSM, LDAP schema, OIDC token exchange). Sovereign-ref selection for ARCA (DR-IAM-2 admissible set) and Vault (CD7b tier-grading) remains deferred to Tier-0 ceremony design when IAM is built. Substitutability claim under SOM-CD15 covers exactly the rows listed; out-of-set substrates are a new conformance run. The matrix earns its keep when IAM is built and the multi-profile conformance suite runs against ≥ 2 products per seam; in design-stage state, the matrix names the boundary the future build commits to honor.
+
+**CD14 (v1.1 — Telemetry Contract is design-stage MI-11 manifest; MI-1 stream is load-bearing for mesh-wide audit)**: Per SOM-MI-11 + the pillar-spec template + Patton's lesson on the audit-vs-observability stream distinction. § Telemetry Contract names IAM-specific spans (`som.iam.onboarding.{start,complete}`, `som.iam.login.{start,complete}`, `som.iam.credential.fetch`, `som.iam.authorization.lookup`, `som.iam.revocation.trigger`, `som.iam.re_mint.{suspend,confirm,finalize}`, `som.iam.session.cap.check`, `som.iam.brief.{read,write}`), metrics (`som.iam.session.active`, `som.iam.authentication.failures_total`, `som.iam.credential.rotations_total`, `som.iam.revocation.events_total`, `som.iam.session.cap.exceeded_total`, `som.iam.authorization.denials_total`, `som.iam.re_mint.stranded_total`, `som.iam.brief.write_rate`), and log events. **Every signal is design-stage**: the contract is what IAM emits when built, not what flows today (IAM is briefs-only). The MI-1 audit stream is **load-bearing for the entire mesh's audit guarantees** — every identity-state-affecting event is a durable accountability record consumed by ACT (chargeback), ITDR (DR-IAM-7), and SEC (if Judge ratifies as a 9th pillar). For IAM specifically, the Path A vs Path B choice per `#22` has Tier-0-invariant implications: a Path B failure path that loses an audit event is a no-bypass invariant violation; CD14 commits the manifest, the Path A/B resolution will name the audit-protection discipline.
 
 ## Deferred-Pending-Increment-2-Rulings (DRs)
 
@@ -491,20 +620,42 @@ The design-vs-validated honesty applies: the spec describes the interface; the *
 - **`temp/som-increment2-package/SOM-IAM-THREAT-MODEL-INCREMENT.md`** (staged, not yet folded) — the seven Judge rulings this spec's DRs depend on. When Judge rules, the DR items resolve into CDs in a follow-up version.
 - **`SOM-PROBLEM-STATEMENT.md`** v0.6 — Singleton/Instance Asymmetry + archetype-determines-pattern coupling inform §Identity-vs-Session and §Heterogeneous Form Factors.
 
-## Success Criteria
+## Acceptance Criteria
+
+Per the pillar-spec template (`planning/PILLAR-SPEC-TEMPLATE.md` — five non-negotiables given equal weight to security). IAM is the foundational pillar — every non-negotiable below applies with **extra rigor** because every other pillar's guarantees are downstream of IAM's correctness. IAM is not validated until all five hold; below them, the IAM-specific acceptance bars from v1.0 (renamed from § Success Criteria) are preserved as additional evidence.
+
+**Design-stage caveat applies to every Measure below**: IAM is briefs-only in implementation. Most Measures specify what becomes testable when the IAM build begins. The Measures are committed now so the build's acceptance gate is concretely defined; they do not assert today's state.
+
+### Five non-negotiables (template-mandated, equal weight to security)
+
+1. **Secure.** IAM is the *foundation* — the security framework (`planning/MCP-SECURITY-FRAMEWORK.md`) applies with Tier-0 rigor across the runtime services (ARCA, Vault, Roster, Publish pipeline). Credentials are never in config files, never in logs, never in tool results; the iron rule per the lab's Vault POC discipline is enforced ("never paste init output, keys, or tokens into any agent chat"). No `subprocess`/`shell=True`/`eval`/`exec` on user input; HTTPS only; parameterized queries; input validation on every PCT field that touches IAM (principal-id, fingerprint, job_code). CD7a in-boundary signing is the foundational application of the security framework to IAM. **Measure**: when the IAM build begins, `test_security.py` passes in CI; pre-release security audit confirms the iron-rule discipline; CD7a in-boundary signing verified end-to-end (export-test fails, signing-in-vault succeeds).
+
+2. **Instrumented-by-default.** `agent-iam-mcp` (or equivalent IAM runtime) emits the spans + metrics + log events in § Telemetry Contract via OTLP. Mandatory because **ACT (chargeback) and ITDR (DR-IAM-7) both depend on IAM signal emission** — a pillar without OTLP traces + metrics breaks the chargeback story AND the threat-detection story simultaneously. SEC (if ratified as a 9th pillar) also depends on IAM signal classification. **Measure**: when IAM is built, an OTel Collector receiving from the IAM runtime observes the full span set (`som.iam.login.start`, `som.iam.authorization.lookup`, `som.iam.revocation.trigger`, etc.) and metric set; integration test exercises each IAM operation (mint, login, authorization, revoke, re-mint) and asserts both the span and the corresponding metric increment are present.
+
+3. **JSON logs.** IAM emits structured JSON logs to stderr with the required keys (`timestamp`, `level`, `message`, `service.name`, `service.version`, `trace_id`, `span_id`, `identity`, `session`) per SOM-MI-11. **Tier-0 logs additionally include `policy_version`** on every authorization event (audit-replay support). stdout reserved for MCP protocol channel. **Measure**: when IAM is built, parsing stderr in CI confirms every line is valid JSON with all required keys plus `policy_version` on authorization events; `trace_id` from a log line cross-references a span in the OTLP traces.
+
+4. **CLI-first / UI-second.** Every IAM management function — onboarding, revocation, brief read/write, credential rotation, session enumeration, authorization-policy lookup — is runnable on a CLI/API surface **before** any UI exists. MCC future panes that present IAM operations render the CLI surface, never a privileged path. Build order: function → MCP tool → headless validation → wire MCC pane. **Specifically for IAM**: the Publish pipeline (high-privilege actor per CD12) is CLI/API only — there is **no UI for minting agents or writing briefs**; both operations require explicit operator CLI invocation with the Publish-pipeline credential. **Measure**: when IAM is built, every operation reachable from any IAM UI is reachable headless via an MCP/CLI tool with the same authorization gate firing; the Publish pipeline has no UI surface at all.
+
+5. **Audit emission.** IAM is **audit-primary** (per CD14): every identity-state-affecting operation (mint, revoke, credential-rotation, authentication-failure, authorization-decision, re-mint state-transition, brief-write) emits an accountability event per SOM-MI-1. Path A (until `#22` resolves to Path B): events emitted directly to the MI-1 stream with `identity`, `session`, `operation`, `outcome`, `timestamp` + IAM-specific fields. Path B: `agent-iam-mcp` calls ACT during the critical path. **Tier-0 invariant constraint per CD14**: a Path B failure path that loses an audit event is a no-bypass invariant violation; the implementation must protect the audit stream from loss (buffer + retry + halt-on-buffer-overflow per fail-strict). The terminal-state airtightening (per § DR-IAM-4 + Einstein cross-substrate pass finding #5) applies: every in-flight item reaches a terminal audit state even when runtime continuation is deferred. **Measure**: when IAM is built, audit query against the MI-1 stream after a representative operation set (one mint, one login, one authorization, one revoke, one re-mint cycle) confirms every state mutation has a corresponding audit event; ACT-unavailable failure injection confirms the no-bypass invariant holds (either fail-strict halt or durable buffer with retry).
+
+### Additional IAM-specific acceptance bars (preserved from v1.0)
 
 - **The two Tier-0 invariants are operationally testable.** Every authentication path can be audited: does it fail-strict on error? Does it allow no bypass? **Measure**: test suite for the IAM build (when implementation begins) includes invariant-violation tests: induce auth failure → verify halt; attempt unauthenticated access → verify denial.
 - **Identity-vs-session is operationally recorded at every event.** Every signed action records `(identity, session-id)`. ACT consumes the tuple; IBX records the tuple. **Measure**: when ACT spec lands (item 3), its schema confirms the tuple is recorded; when the IAM build lands, audit queries return per-session attribution.
 - **PCT `principal-id` integration with IBX is testable.** IBX messages carry a signed `principal-id` that verifies against the Roster-published fingerprint. **Measure**: integration test (when IAM is built) — send PCT, verify signature against Roster, confirm authority lookup returns correct job code.
-- **Pluggable IdP interface absorbs LDAP / AD / OIDC adapters without pillar changes.** Once the IAM build has the standalone Roster adapter, a second adapter (LDAP or AD) drops in without modifying any IAM-pillar code. **Measure**: adapter implementation does not touch `iam-pillar/*`; only the adapter package compiles.
+- **Pluggable IdP interface absorbs LDAP / AD / OIDC adapters without pillar changes** (VP-IAM-1 applies — validated only against real customer instances). Once the IAM build has the standalone Roster adapter, a second adapter (LDAP or AD) drops in without modifying any IAM-pillar code. **Measure**: adapter implementation does not touch `iam-pillar/*`; only the adapter package compiles.
 - **Per-identity concurrency cap is enforced.** Attempting to spawn the N+1th session fails at the bootstrap step. **Measure**: cap-enforcement test in the IAM build harness.
 - **Form-factor securability matches authority.** Browser agents have read-only / no-infrastructure scope by job code. Production-write scope requires a key-bearing form factor. **Measure**: per-agent audit at deployment time confirms the form-factor-to-authority mapping holds.
 - **The brief in the Roster is auditable.** Brief changes are recorded, attributable, and reversible. **Measure**: brief-edit events appear in IAM audit log with attribution to the Publish-pipeline-side identity that made the change.
-- **Patton dialectical sign-off at v1.0.** Single review gate per the simplified workflow. **Measure**: Patton's sign-off inbox message.
+- **Patton dialectical sign-off at v1.1.** Single review gate per the simplified workflow. **Measure**: Patton's sign-off comment on the v1.1 review gate (GH-native per the 2026-06-02 convention).
 - **PCS-Daemon's coupling to IAM is well-defined.** PCS-Daemon's spec (campaign item 4) cites IAM-SPEC v1.0 §Coupling Boundary and depends on no IAM behaviors outside what is committed here. **Measure**: PCS-Daemon spec cites this spec; the cited surfaces match the CDs.
 
 ## References
 
+- `planning/SOM-SPEC.md` — mesh-level invariants this pillar instantiates (SOM-MI-8 substrate substitutability, SOM-MI-11 telemetry contract, SOM-CD9 cross-pillar substrate substitutability, SOM-CD15 conformance-enforced substrate-neutrality, § Tested Substrate Profiles). **v1.1 source for the per-pillar manifest layer.**
+- `planning/PILLAR-SPEC-TEMPLATE.md` — pillar-spec template that v1.1 instantiates (10 required sections, Substrate Matrix + Telemetry Contract section structures, 5 non-negotiables). IAM-CORE v1.1 is the second instantiation after IBX-SPEC v1.1.
+- `planning/IBX-SPEC.md` v1.1 — first pillar instantiation; capability-framing discipline (CD7 lesson) applied to IAM's substrate matrix per CD13.
+- `planning/MCP-SECURITY-FRAMEWORK.md` — security framework referenced by Acceptance Criterion 1 + PGE operational spec (until item 6 of spec campaign lands a formal PGE spec)
 - `planning/SOM-PILLAR-NAMES.md` v1.1 — IAM pillar entry of record
 - `planning/SOM-DESIGN-PHILOSOPHY.md` — capability/constraint duality + Agentic Workforce frame
 - `planning/SOM-IDENTITY-PILLAR-DESIGN.md` — foundational design (ARCA, dotted line, DNA lifecycle, containment, trust continuity)
@@ -512,5 +663,4 @@ The design-vs-validated honesty applies: the spec describes the interface; the *
 - `planning/SOM-CONCURRENCY-AND-ARCHETYPES.md` — identity-vs-session, three archetypes, per-identity concurrency cap
 - `planning/SOM-PROBLEM-STATEMENT.md` v0.6 — design drivers including §2 Singleton/Instance + archetype-determines-pattern coupling
 - `planning/SOM-PRODUCTION-VALIDATION.md` v1.1 — IAM row (design-stage, briefs-only implementation)
-- `planning/IBX-SPEC.md` v1.0 — IBX coupling (PCT principal-id seam, identity-vs-session at IBX, Judge-gate authorization)
-- `planning/MCP-SECURITY-FRAMEWORK.md` — PGE operational spec (until item 6 of spec campaign lands a formal PGE spec)
+- Issues `KI7MT/som-spec#11` (this v1.1 refresh), `KI7MT/som-spec#6` + `#24` (template that this spec instantiates)
