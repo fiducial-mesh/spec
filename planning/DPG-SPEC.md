@@ -487,6 +487,8 @@ DPG emits an accountability event for every execution — the `dpg.*` event stre
 
 ## References
 
+- `planning/SOM-SPEC.md` — mesh-level invariants (SOM-MI-8, SOM-MI-11, § Tested Substrate Profiles) the v1.1 manifest instantiates
+- `planning/PILLAR-SPEC-TEMPLATE.md` — the v1.1 manifest-section template + acceptance criteria
 - `planning/SOM-PILLAR-NAMES.md` v1.1 — DPG pillar entry of record
 - `planning/SOM-PRODUCTION-VALIDATION.md` v1.1 — DPG row (CUDA-preflight operational precedent)
 - `planning/SOM-TECHNICAL-OVERVIEW.md` v0.2 — Compute Plane framing
