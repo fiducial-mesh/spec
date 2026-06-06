@@ -1,5 +1,5 @@
 ---
-title: "SOM Delivery & Packaging — Air-Gap-Native Distribution Contract"
+title: "the mesh Delivery & Packaging — Air-Gap-Native Distribution Contract"
 doc_type: spec
 status: draft
 version: v0.1
@@ -12,22 +12,22 @@ author_id: bob
 violates_invariant: false
 invariant_class: ""
 references:
-  - planning/SOM-SPEC.md
-  - planning/SOM-PROBLEM-STATEMENT.md
-  - planning/SOM-PRODUCTION-VALIDATION.md
+  - planning/MESH-SPEC.md
+  - planning/MANIFESTO.md
+  - planning/PRODUCTION-VALIDATION.md
   - planning/PCS-DAEMON-SPEC.md
   - planning/IAM-CORE-SPEC.md
   - planning/PGE-SPEC.md
   - planning/MCP-SECURITY-FRAMEWORK.md
-  - planning/SOM-ENGINEERING-STANDARDS.md
+  - planning/ENGINEERING-STANDARDS.md
 ---
 
-# SOM Delivery & Packaging — Air-Gap-Native Distribution Contract
+# the mesh Delivery & Packaging — Air-Gap-Native Distribution Contract
 
-**Scope**: How a conformant SOM deployment is **packaged, distributed, installed, and upgraded** —
+**Scope**: How a conformant the mesh deployment is **packaged, distributed, installed, and upgraded** —
 across the dual-tier target (enterprise + solo/SMB) and, critically, into **air-gapped /
 FIPS / SCIF** environments where the highest-value deployments live. This is a **cross-cutting
-spec, not a pillar** (cf. `SOM-CONCURRENCY-AND-ARCHETYPES.md`): every pillar's runtime artifacts
+spec, not a pillar** (cf. `CONCURRENCY-AND-ARCHETYPES.md`): every pillar's runtime artifacts
 flow through this delivery contract. It does NOT alter any pillar contract; it specifies the
 substrate on which the mesh ships.
 
@@ -35,13 +35,13 @@ substrate on which the mesh ships.
 review chain Watson → Patton → Einstein rather than down — per the wave-2 origin-inversion
 ruling (Judge, 2026-06-02). The two-person gate is preserved: Watson reviews; Judge holds merge.
 
-**Status**: **Draft v0.1**, wave-2. Unblocked by `SOM-SPEC.md` v1.0 closing the spec campaign.
+**Status**: **Draft v0.1**, wave-2. Unblocked by `MESH-SPEC.md` v1.0 closing the spec campaign.
 Awaiting Watson code/spec review → Patton sign-off → Einstein cross-substrate pass (the second
 Einstein pass Patton scoped for wave-2 specs, `dc6ca481`).
 
 ## Purpose
 
-For SOM's prize target (sovereign / air-gapped / FIPS / SCIF), **delivery is part of the moat
+For the mesh's prize target (sovereign / air-gapped / FIPS / SCIF), **delivery is part of the moat
 and part of the security posture** — not packaging glue. A signed, SBOM'd, offline-installable
 bundle with verifiable provenance is itself an **audit asset** and one of the "hard air-gap
 parts" that constitute the engineering moat. A delivery layer that *generates* audit findings
@@ -68,12 +68,12 @@ The **sovereign-reference + RHEL-AI-infra default is Red Hat UBI** (`ubi9-minima
 FIPS-capable, identical image runs on the Rocky/Alma lab tier, and matches the enterprise AI-infra
 norm (RHEL-dominant in the AI-platform space and IHFA's stack). UBI is **named as the documented
 justified default, not as the spec-level requirement** — per the framework-naming discipline applied
-elsewhere in the corpus (SOM-MI-8 + § Tested Substrate Profiles in `SOM-SPEC.md`), the spec describes
+elsewhere in the corpus (MI-8 + § Tested Substrate Profiles in `MESH-SPEC.md`), the spec describes
 the contract gate and names the default; the framework/product choice belongs to the
 implementer + environment.
 
 **The base-image escape-hatch is *proven*, not asserted** (per Patton review `e035dfef`, applying
-the same asserted-vs-measured discipline SOM-CD15 commits for substrate seams): the bundle build
+the same asserted-vs-measured discipline CD15 commits for substrate seams): the bundle build
 conformance run exercises **at least one non-UBI base** from the documented tested-base set
 (reference set: `{ubi9-minimal, wolfi-base (Chainguard distroless-ish), scratch-equivalent (.NET
 self-contained AOT)}` — the second proves the escape-hatch parameter actually works end-to-end
@@ -88,7 +88,7 @@ containerize — the **PCS-Daemon** (controls host plugins, cf. `PCS-DAEMON-SPEC
 GPU/driver layer, and the **`som` CLI** — ship as **RPM** (existing COPR muscle). Dual-format
 by necessity. Both formats share the same *delivery discipline* — substrate is per-environment,
 named, and gated by the delivery conformance run (per the install-time three-gate composite,
-DP-CD7 → DP-CD8 → `SOM-CONFORMANCE.md` CONF-CD4) — though the specific parameterization
+DP-CD7 → DP-CD8 → `CONFORMANCE.md` CONF-CD4) — though the specific parameterization
 differs by format (`ContainerBaseImage` for OCI; standard `%dist`/`buildroot` for the RPM
 build path).
 
@@ -114,15 +114,15 @@ signing (NOT keyless/Fulcio — that needs internet; air-gap requires offline-ve
 public key shipped out-of-band) + **SBOM** (SPDX/CycloneDX) + **SLSA provenance** per artifact;
 **GPG-signed RPMs**. The build produces all of it; **CI gates on it** — the same enforce-
 mechanically discipline as the license-audit gate and the FIPS-hygiene gate in
-`SOM-ENGINEERING-STANDARDS.md`. Delivery integrity is a build property, not a pre-release
+`ENGINEERING-STANDARDS.md`. Delivery integrity is a build property, not a pre-release
 checkbox.
 
 **DP-CD6 — FIPS-clean by construction (delivery side).** The bundle must not be the *source*
 of FIPS-140-3 findings: no bundled non-validated crypto module; crypto defers to the platform's
 FIPS-validated provider; the install path uses only approved hashes (so a FIPS crypto-policy
 host doesn't choke). Framework-clean ≠ deployment-certified — the deployment still supplies the
-validated module + FIPS mode — but SOM never generates the finding. (Couples to the
-`SOM-ENGINEERING-STANDARDS.md` FIPS-hygiene gate.)
+validated module + FIPS mode — but the mesh never generates the finding. (Couples to the
+`ENGINEERING-STANDARDS.md` FIPS-hygiene gate.)
 
 **DP-CD7 — Installer: one `som` CLI, .NET Native AOT single-file binary.** Keeps the core C#
 (the customer's house language in the IHFA case); AOT → no .NET runtime dependency on the box
@@ -142,11 +142,11 @@ SELinux in expected state; the orchestrator surface for the chosen tier (Quadlet
 present and functional. If any check fails, the installer aborts with a structured diagnostic
 (*which* prerequisite, *why* it failed, *what* the customer needs to do) — fail-fast at the
 substrate before connector-probe rather than at render+apply with a downstream-confusing error.
-The pre-flight runs against the *customer's own host*, not against SOM's own pillar containers
+The pre-flight runs against the *customer's own host*, not against the mesh's own pillar containers
 (which don't exist yet at this point in the flow — that's why Einstein's "causality paradox"
 framing misread the spec). Connector-probe (next step) runs against the customer's *external*
 infrastructure (the DB / IdP / secrets / crypto backends per site profile), which exists
-independently of SOM. Two distinct probe surfaces, two distinct fail-fast points.
+independently of the mesh. Two distinct probe surfaces, two distinct fail-fast points.
 
 **DP-CD8 — Connector selection is config at install, not a fork.** The site profile declares
 which DB / IdP / secrets / crypto connector + endpoints; the conformance suite verifies the
@@ -160,7 +160,7 @@ delivery time (cf. IAM pluggable-IdP, the pluggable persistence layer).
 - **Enterprise / regulated tier → RHEL** (carries the FIPS-140 validation *certificate* + vendor
   support + the air-gap entitlement story; pays in subscription friction — Satellite or offline
   manifests for air-gapped repo access).
-- Same binary-compatible family → SOM artifacts work across both. Lab-on-Rocky proves the exact
+- Same binary-compatible family → the mesh artifacts work across both. Lab-on-Rocky proves the exact
   stack the customer runs on RHEL. Free below, supported above, one codebase.
 
 **Scope of base-OS substitutability** (per Patton flag `94899c4c`, fold-on-this-touch): v0.1
@@ -172,18 +172,18 @@ explicitly so a future reader doesn't read "substrate-substitutable" as "any Lin
 
 ## Dependencies
 
-- `SOM-SPEC.md` v1.0 — mesh contract; substrate-substitutability invariant (SOM-MI-8) the
+- `MESH-SPEC.md` v1.0 — mesh contract; substrate-substitutability invariant (MI-8) the
   delivery layer must not violate (no pillar's packaging may create lock-in for another).
 - `PCS-DAEMON-SPEC.md` v1.0 — the host-resident daemon shipped as RPM; plugin artifacts flow to
   the air-gapped Registry per PCS lifecycle.
 - `IAM-CORE-SPEC.md` v1.0 — DP's cosign + GPG signing chain follows the **same offline-authority +
-  local-verification pattern as the Issuance Plane** (SOM-MI-4), but is a **distinct trust chain**:
+  local-verification pattern as the Issuance Plane** (MI-4), but is a **distinct trust chain**:
   cosign keys are shipped out-of-band for software-integrity verification, separate from the
   ARCA-issued identity artifacts that cross the dotted line for IAM. Both rely on the air-gap-friendly
   local-verification posture; neither calls back to an online authority.
 - `PGE-SPEC.md` v1.0 — security posture the delivery integrity gates enforce;
   `MCP-SECURITY-FRAMEWORK.md` v1.0 = PGE rule corpus reference.
-- `SOM-ENGINEERING-STANDARDS.md` v0.1 — the license-audit + FIPS-hygiene CI gates this spec's
+- `ENGINEERING-STANDARDS.md` v0.1 — the license-audit + FIPS-hygiene CI gates this spec's
   DP-CD5/DP-CD6 reuse.
 
 ## Success Criteria
@@ -196,7 +196,7 @@ explicitly so a future reader doesn't read "substrate-substitutable" as "any Lin
   install path.
 - **Solo-minimal litmus**: `som dev up` stands up the whole mesh on free components (Rocky +
   Podman/Quadlet + Postgres+pgvector + OpenBao) in an afternoon.
-- **FIPS-clean**: a FIPS-mode RHEL install generates zero FIPS-140-3 findings attributable to SOM
+- **FIPS-clean**: a FIPS-mode RHEL install generates zero FIPS-140-3 findings attributable to the mesh
   packaging.
 
 ## Failure Modes To Watch
@@ -207,7 +207,7 @@ explicitly so a future reader doesn't read "substrate-substitutable" as "any Lin
 - **Keyless-signing assumption** — adopting cosign keyless/Fulcio (needs internet) silently
   breaks air-gap verification. Mitigation: DP-CD5 mandates key-pair signing; CI verifies offline.
 - **Bundled non-validated crypto** — a managed/bundled crypto lib becomes an instant FIPS finding.
-  Mitigation: DP-CD6 + the FIPS-hygiene gate (CA5350/CA5351) in `SOM-ENGINEERING-STANDARDS.md`.
+  Mitigation: DP-CD6 + the FIPS-hygiene gate (CA5350/CA5351) in `ENGINEERING-STANDARDS.md`.
 - **Renderer fork** — divergent Helm vs Quadlet install logic drifts. Mitigation: DP-CD3 single
   topology model; the renderers are pure emitters, reviewed as one.
 - **Docker-daemon reintroduction** — convenience pressure to use Docker reintroduces the
@@ -217,7 +217,7 @@ explicitly so a future reader doesn't read "substrate-substitutable" as "any Lin
 
 - **DP-OQ1**: registry choice for the air-gap reference (Harbor vs Quay vs zot) — pick a reference,
   keep it pluggable.
-- **DP-OQ2** ✅ **RESOLVED**: this spec lives in `KI7MT/som-spec/planning/`; the `pcs-*`→`som-pcs-*`
+- **DP-OQ2** ✅ **RESOLVED**: this spec lives in `KI7MT/specs/planning/`; the `pcs-*`→`pcs-*`
   shift is done.
 - **DP-OQ3**: AOT vs Go for the `som` CLI — AOT is the lean-C# default; confirm AOT handles the
   process/file/network orchestration cleanly before foreclosing the Go fallback.

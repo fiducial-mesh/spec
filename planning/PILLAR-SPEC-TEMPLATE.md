@@ -13,19 +13,19 @@ author_id: watson
 violates_invariant: false
 invariant_class: ""
 references:
-  - planning/SOM-SPEC.md
-  - planning/SOM-DELIVERY-PACKAGING.md
+  - planning/MESH-SPEC.md
+  - planning/DELIVERY-PACKAGING.md
 ---
 
 # Pillar-Spec Template — Required Sections + Acceptance Criteria
 
-**Scope**: Defines the canonical section structure and acceptance criteria every per-pillar SOM spec must satisfy. Per-pillar specs (IBX, IAM-CORE, ACT, PCS-DAEMON, DPG, CRB, PGE) are the **manifests** that instantiate the mesh-level **contracts** in `SOM-SPEC.md` (SOM-MI-8 Substrate Substitutability, SOM-MI-11 Telemetry Contract, § Tested Substrate Profiles, SOM-CD15 conformance enforcement). This template is the contract every pillar spec builds to.
+**Scope**: Defines the canonical section structure and acceptance criteria every per-pillar the mesh spec must satisfy. Per-pillar specs (IBX, IAM-CORE, ACT, PCS-DAEMON, DPG, CRB, PGE) are the **manifests** that instantiate the mesh-level **contracts** in `MESH-SPEC.md` (MI-8 Substrate Substitutability, MI-11 Telemetry Contract, § Tested Substrate Profiles, CD15 conformance enforcement). This template is the contract every pillar spec builds to.
 
 **Status**: **Validated v1.0** — resolves issues #6 (Substrate Matrix + Telemetry Contract sections + three non-negotiables) and #24 (CLI-first/UI-second + audit emission extension). The template is the load-bearing artifact that the 7 v1.1 pillar refreshes (#10–#16) build to.
 
 ## Why this exists
 
-Per-pillar specs need a **manifest** layer that names this-specific-pillar's substrate dependencies and telemetry surface. Mesh-level invariants (SOM-MI-8, SOM-MI-11, § Tested Substrate Profiles) define the contract; per-pillar manifests declare *how this pillar instantiates that contract*. Without a template, the 7 pillars drift into different section shapes and a downstream implementer (Bob, Newton, a customer integrator) cannot read a pillar spec end-to-end and know which spans to instrument, which metrics to emit, which substrate seams to honor.
+Per-pillar specs need a **manifest** layer that names this-specific-pillar's substrate dependencies and telemetry surface. Mesh-level invariants (MI-8, MI-11, § Tested Substrate Profiles) define the contract; per-pillar manifests declare *how this pillar instantiates that contract*. Without a template, the 7 pillars drift into different section shapes and a downstream implementer (Bob, Newton, a customer integrator) cannot read a pillar spec end-to-end and know which spans to instrument, which metrics to emit, which substrate seams to honor.
 
 The template is the discipline that keeps the 7 manifests structurally identical so a reader who knows one pillar spec can navigate any other.
 
@@ -46,7 +46,7 @@ author_id: <primary author>
 violates_invariant: false
 invariant_class: ""
 references:
-  - planning/SOM-SPEC.md
+  - planning/MESH-SPEC.md
   - <other related spec paths>
 ---
 ```
@@ -72,21 +72,21 @@ Pillars may add additional H2 sections for pillar-specific concerns (e.g., IBX's
 
 ## Substrate Matrix
 
-**Purpose**: Names this pillar's substrate dependencies as a per-pillar instance of SOM-MI-8 substitutability, scoped to the profiles in `SOM-SPEC.md § Tested Substrate Profiles`. The pillar's substitutability claim covers exactly the rows in the matrix below — no further (per SOM-CD15).
+**Purpose**: Names this pillar's substrate dependencies as a per-pillar instance of MI-8 substitutability, scoped to the profiles in `MESH-SPEC.md § Tested Substrate Profiles`. The pillar's substitutability claim covers exactly the rows in the matrix below — no further (per CD15).
 
 **Section template**:
 
 ```markdown
 ## Substrate Matrix
 
-Per SOM-MI-8 + § Tested Substrate Profiles, this pillar's substrate substitutability is defined as **passing the multi-profile conformance run** against the matrix below. Wording is **role + version floor** (never vendor-named) so the matrix names a *contract*, not a *product*.
+Per MI-8 + § Tested Substrate Profiles, this pillar's substrate substitutability is defined as **passing the multi-profile conformance run** against the matrix below. Wording is **role + version floor** (never vendor-named) so the matrix names a *contract*, not a *product*.
 
 | Seam | Contract | Sovereign reference (version floor) | Supported alternatives (version floor) |
 |------|----------|-------------------------------------|----------------------------------------|
 | <seam role> | <minimal contract, e.g. "ANSI SQL + ENUM + JSONB"> | <product family + version> | <product family + version>, … |
 | <seam role> | <contract> | <ref> | <alt>, <alt> |
 
-**Conformance**: CI runs the multi-profile conformance suite (CONF-CD1..11) against **≥ 2 products per seam** from the supported set. A seam change that fails any tested profile does not merge (SOM-CD15).
+**Conformance**: CI runs the multi-profile conformance suite (CONF-CD1..11) against **≥ 2 products per seam** from the supported set. A seam change that fails any tested profile does not merge (CD15).
 
 **Out-of-set substrates**: A deployment using a substrate not listed in the matrix is **not covered by this pillar's substitutability claim** — it requires a new profile definition (CONF-CD11) + conformance suite extension + the multi-profile run passing before merging.
 ```
@@ -94,19 +94,19 @@ Per SOM-MI-8 + § Tested Substrate Profiles, this pillar's substrate substitutab
 **Style rules**:
 
 - **Role + version floor, never vendor-named.** Write *"OLTP RDBMS with ANSI SQL + ENUM"* not *"PostgreSQL 17"*. The sovereign reference column names the product; the contract column names the role.
-- **List only seams this pillar depends on**, not the full mesh-wide matrix. The mesh-wide matrix lives in `SOM-SPEC.md § Tested Substrate Profiles`; this pillar's section is the subset that applies.
-- **Telemetry sink is a seam if the pillar emits telemetry.** Per SOM-MI-11, every pillar emits OTLP → so every pillar's matrix includes a Telemetry-sink row (OTLP-on-the-wire contract).
+- **List only seams this pillar depends on**, not the full mesh-wide matrix. The mesh-wide matrix lives in `MESH-SPEC.md § Tested Substrate Profiles`; this pillar's section is the subset that applies.
+- **Telemetry sink is a seam if the pillar emits telemetry.** Per MI-11, every pillar emits OTLP → so every pillar's matrix includes a Telemetry-sink row (OTLP-on-the-wire contract).
 
 ## Telemetry Contract
 
-**Purpose**: Names the telemetry surface this pillar exposes per SOM-MI-11. Mesh-level MI-11 defines the **mechanism** (OTLP traces + metrics + JSON-structured logs with the named attribute keys, exported via `OTEL_EXPORTER_OTLP_ENDPOINT`); this section is the per-pillar **manifest** — the specific spans, metrics, and log records this pillar emits.
+**Purpose**: Names the telemetry surface this pillar exposes per MI-11. Mesh-level MI-11 defines the **mechanism** (OTLP traces + metrics + JSON-structured logs with the named attribute keys, exported via `OTEL_EXPORTER_OTLP_ENDPOINT`); this section is the per-pillar **manifest** — the specific spans, metrics, and log records this pillar emits.
 
 **Section template**:
 
 ```markdown
 ## Telemetry Contract
 
-Per SOM-MI-11, this pillar emits OTLP traces, OTLP metrics, and JSON-structured logs to stderr. The sink is selected by the customer via `OTEL_EXPORTER_OTLP_ENDPOINT`; SOM does not name the backend.
+Per MI-11, this pillar emits OTLP traces, OTLP metrics, and JSON-structured logs to stderr. The sink is selected by the customer via `OTEL_EXPORTER_OTLP_ENDPOINT`; the mesh does not name the backend.
 
 ### Spans
 
@@ -147,14 +147,14 @@ Per SOM-MI-11, this pillar emits OTLP traces, OTLP metrics, and JSON-structured 
 - Dashboards, alerts, retention policies
 - Sampling strategy
 
-These are **deployment-side concerns** governed by the Telemetry-sink seam (per SOM-MI-8 substrate-pluggability extending to MI-11 per SOM-MI-11 final paragraph).
+These are **deployment-side concerns** governed by the Telemetry-sink seam (per MI-8 substrate-pluggability extending to MI-11 per MI-11 final paragraph).
 ```
 
 **Style rules**:
 
 - **Span/metric names are `som.<pillar-id>.<operation>` or `som.<pillar-id>.<metric>`.** Consistent prefix lets a customer's dashboard filter by pillar trivially.
 - **Required attributes inherited from MI-11 are not repeated per-span.** List them once in the § Required attributes block; per-span tables only list *additional* pillar-specific attributes.
-- **Distinction from SOM-MI-1 (audit) is explicit when applicable.** If the pillar emits both audit events (MI-1) and observability telemetry (MI-11), name which signals belong to which class. MI-1 is the durable accountability record; MI-11 is the operational + cost-attribution surface.
+- **Distinction from MI-1 (audit) is explicit when applicable.** If the pillar emits both audit events (MI-1) and observability telemetry (MI-11), name which signals belong to which class. MI-1 is the durable accountability record; MI-11 is the operational + cost-attribution surface.
 
 ## Acceptance Criteria — five non-negotiables
 
@@ -170,7 +170,7 @@ The pillar emits OTLP traces + OTLP metrics per its § Telemetry Contract. A pil
 
 ### 3. JSON logs
 
-The pillar emits structured JSON logs to stderr with the required keys (`timestamp`, `level`, `message`, `service.name`, `service.version`, `trace_id`, `span_id`, `identity`, `session`) per SOM-MI-11. Trace correlation via `trace_id` + `span_id` is mandatory.
+The pillar emits structured JSON logs to stderr with the required keys (`timestamp`, `level`, `message`, `service.name`, `service.version`, `trace_id`, `span_id`, `identity`, `session`) per MI-11. Trace correlation via `trace_id` + `span_id` is mandatory.
 
 ### 4. CLI-first, UI-second
 
@@ -184,7 +184,7 @@ Every management function is runnable on a CLI or API surface **before** any UI 
 - Headless tests against the CLI/API are the canonical test surface
 - Production ops never depend on a UI being available
 - Forces a clean API boundary; function design happens at the CLI level
-- MCC stays thin (per SOM-CD14): MCC panes render existing CLI/API surfaces, not new ones
+- MCC stays thin (per CD14): MCC panes render existing CLI/API surfaces, not new ones
 
 **MCC is a client of these commands, never privileged.**
 
@@ -194,7 +194,7 @@ The pillar emits accountability events for every operation that affects state.
 
 **Path A (emission-as-build-standard, default until #22 resolves to Path B)**:
 
-- Pillars emit audit events directly per SOM-MI-1 stream
+- Pillars emit audit events directly per MI-1 stream
 - Required attributes per event: `identity`, `session`, `operation`, `outcome`, `timestamp` + pillar-specific fields
 - Same OTel pipeline as the Telemetry Contract; audit events are a separate signal class or audit-flagged log records
 - ACT consumes downstream from the MI-1 stream
@@ -205,7 +205,7 @@ The pillar emits accountability events for every operation that affects state.
 - "Audit emission" becomes "ACT integration" as a build standard
 - Pillar must handle ACT-service-unavailable cases per spec (block, fail, or buffer — pillar's CD names which)
 
-Either path: **accountability events are a build standard**, not optional instrumentation. Author of the per-pillar spec checks the current state of `KI7MT/som-spec#22` at write time and uses whichever path is current.
+Either path: **accountability events are a build standard**, not optional instrumentation. Author of the per-pillar spec checks the current state of `KI7MT/specs#22` at write time and uses whichever path is current.
 
 ## How to use this template
 
@@ -218,7 +218,7 @@ Either path: **accountability events are a build standard**, not optional instru
 
 ## Dependencies
 
-- Mesh-level invariants in `SOM-SPEC.md`: SOM-MI-8 (substrate substitutability), SOM-MI-11 (telemetry contract), SOM-MI-12 (Spec-Harness-Registry primitive), SOM-CD15 (conformance-enforced substrate-neutrality), § Tested Substrate Profiles (the named substrate set)
+- Mesh-level invariants in `MESH-SPEC.md`: MI-8 (substrate substitutability), MI-11 (telemetry contract), MI-12 (Spec-Harness-Registry primitive), CD15 (conformance-enforced substrate-neutrality), § Tested Substrate Profiles (the named substrate set)
 - AKB frontmatter conventions: `ionis-devel/.claude/skills/akb-doc/SKILL.md`
 - Security framework: `planning/MCP-SECURITY-FRAMEWORK.md`
 
@@ -233,8 +233,8 @@ Either path: **accountability events are a build standard**, not optional instru
 
 ## References
 
-- `planning/SOM-SPEC.md` — mesh-level invariants the per-pillar manifests instantiate
-- `planning/SOM-DELIVERY-PACKAGING.md` — DP-CD5 supply-chain integrity (informs the telemetry-pipeline build)
+- `planning/MESH-SPEC.md` — mesh-level invariants the per-pillar manifests instantiate
+- `planning/DELIVERY-PACKAGING.md` — DP-CD5 supply-chain integrity (informs the telemetry-pipeline build)
 - `planning/MCP-SECURITY-FRAMEWORK.md` — security framework referenced by Acceptance Criterion 1
 - `ionis-devel/.claude/skills/akb-doc/SKILL.md` — AKB frontmatter contract
-- Issues `KI7MT/som-spec#6`, `KI7MT/som-spec#24` — origin issues for this template's sections + acceptance criteria
+- Issues `KI7MT/specs#6`, `KI7MT/specs#24` — origin issues for this template's sections + acceptance criteria

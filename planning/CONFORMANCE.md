@@ -1,5 +1,5 @@
 ---
-title: "SOM Conformance — Pluggable-Substrate Self-Certification Contract"
+title: "the mesh Conformance — Pluggable-Substrate Self-Certification Contract"
 doc_type: spec
 status: draft
 version: v0.1
@@ -12,31 +12,31 @@ author_id: bob
 violates_invariant: false
 invariant_class: ""
 references:
-  - planning/SOM-SPEC.md
-  - planning/SOM-PROBLEM-STATEMENT.md
-  - planning/SOM-DELIVERY-PACKAGING.md
-  - planning/SOM-ENGINEERING-STANDARDS.md
+  - planning/MESH-SPEC.md
+  - planning/MANIFESTO.md
+  - planning/DELIVERY-PACKAGING.md
+  - planning/ENGINEERING-STANDARDS.md
   - planning/IAM-CORE-SPEC.md
   - planning/IBX-SPEC.md
   - planning/ACT-SPEC.md
 ---
 
-# SOM Conformance — Pluggable-Substrate Self-Certification Contract
+# the mesh Conformance — Pluggable-Substrate Self-Certification Contract
 
-**Scope**: The contract for how a SOM deployment **proves** that a customer-chosen substrate
+**Scope**: The contract for how a the mesh deployment **proves** that a customer-chosen substrate
 behind a pluggable seam (persistence, secrets/PKI, IdP, orchestration, discovery/mesh, crypto)
-actually satisfies SOM's stipulated requirements — *before* it carries production load. Defines the
+actually satisfies the mesh's stipulated requirements — *before* it carries production load. Defines the
 **stipulate → connect → certify** model, **tiered per-seam conformance**, the **support boundary**,
 the **CI-vs-ephemeral-RC** execution split, the **attestation record**, and how conformance is the
-mechanism that **verifies the mesh-level substrate-substitutability invariant (`SOM-SPEC.md` v1.0
-SOM-MI-8)**. Cross-cutting spec, not a pillar (cf. `SOM-CONCURRENCY-AND-ARCHETYPES.md`,
-`SOM-DELIVERY-PACKAGING.md`); it does NOT alter any pillar contract — it makes the pluggability
+mechanism that **verifies the mesh-level substrate-substitutability invariant (`MESH-SPEC.md` v1.0
+MI-8)**. Cross-cutting spec, not a pillar (cf. `CONCURRENCY-AND-ARCHETYPES.md`,
+`DELIVERY-PACKAGING.md`); it does NOT alter any pillar contract — it makes the pluggability
 promise *enforceable* rather than aspirational.
 
 **Authorship note (inverted origin)**: Bob-authored (infrastructure lane), wave-2 batch #2, going
 *up* the chain Bob → Watson → Patton → Einstein → Judge. Patton flagged this spec for the **tightest
 adversarial Einstein pass** — the self-certify harness is where a silent gap propagates furthest
-(a backend wrongly attested conformant fails in production, and SOM gets blamed for the customer's
+(a backend wrongly attested conformant fails in production, and the mesh gets blamed for the customer's
 substrate). Two-person gate preserved; Judge holds merge.
 
 **Status**: **Draft v0.1**, wave-2 batch #2 (first of two; Control-plane follows). Verify the
@@ -45,31 +45,31 @@ pgvector version) before promotion to validated — those are young features and
 
 ## Purpose / Problem Restatement
 
-SOM's core promise (per `SOM-PROBLEM-STATEMENT.md` + the pluggable-substrate decisions) is: **SOM
+The mesh's core promise (per `MANIFESTO.md` + the pluggable-substrate decisions) is: **the mesh
 stipulates the requirements per seam and ships reference connectors; the customer chooses, implements,
 and operates the backend behind each seam.** That promise has a silent-failure mode: *"it's the
 customer's job to implement the backend"* degrades into *"the customer plugged in something that
-doesn't actually satisfy the interface, it broke in production, and SOM gets blamed."*
+doesn't actually satisfy the interface, it broke in production, and the mesh gets blamed."*
 
 The load-bearing question this spec answers: **how does a deployment prove — mechanically, before
-go-live — that a chosen substrate satisfies the seam's contract, and where exactly does SOM's
+go-live — that a chosen substrate satisfies the seam's contract, and where exactly does the mesh's
 responsibility end and the customer's begin?** Without that proof + that boundary line, pluggability
 is an aspiration. With it, pluggability is a contract. Conformance is also the **operational
-realization of SOM-MI-8** — the mesh-level invariant that any one pillar's substrate may be
+realization of MI-8** — the mesh-level invariant that any one pillar's substrate may be
 substituted without breaking the mesh; conformance is *how you check that swap is safe*.
 
 ## The Conformance Model — stipulate → connect → certify
 
 Three parties, three artifacts, one boundary:
 
-| SOM ships | Customer provides | Result |
+| The mesh ships | Customer provides | Result |
 |---|---|---|
 | **Stipulated requirements** per seam (tiered — see below) | A backend choice (their DB / vault / IdP / orchestrator / HSM) | The requirements the backend must meet |
 | **Reference connector** (one solid adapter per seam — default + worked example) | Their connector (customer-written, or the reference if it fits) | The adapter implementing the seam interface against the backend |
 | **Conformance suite** (the self-certify tool) | A run of the suite against their (backend + connector) | A PASS/FAIL **attestation** per (seam, tier) |
 
-The customer **self-certifies**: they run SOM's conformance suite against their own substrate and get
-a machine-checkable result. SOM does not deploy, operate, or certify the customer's backend — SOM
+The customer **self-certifies**: they run the mesh's conformance suite against their own substrate and get
+a machine-checkable result. The mesh does not deploy, operate, or certify the customer's backend — the mesh
 ships the contract and the test that proves it.
 
 ## Conformance Surfaces (the pluggable seams)
@@ -84,7 +84,7 @@ Each seam has its own stipulated-requirements contract and conformance profile:
 | **IdP (human + federation)** | LDAP/Kerberos/OIDC identity + role lookup | Samba AD (lab) / MS AD | IAM pluggable-IdP |
 | **Orchestration** | schedule/deploy/heal workloads; health-driven lifecycle | Nomad (candidate) / Quadlet | Control-plane (wave-2 #2 item 2), CRB |
 | **Discovery / mesh** | service discovery + mTLS transport + non-secret KV | Consul | IAM transport, IBX |
-| **Crypto provider** | FIPS-validated approved-algorithm module | OS-FIPS OpenSSL (RHEL) | `SOM-DELIVERY-PACKAGING.md` DP-CD6, `SOM-ENGINEERING-STANDARDS.md` ES-CD13 |
+| **Crypto provider** | FIPS-validated approved-algorithm module | OS-FIPS OpenSSL (RHEL) | `DELIVERY-PACKAGING.md` DP-CD6, `ENGINEERING-STANDARDS.md` ES-CD13 |
 
 **The interface is defined around the abstract capability, never around the reference backend's
 shape** (the established pluggability rule). The reference connector satisfies the interface; it does
@@ -119,25 +119,25 @@ and fail AKB-vector. This is why conformance is profiled, not monolithic.
 specific seam at a specific tier/capability-profile; "conformant" without that qualification is
 meaningless. The stipulated requirements are tiered; the tier sets the qualifying set.
 
-**CONF-CD2 — The three-part contract is fixed: SOM stipulates requirements + ships a reference
+**CONF-CD2 — The three-part contract is fixed: The mesh stipulates requirements + ships a reference
 connector + ships a conformance suite; the customer chooses/implements/operates the backend and runs
-the suite.** SOM never deploys or operates a customer backend.
+the suite.** The mesh never deploys or operates a customer backend.
 
-**CONF-CD3 — Explicit support boundary.** SOM supports the **interface + the reference connector**;
+**CONF-CD3 — Explicit support boundary.** The mesh supports the **interface + the reference connector**;
 the customer owns everything **below the connector line** (their backend's provisioning, tuning,
 patching, availability, DR). The boundary is a stated contract line, material for regulated
-customers. A failure below the line is a customer-substrate issue, not a SOM defect — and the
+customers. A failure below the line is a customer-substrate issue, not a the mesh defect — and the
 conformance attestation is the evidence that draws the line.
 
 **CONF-CD4 — The conformance suite is the self-certify tool, and a PASS is the install-time gate.**
-The customer runs it; `SOM-DELIVERY-PACKAGING.md` DP-CD8's install-time connector-probe **invokes the
+The customer runs it; `DELIVERY-PACKAGING.md` DP-CD8's install-time connector-probe **invokes the
 conformance suite against the chosen backend before go-live**, completing the **three-gate install
 composite** — host-prerequisites pre-flight (DP-CD7) → external-infrastructure connector-probe (DP-CD8)
 → backend conformance suite (this spec). A non-conformant backend fails the install fast, with a
 structured diagnostic, not silently at first production load.
 
 **CONF-CD5 — Two-tier execution: reference backends in CI routinely; real enterprise backends
-ephemerally pre-RC.** Per `SOM-ENGINEERING-STANDARDS.md` ES-CD10 (Testcontainers) + the
+ephemerally pre-RC.** Per `ENGINEERING-STANDARDS.md` ES-CD10 (Testcontainers) + the
 EPYC/Proxmox harness: the suite runs (1) every CI build against the *reference* backends
 (Postgres+pgvector, Samba AD, OpenBao), and (2) **pre-RC against the real enterprise backends**
 (SQL Server 2025 Developer, Oracle 23ai Free, real MS AD) spun up ephemerally and torn down. **RC
@@ -149,21 +149,21 @@ live only for the run.
 backend identity + version, connector version, interface version, suite version, pass-set, timestamp}`)
 emitted to **ACT** as an audit artifact. **ACT event-type**: the `conf.*` namespace (e.g.
 `conf.attestation_emitted`) — *new*, so it extends ACT's bounded enum only via a curation event per
-SOM-MI-6 (tracked as **CONF-VP-1**, same pattern as the wave-1 `pcs.*`/`dpg.*`/`crb.*`/`pge.*`
+MI-6 (tracked as **CONF-VP-1**, same pattern as the wave-1 `pcs.*`/`dpg.*`/`crb.*`/`pge.*`
 namespaces); pre-curation bounded fallback is `act.detection_signal` with `signal_type=conf_attestation`.
 **Signing identity**: the attestation is signed by the **customer's own IdP-issued identity** (per the
-SOM-CD13 external-anchor invariant) — SOM does NOT mint conformance-signing identities; conformance
-*consumes* verified identity from IAM (SOM-MI-3) and never *produces* it. Self-cert is an honest-broker
+CD13 external-anchor invariant) — the mesh does NOT mint conformance-signing identities; conformance
+*consumes* verified identity from IAM (MI-3) and never *produces* it. Self-cert is an honest-broker
 model (CONF-OQ2 tracks whether regulated tiers need witnessed verification). The attestation is the
 durable proof of *what was certified against what, when* — the regulated audit trail for the
 support-boundary contract (CONF-CD3).
 
-**CONF-CD7 — Conformance verifies SOM-MI-8 — per-seam pass is *necessary*; cross-seam interaction
+**CONF-CD7 — Conformance verifies MI-8 — per-seam pass is *necessary*; cross-seam interaction
 tests are required for *sufficient*.** A substrate swap that passes the (seam, tier) suite satisfies
-*that seam's* contract — the necessary condition. But SOM-MI-8 has two halves: (a) substrate satisfies
+*that seam's* contract — the necessary condition. But MI-8 has two halves: (a) substrate satisfies
 seam contract (per-seam), AND (b) no pillar's substrate creates lock-in for another (cross-seam) — and
 per-seam tests do not catch (b) (e.g. Postgres-as-IBX creating an implicit dependency pgvector-as-AKB
-cannot satisfy fires no per-seam test). So the mesh-level Exit Test (`SOM-SPEC.md` SOM-MI-8) requires
+cannot satisfy fires no per-seam test). So the mesh-level Exit Test (`MESH-SPEC.md` MI-8) requires
 **both**: (1) the conjunction of per-seam conformance passes (necessary), AND (2) a **cross-seam
 interaction test set** exercising seam-substrate combinations *together* under the actual mesh query
 patterns (the sufficient layer; see CONF-OQ5). Per-seam conformance alone is necessary, not sufficient.
@@ -172,14 +172,14 @@ patterns (the sufficient layer; see CONF-OQ5). Per-seam conformance alone is nec
 it is **non-conformant for that tier** — full stop. A backend that meets some-but-not-all requirements
 is either (a) conformant at a *lower* explicitly-named tier, or (b) carries a **documented, named,
 operator-accepted bounded gap** (a split-store fallback, a deferred capability) recorded in the
-attestation. **A silent partial pass is inadmissible** — the same discipline as `SOM-MI-1` /
-`SOM-ENGINEERING-STANDARDS.md` ES-OQ4's map/curate/explicit-bounded-drop: you may bound a gap, you
+attestation. **A silent partial pass is inadmissible** — the same discipline as `MI-1` /
+`ENGINEERING-STANDARDS.md` ES-OQ4's map/curate/explicit-bounded-drop: you may bound a gap, you
 may not hide one.
 
 **CONF-CD9 — Conformance is versioned with the interface (SemVer).** An attestation is valid for the
 interface version it was run against; an interface major bump invalidates prior attestations for that
 seam and requires re-certification (couples the Layer-2 SDK versioning in
-`SOM-ENGINEERING-STANDARDS.md`). The conformance suite ships *with* the connector SDK so the
+`ENGINEERING-STANDARDS.md`). The conformance suite ships *with* the connector SDK so the
 self-certify capability tracks the interface it tests.
 
 **CONF-CD10 — The reference connector + its conformance pass is the worked example for
@@ -216,8 +216,8 @@ backend support enforcing per-identity caps) couples to the cap-values ruling; v
 ## Validation-Pending (VP)
 
 **CONF-VP-1 — `conf.*` ACT event-type namespace.** The attestation emission (CONF-CD6) introduces a
-`conf.*` event-type; per ACT v1.0 CD4 + SOM-MI-6 the bounded enum extends only via a curation event.
-CONF-VP-1 routes through the **SOM-VP-1** curation discipline (the same atomic-curation pattern as the
+`conf.*` event-type; per ACT v1.0 CD4 + MI-6 the bounded enum extends only via a curation event.
+CONF-VP-1 routes through the **VP-1** curation discipline (the same atomic-curation pattern as the
 wave-1 `pcs.*`/`dpg.*`/`crb.*`/`pge.*` namespaces); pre-curation operational fallback is
 `act.detection_signal` with `signal_type=conf_attestation`. Resolves when the ACT v1.x curation event lands.
 
@@ -225,7 +225,7 @@ wave-1 `pcs.*`/`dpg.*`/`crb.*`/`pge.*` namespaces); pre-curation operational fal
 
 1. **Performance conformance scope** — does conformance include performance SLAs (latency/throughput)
    or only *functional capability*? v0.1: **functional only**; perf conformance couples to the
-   unresolved mesh-level performance contract (`SOM-SPEC.md` SOM-OQ-4) and is deferred until production
+   unresolved mesh-level performance contract (`MESH-SPEC.md` OQ-4) and is deferred until production
    workloads pressure-test it. Recommendation: keep functional and perf conformance as separate
    profiles so a backend can be functionally-conformant but perf-flagged.
 2. **Attestation trust model** — is the self-cert attestation self-signed by the customer (honest-
@@ -252,7 +252,7 @@ wave-1 `pcs.*`/`dpg.*`/`crb.*`/`pge.*` namespaces); pre-curation operational fal
   Patton's adversarial pass specifically probes whether the suite tests what the pillar truly needs.
 - **Silent partial pass** — a backend meets 9/10 requirements and gets called conformant. Mitigation:
   CONF-CD8 — full-pass-or-named-lower-tier-or-documented-gap; no silent partials.
-- **Support-boundary erosion** — a customer-substrate failure gets escalated as a SOM defect.
+- **Support-boundary erosion** — a customer-substrate failure gets escalated as a the mesh defect.
   Mitigation: CONF-CD3 explicit boundary + CONF-CD6 attestation as the evidence line.
 - **Reference-shaped interface** — the interface accidentally encodes a Postgres-ism, so "conformant"
   silently means "Postgres-like." Mitigation: interface defined around abstract capability (model
@@ -264,13 +264,13 @@ wave-1 `pcs.*`/`dpg.*`/`crb.*`/`pge.*` namespaces); pre-curation operational fal
 
 ## Dependencies
 
-- `SOM-SPEC.md` v1.0 — **SOM-MI-8** (substrate substitutability, the invariant conformance verifies)
+- `MESH-SPEC.md` v1.0 — **MI-8** (substrate substitutability, the invariant conformance verifies)
   + the mesh-level Exit Test discipline.
-- `SOM-PROBLEM-STATEMENT.md` — the pluggable-substrate design driver + the stipulate/connect/certify
+- `MANIFESTO.md` — the pluggable-substrate design driver + the stipulate/connect/certify
   responsibility split.
-- `SOM-DELIVERY-PACKAGING.md` v0.1 — **DP-CD8** install-time connector-probe invokes the conformance
+- `DELIVERY-PACKAGING.md` v0.1 — **DP-CD8** install-time connector-probe invokes the conformance
   suite (CONF-CD4); DP-CD6 FIPS crypto provider is a conformance seam.
-- `SOM-ENGINEERING-STANDARDS.md` v0.1 — **ES-CD10** Testcontainers/EPYC ephemeral RC testing is the
+- `ENGINEERING-STANDARDS.md` v0.1 — **ES-CD10** Testcontainers/EPYC ephemeral RC testing is the
   execution mechanism (CONF-CD5); the conformance harness is the Layer-2 SDK hinge; ES-CD9 persistence
   connector interface.
 - `IAM-CORE-SPEC.md` v1.0 — secrets/PKI + IdP seams; the DR-IAM rulings CONF-DR1/2/3 couple to.
@@ -280,13 +280,13 @@ wave-1 `pcs.*`/`dpg.*`/`crb.*`/`pge.*` namespaces); pre-curation operational fal
 ## Success Criteria
 
 - **A customer runs `som` conformance against their backend and gets a per-(seam, tier) PASS/FAIL +
-  attestation** without reading SOM source. **Measure**: the Layer-2 SDK conformance harness produces
+  attestation** without reading the mesh source. **Measure**: the Layer-2 SDK conformance harness produces
   a machine-checkable attestation for the reference backends in CI.
 - **The install gate refuses a non-conformant backend** with a structured diagnostic (which seam,
   which requirement, why). **Measure**: a deliberately-deficient backend (e.g., MySQL behind the AKB
   vector seam) fails the DP-CD8 probe at install, not at first query.
 - **A substrate swap that passes conformance does not break the mesh.** **Measure**: the substrate-swap
-  exercise (SOM-MI-8) is realized as a conformance run; passing the (seam, tier) suite is the swap's
+  exercise (MI-8) is realized as a conformance run; passing the (seam, tier) suite is the swap's
   go/no-go.
 - **No silent partials.** **Measure**: every attestation is full-pass, named-lower-tier, or
   documented-bounded-gap; CI rejects an attestation that claims conformance with unmet requirements.
@@ -298,10 +298,10 @@ wave-1 `pcs.*`/`dpg.*`/`crb.*`/`pge.*` namespaces); pre-curation operational fal
 
 ## References
 
-- `planning/SOM-SPEC.md` v1.0 — SOM-MI-8 substrate substitutability; mesh Exit Test
-- `planning/SOM-PROBLEM-STATEMENT.md` — pluggable-substrate driver + responsibility split
-- `planning/SOM-DELIVERY-PACKAGING.md` v0.1 — DP-CD8 install-time conformance probe; DP-CD6 crypto seam
-- `planning/SOM-ENGINEERING-STANDARDS.md` v0.1 — ES-CD10 ephemeral RC testing; Layer-2 SDK harness
+- `planning/MESH-SPEC.md` v1.0 — MI-8 substrate substitutability; mesh Exit Test
+- `planning/MANIFESTO.md` — pluggable-substrate driver + responsibility split
+- `planning/DELIVERY-PACKAGING.md` v0.1 — DP-CD8 install-time conformance probe; DP-CD6 crypto seam
+- `planning/ENGINEERING-STANDARDS.md` v0.1 — ES-CD10 ephemeral RC testing; Layer-2 SDK harness
 - `planning/IAM-CORE-SPEC.md` v1.0 — secrets/PKI + IdP seams; the seven Increment-2 rulings
 - `planning/IBX-SPEC.md` v1.0 — relational persistence profile
 - `planning/ACT-SPEC.md` v1.0 — append-only persistence profile; attestation audit sink

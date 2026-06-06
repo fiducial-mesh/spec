@@ -1,6 +1,6 @@
-# SOM Identity Pillar — Foundational Design
+# the mesh Identity Pillar — Foundational Design
 
-*Provisional name: Sovereign Orchestration Mesh (SOM). Working draft — the foundational pillar specification. Companion to SOM-DESIGN-PHILOSOPHY.md. Pillar count, naming, and "SOM"/"ARCA" labels are provisional pending the full specification pass and name clearance.*
+*Provisional name: Fiducial Mesh (the mesh). Working draft — the foundational pillar specification. Companion to DESIGN-PHILOSOPHY.md. Pillar count, naming, and "the mesh"/"ARCA" labels are provisional pending the full specification pass and name clearance.*
 
 ---
 
@@ -21,7 +21,7 @@ Two invariants follow and are non-negotiable at Tier-0:
 
 The entire pillar maps one-to-one onto something every board, auditor, and security team already understands: **the employee lifecycle.** This is not a loose analogy; it is the structural template, and it is also the explanation that lets a non-technical approver understand and sign off on the system.
 
-| Human organization | SOM / Agentic Workforce |
+| Human organization | The mesh / Agentic Workforce |
 |---|---|
 | HR / issuing authority | **ARCA** (Agentic Root CA) — issues, then steps out |
 | Employee ID (immutable) | Agent **fingerprint** (public key) |
@@ -118,7 +118,7 @@ A root or authority change re-*attests* identity; it does not recreate it. The a
 
 ### Job code = authorization policy
 
-The organization's existing job-code / role structure *is* the authorization model — already legally tested and auditor-accepted. SOM's AuthZ mirrors it: an agent's job code defines, precisely and machine-enforceably, what it may do. Segregation of duties is expressed exactly as it is for humans: "the approver job code and the executor job code cannot be held by the same identity on the same transaction."
+The organization's existing job-code / role structure *is* the authorization model — already legally tested and auditor-accepted. The mesh's AuthZ mirrors it: an agent's job code defines, precisely and machine-enforceably, what it may do. Segregation of duties is expressed exactly as it is for humans: "the approver job code and the executor job code cannot be held by the same identity on the same transaction."
 
 Caveat carried into the spec: human job descriptions are prose full of judgment ("uses discretion," "as needed"). An agent's AuthZ policy must be **exact and fail-strict** — anything not explicitly permitted is denied. The job description is the *source*; it is compiled down to an enforceable policy with ambiguity driven out.
 
@@ -133,7 +133,7 @@ This grounds every higher-level property in real, commodity infrastructure:
 
 ### Agent-scoped authority is a containment boundary
 
-The dangerous, common anti-pattern is the agent acting with the **operator's** (or a shared service account's) authority — which inherits the human's full permissions, makes the blast radius "everything the human can do," and corrupts attribution. SOM closes this structurally:
+The dangerous, common anti-pattern is the agent acting with the **operator's** (or a shared service account's) authority — which inherits the human's full permissions, makes the blast radius "everything the human can do," and corrupts attribution. The mesh closes this structurally:
 
 - The agent has **its own** authority, scoped to **its own** job code — almost always far narrower than the operator's.
 - A compromised, injected, or misreasoning agent is contained to the union of *its own* minimal permissions. It cannot escalate by borrowing the operator's authority, because it never had it. Containment is structural, not behavioral.
@@ -149,7 +149,7 @@ When an agent must act *on behalf of* a human request, the clean model is **two 
 
 The identity pillar is novel only where it should be — the agentic identity and governance model. Everything commodity is integrated, not rebuilt:
 
-- **Vault.** The ARCA root key and agent secrets live in an existing, mature, often FIPS-validated vault/HSM (e.g. HashiCorp Vault, cloud KMS/HSM, PKCS#11 hardware, OS keyring at the low end). SOM defines the *interface*, not the vault. **At Tier-0 the interface must require in-boundary signing** — signing happens *inside* the hardware boundary; the root key is never exported into mesh memory. "Pluggable" therefore means "pluggable into something that can actually protect the root"; the tier sets which vaults qualify. The vault abstraction presents one consistent sign/protect/rotate contract so swapping the backend never ripples into the pillar.
+- **Vault.** The ARCA root key and agent secrets live in an existing, mature, often FIPS-validated vault/HSM (e.g. HashiCorp Vault, cloud KMS/HSM, PKCS#11 hardware, OS keyring at the low end). The mesh defines the *interface*, not the vault. **At Tier-0 the interface must require in-boundary signing** — signing happens *inside* the hardware boundary; the root key is never exported into mesh memory. "Pluggable" therefore means "pluggable into something that can actually protect the root"; the tier sets which vaults qualify. The vault abstraction presents one consistent sign/protect/rotate contract so swapping the backend never ripples into the pillar.
 - **Crypto.** A **pluggable crypto provider** isolates export/FIPS variation into one swappable component. The agent-DNA model stays simple and universal; a deployment selects a standard provider (commercial/finance), a FIPS-validated provider (defense), or a region-appropriate provider (export). Signatures/authentication ("agent DNA") are treated more leniently under export rules than encryption-for-confidentiality, which keeps the common case clean — but FIPS-validated-provider and international-shipment classification remain deployment-time legal/export items, contained behind the interface and deferred to the moment a specific defense or international customer is live (with counsel).
 - **Existing IAM.** Because each agent is a principal with its own identity and job-code authority, it plugs into the customer's existing AuthN/AuthZ (AD, Okta, PIV/CAC, database grants, service ACLs) the same way a human employee does. There is no parallel permission universe to integrate — the agent simply looks like an employee to the systems that already grant access.
 

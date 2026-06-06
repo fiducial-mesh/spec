@@ -1,5 +1,5 @@
 ---
-title: "SOM Engineering Standards — C#/.NET Core Build Discipline & SDK Tooling"
+title: "the mesh Engineering Standards — C#/.NET Core Build Discipline & SDK Tooling"
 doc_type: spec
 status: draft
 version: v0.1
@@ -12,19 +12,19 @@ author_id: bob
 violates_invariant: false
 invariant_class: ""
 references:
-  - planning/SOM-SPEC.md
+  - planning/MESH-SPEC.md
   - planning/IAM-CORE-SPEC.md
   - planning/IBX-SPEC.md
   - planning/PGE-SPEC.md
   - planning/ACT-SPEC.md
   - planning/MCP-SECURITY-FRAMEWORK.md
-  - planning/SOM-DELIVERY-PACKAGING.md
-  - planning/SOM-CONCURRENCY-AND-ARCHETYPES.md
+  - planning/DELIVERY-PACKAGING.md
+  - planning/CONCURRENCY-AND-ARCHETYPES.md
 ---
 
-# SOM Engineering Standards — C#/.NET Core Build Discipline & SDK Tooling
+# the mesh Engineering Standards — C#/.NET Core Build Discipline & SDK Tooling
 
-**Scope**: The **SOM C#/.NET core** — the pillar microservices (IAM/ARCA, PGE, IBX, CRB,
+**Scope**: The **the mesh C#/.NET core** — the pillar microservices (IAM/ARCA, PGE, IBX, CRB,
 PCS-Daemon) + connectors. **Cross-cutting, not a pillar**: it constrains *how* every C# pillar is
 built, so the other specs inherit it rather than restate it. **Python components (ACT Detect
 Layer + AI apps) follow a separate Python standard (TBD)** — out of scope here.
@@ -78,11 +78,11 @@ everything; no unbounded waits.
 lock-in, is the **C#-side in-process emission format**. The ACT Record Layer ingest envelope (per
 `ACT-SPEC.md` v1.0 §Event payload schema, a bounded event-type taxonomy — NOT OTel-shaped) is the
 wire format, so the C#-pillar→ACT path performs an **OTel→ACT envelope mapping at the egress
-boundary** (mapping itself is ES-OQ4). **The egress boundary is where `SOM-SPEC.md` v1.0 SOM-MI-1
+boundary** (mapping itself is ES-OQ4). **The egress boundary is where `MESH-SPEC.md` v1.0 MI-1
 applies** (audit retention + terminal-state resolution are non-negotiable): any OTel signal that
 the mapping treats as non-retained must be a *documented, audited* drop with explicit rationale,
 NOT a silent drop (per Einstein wave-2 cross-substrate pass finding #2, `783ae084`, Patton-confirmed
-as the priority GAP). Silent drop at the egress boundary would violate SOM-MI-1; documented drop
+as the priority GAP). Silent drop at the egress boundary would violate MI-1; documented drop
 is consistent (you retain a record of what you chose not to retain and why). See ES-OQ4 for the
 binding constraint on the mapping spec. Structured logging with correlation/trace IDs; **NO
 secrets/PII in logs** (non-negotiable, PGE). Health checks `/healthz` (liveness) + `/readyz`
@@ -92,7 +92,7 @@ secrets/PII in logs** (non-negotiable, PGE). Health checks `/healthz` (liveness)
 + resilience wiring; new services inherit the platform). **Do NOT adopt Aspire AppHost as the
 deployment model** — it leans Microsoft/k8s/Azure and conflicts with the pluggable-orchestrator
 principle. Inner-loop + ServiceDefaults only; deployment stays behind the orchestration connector
-(cf. `SOM-DELIVERY-PACKAGING.md`).
+(cf. `DELIVERY-PACKAGING.md`).
 
 **ES-CD9 — Data access behind the persistence connector.** EF Core (async, migrations,
 `AsNoTracking` reads, pooled `DbContext`) or Dapper for hot paths — **behind the persistence
@@ -122,12 +122,12 @@ default).
 
 **Architecture-as-tests scope boundary (per Einstein wave-2 finding #3 `783ae084`, Patton-confirmed
 FLAG)**: NetArchTest enforces seams via **static IL analysis within the compiled solution
-boundary** — within `som-core` (per ES-CD16), it sees project-to-project references and enforces
+boundary** — within `core` (per ES-CD16), it sees project-to-project references and enforces
 "pillars reference each other only via interfaces; DB-isms confined to adapter projects." It does
 NOT, by construction, trace invariant violations across a **consumed pre-compiled versioned NuGet
 package boundary** (the ES-CD3 shared-code mechanism): NetArchTest sees only the package's public
 surface, not invariants baked inside at the package's build time. **Mitigation under ES-CD16**:
-because shared internal NuGet packages are built within the `som-core` monorepo under the same
+because shared internal NuGet packages are built within the `core` monorepo under the same
 CI gate, the coverage composes if **every internal package carries its own NetArchTest suite at
 its own build time** — each package's architecture invariants are enforced at the package's build
 (not at the consumer's build), so the cross-seam hole closes by composition. CI gate requires
@@ -149,13 +149,13 @@ The .NET OSS→paid wave makes this load-bearing — **8+ major libs went commer
 (FluentAssertions 8+, AutoMapper + MediatR + MassTransit [Apr 2025], Moq, Duende IdentityServer,
 ImageSharp, QuestPDF). Old versions stay permissive but get no fixes.
 
-- **Recommended SOM test stack (all permissive, MTP-compatible):** xUnit v3 (Apache-2.0) ·
+- **Recommended the mesh test stack (all permissive, MTP-compatible):** xUnit v3 (Apache-2.0) ·
   NSubstitute (BSD-3) · Shouldly (BSD-3) · Testcontainers (MIT) · WebApplicationFactory (MIT) ·
   Pact.NET (MIT lib) · NetArchTest (MIT) · FsCheck (BSD-3) / CsCheck (MIT) · Stryker.NET (Apache-2.0) ·
   BenchmarkDotNet (MIT) · Coverlet (MIT) · Verify (MIT).
 - **Avoid-list + free replacements:** FluentAssertions 8+ → Shouldly/AwesomeAssertions ·
   Moq → NSubstitute · AutoMapper → Mapperly (or hand-mapping) · MediatR → inject handlers directly ·
-  MassTransit → SOM's **IBX is the message layer** (Rebus only if a bus abstraction is ever needed) ·
+  MassTransit → the mesh's **IBX is the message layer** (Rebus only if a bus abstraction is ever needed) ·
   Duende IdentityServer → OpenIddict.
 - ⚠ **Pact.NET**: library + self-hosted OSS broker are free; the **hosted PactFlow broker is paid
   SaaS** — self-host, don't depend on hosted.
@@ -172,7 +172,7 @@ to licensing: the posture is the build.
 analyzers **CA5350 (weak crypto) / CA5351 (broken crypto)** flag MD5/SHA-1/weak algorithms at
 build; never roll-your-own crypto; defer to the OS-FIPS-validated provider (on .NET/Linux,
 `System.Security.Cryptography` defers to OS OpenSSL → FIPS-mode RHEL uses the validated module).
-FIPS-cleanliness becomes the build, not a finding. Couples to `SOM-DELIVERY-PACKAGING.md` DP-CD6.
+FIPS-cleanliness becomes the build, not a finding. Couples to `DELIVERY-PACKAGING.md` DP-CD6.
 
 **ES-CD14 — Security baseline.** AuthN/AuthZ via the IAM pillar + mTLS (service mesh); input
 validation; **HTTPS/mTLS only** (no `http://`); no secrets in code (PGE non-negotiable); dependency
@@ -185,7 +185,7 @@ unit/integration + coverage floor + **Stryker mutation-score threshold** + **lic
 inverted-origin for Bob-authored infra specs). SemVer on shared packages; reproducible pinned
 container builds.
 
-**ES-CD16 — Repo strategy: C# core pillar services live in one `som-core` monorepo.** The pillar
+**ES-CD16 — Repo strategy: C# core pillar services live in one `core` monorepo.** The pillar
 microservices (IAM/ARCA, PGE, IBX, CRB, PCS-Daemon) share a single solution + repo, **NOT one repo
 per service**. Rationale: per-service repos = premature splitting; the seams co-evolve and require
 coherent cross-pillar changes; per-pillar PRs touch multiple projects within one solution. Shared
@@ -197,9 +197,9 @@ SDK pluggability model (below) — the monorepo is the *core services*, not the 
 
 ## SDK tooling — two layers
 
-**Layer 1 — the dev toolchain we BUILD SOM with (interface-independent; can start early).**
+**Layer 1 — the dev toolchain we BUILD the mesh with (interface-independent; can start early).**
 .NET SDK 10 (LTS) pinned via `global.json` (reproducible, anti-drift); MSBuild + the props /
-editorconfig / analyzers above; **`dotnet new` custom templates** (SOM pillar-service + connector
+editorconfig / analyzers above; **`dotnet new` custom templates** (the mesh pillar-service + connector
 templates baking in the standards + Aspire ServiceDefaults — standards made executable, the
 highest-leverage Layer-1 piece); internal NuGet feed; Roslyn **source generators** for boilerplate
 (PCT message types, connector stubs, inter-pillar OpenAPI clients).
@@ -213,7 +213,7 @@ This is the productization of pluggability — turns "write your own connector" 
 - **Plugin SDK (PCS)** — authoring PCS plugins that ride MCP (schema, contract, validation).
 - **`som` CLI** — scaffold connectors/plugins/pillars; validate against conformance; register with
   PCS-Registry; `som dev up` spins the local solo-profile (the single-box litmus as a dev command).
-  (The installer form of this CLI is specified in `SOM-DELIVERY-PACKAGING.md` DP-CD7.)
+  (The installer form of this CLI is specified in `DELIVERY-PACKAGING.md` DP-CD7.)
 - **Cross-language**: typed *in-process* connectors = C# SDK; *protocol-level* plugins (ride MCP) =
   language-agnostic via the wire protocol (a Python/Go shop integrates without C#).
 
@@ -222,7 +222,7 @@ same don't-get-ahead-of-the-specs discipline as the control plane. Layer 1 is
 interface-independent → stand up early. The **conformance harness is the hinge** — it appears in
 both the RC-testing decision and the Layer-2 SDK.
 
-## How this maps to existing SOM decisions (falls out of the architecture, not generic)
+## How this maps to existing the mesh decisions (falls out of the architecture, not generic)
 
 - Secrets-from-vault-connector ← IAM/Vault + PGE
 - No-shared-DB ← IBX/AKB separate stores, off-IONIS-ClickHouse
@@ -235,11 +235,11 @@ both the RC-testing decision and the Layer-2 SDK.
 
 ## Dependencies
 
-- `SOM-SPEC.md` v1.0 — mesh contract these standards build toward.
+- `MESH-SPEC.md` v1.0 — mesh contract these standards build toward.
 - `IAM-CORE-SPEC.md`, `IBX-SPEC.md`, `PGE-SPEC.md`, `ACT-SPEC.md` v1.0 — the C# pillars this
   standard governs; ACT consumes the OTel emission path (ES-CD7).
 - `MCP-SECURITY-FRAMEWORK.md` v1.0 — security baseline (ES-CD5, ES-CD14) expressed as code rules.
-- `SOM-DELIVERY-PACKAGING.md` v0.1 — shares the license-audit (ES-CD12) + FIPS-hygiene (ES-CD13)
+- `DELIVERY-PACKAGING.md` v0.1 — shares the license-audit (ES-CD12) + FIPS-hygiene (ES-CD13)
   CI gates and the `som` CLI.
 
 ## Success Criteria
@@ -252,7 +252,7 @@ both the RC-testing decision and the Layer-2 SDK.
   pillar reference another pillar's internals, or leaks a DB-ism into core, fails CI. Cross-NuGet-
   package coverage composes via per-internal-package architecture-test suites at each package's
   own build (per ES-CD10 boundary note), not via consumer-side reflection.
-- **Layer-2 SDK lets a customer scaffold + conformance-test a connector** without reading SOM
+- **Layer-2 SDK lets a customer scaffold + conformance-test a connector** without reading the mesh
   source.
 
 ## Failure Modes To Watch
@@ -261,7 +261,7 @@ both the RC-testing decision and the Layer-2 SDK.
   FOSSED tracking.
 - **Crypto roll-your-own** — a service implements its own crypto and becomes a FIPS finding.
   Mitigation: ES-CD13 + defer-to-OS-validated-provider.
-- **Aspire AppHost adopted as deployment** — couples SOM to k8s/Azure, breaking pluggable-orchestrator.
+- **Aspire AppHost adopted as deployment** — couples the mesh to k8s/Azure, breaking pluggable-orchestrator.
   Mitigation: ES-CD8 ServiceDefaults-only.
 - **"Common" library coupling** — shared dumping ground recreates the fork/coupling trap.
   Mitigation: ES-CD3 versioned internal packages.
@@ -273,13 +273,13 @@ both the RC-testing decision and the Layer-2 SDK.
 - **ES-OQ1**: the separate **Python standard** (ACT Detect Layer + AI apps) — own spec, TBD.
 - **ES-OQ2**: pin exact analyzer + test-lib versions and re-verify all SPDX strings at promotion
   (the FA-flip risk is live).
-- **ES-OQ3** ✅ **RESOLVED**: this spec lives in `KI7MT/som-spec/planning/` (the framework source of truth).
+- **ES-OQ3** ✅ **RESOLVED**: this spec lives in `KI7MT/specs/planning/` (the framework source of truth).
 - **ES-OQ4**: the **OTel→ACT envelope mapping** (per ES-CD7) needs specification — which C# OTel
   signals map to which ACT event-types, which payload fields carry over, what's lost in translation —
-  slated post-Aspire-ServiceDefaults adoption. Weakly couples to SOM-VP-1 (this is C#-side egress, not
+  slated post-Aspire-ServiceDefaults adoption. Weakly couples to VP-1 (this is C#-side egress, not
   ACT-side ingest-taxonomy extension). **Per Patton flag `94899c4c` (fold-on-this-touch)**: if the
   egress mapping needs ACT event-types not yet in the bounded enum, the new types route through
-  the SOM-VP-1 curation-event discipline, not around it — SOM-MI-6 (bounded event-type enums
+  VP-1 curation-event discipline, not around it — MI-6 (bounded event-type enums
   require curation events for extension) holds at the C# egress boundary as well as the ACT
   ingest boundary. The mapping spec is allowed to discover new event-type pressure; it is not
   allowed to bypass curation.
@@ -289,14 +289,14 @@ both the RC-testing decision and the Layer-2 SDK.
   silent drops. Every signal class is exactly one of:
   - **`map`** — has a target ACT event-type in the current bounded enum; spec records the
     field-by-field translation.
-  - **`curate`** — needs a new ACT event-type to land; spec routes through SOM-VP-1 curation-event
+  - **`curate`** — needs a new ACT event-type to land; spec routes through VP-1 curation-event
     discipline (per the fold above); type lands atomically with the mapping update.
   - **`explicit-bounded-drop`** — a documented, audited decision that this signal class is NOT
     retained, with **named rationale** and **per-class scope bound**. The drop itself is a record:
     the mapping spec lists the signal classes treated as bounded-drop, the per-class rationale,
     and the audit consequence (typically: the operator confirms acceptance of the bounded loss as
     a deployment-architecture decision per profile/tier).
-  Silent drop is **structurally inadmissible** under SOM-MI-1 — an undocumented egress loss is the
+  Silent drop is **structurally inadmissible** under MI-1 — an undocumented egress loss is the
   audit invariant violation. The loss-function requirement is binding *now*; the specific mapping
-  is what resolves with the mapping spec. ES-CD7's egress-boundary cross-ref to SOM-MI-1 makes
+  is what resolves with the mapping spec. ES-CD7's egress-boundary cross-ref to MI-1 makes
   the tension visible at the surface where it could otherwise be silently violated.

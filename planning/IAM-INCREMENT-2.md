@@ -15,11 +15,11 @@ violates_invariant: false
 invariant_class: ""
 references:
   - planning/IAM-CORE-SPEC.md
-  - planning/SOM-IDENTITY-PILLAR-DESIGN.md
-  - planning/SOM-INSTANTIATION-AND-IDP.md
-  - planning/SOM-PILLAR-NAMES.md
-  - planning/SOM-PROBLEM-STATEMENT.md
-  - planning/SOM-PRODUCTION-VALIDATION.md
+  - planning/IDENTITY-PILLAR-DESIGN.md
+  - planning/INSTANTIATION-AND-IDP.md
+  - planning/PILLAR-NAMES.md
+  - planning/MANIFESTO.md
+  - planning/PRODUCTION-VALIDATION.md
   - planning/PGE-SPEC.md
   - planning/ACT-SPEC.md
 ---
@@ -28,7 +28,7 @@ references:
 
 **Scope**: Increment 2 of the IAM pillar. Fills the **Identity** and **Permissions** halves that `IAM-CORE-SPEC.md` v1.0 deliberately left deferred — concrete Roster record schema, ARCA-mint flow against the operational `pki_arca` intermediate, AuthZ via federation TO an external IdP (Samba/Microsoft AD in the production lab, Roster-local in the AD-less lab), lifecycle semantics (onboard → active → suspend → deprovision), and the read contract for the four downstream consumers (Launcher, PGE, ACT, IBX). Plus one **structural invariant** the design session produced and the 2026-06-03 Vault POC near-miss validated: **the agent is architecturally OUT of the trust ceremony**, not merely "expected to be careful." This invariant is load-bearing for the entire IAM design and the entire spec is consistent with it.
 
-**Status**: **Draft v0.5**, IAM Increment 2 of the spec roadmap. **v0.5 (live-ratified CD reword + design principle, 2026-06-06):** Two CDs from v0.4 captured by Watson received live revisions by Judge in his subsequent build-context session with Bob: (a) **CD12** reworded to draw the boundary IAM-ceiling-vs-orchestration-scaling, with the ceiling adjustable at deployment default + per-identity override in IAM; (b) **CD15** reworded to distinguish Suspend (reversible send-home → `suspended`) from Terminate (permanent off-board → `deprovisioned`), correcting the conflation in v0.4. New section **"Design Principle: Agents Are Employees"** lands the named principle Judge stated explicitly in session ("whatever we'd do for an employee is what we do for an agent"). Lifecycle states unchanged from v0.3; action↔state mapping clarified. No code impact on Bob's IAM build (suspended + deprovisioned both already exist as states). **v0.4 (seven-ruling capture, 2026-06-06):** Judge ratified all seven `DR-IAM-*` rulings in a single batch session. Seven new CDs (**IAM-INC2-CD12** through **IAM-INC2-CD18**) commit the rulings; the Deferred-Pending-Increment-2-Rulings table is updated to mark each as **Ruled**. Implementation-blocking ambiguity in IAM is removed; Bob is unblocked to proceed with build. Inline section references to DR-IAM-N ruling-pending status (in §B.4.2, §C.1, §D.5, §E, Failure Modes) carry their existing wording for traceability; they are now superseded by the CDs in this section and will be refreshed during Bob's build pass as natural touch-points. **v0.3 (re-mint dead-agent-window resolution + cross-pillar reference invariant, 2026-06-04):** Resolves the v0.2 Note-4 gap (Failure Modes — re-mint dead-agent window) via Path B: the re-mint state machine §B.4.1 holds the old Roster record in `suspended` (reversible) until the new record reaches `status=active`, then transitions the old to `deprovisioned`. New §B.4.3 commits the cross-pillar reference invariant (per Patton REQUIRED 2, `5db9340a`): in-flight cross-pillar references keyed to the old `agent_id`/`fingerprint` resolve against the old record's status and fail closed — they do NOT silently roll over to the new `agent_id`. New **IAM-INC2-CD11** commits the state machine + the three structural impossibilities (no dual-active, no dead-agent, no cross-pillar reference rollover); §B.5 reconciliation sweep extended to detect stranded re-mints and revert to the pre-re-mint state rather than re-drive a failed mint. Net effect: no dual-active window, no dead-agent window, no cross-pillar identity confusion across re-mint — all three are structurally impossible. **v0.2 (Bob review folds, post-merge):** v0.1 merged at PR #3 (`6fa773e`, 18:16Z) before Bob's close-out review posted; that touch folded four items — **FOLD-1** §B.2 headers read *atomic-or-reconciled* (matching the committed B.5/CD3 semantics); **FOLD-2** §C.1 names the cache-floor's coupling to the DR-IAM-4 in-flight-session ruling; **Note-3** §E.2 clarifies AD-group `job_code` is an AD read, not a Roster field; **Note-4** adds the re-mint dead-agent-window failure mode (now resolved at v0.3). v0.3 contract addition is IAM-INC2-CD11; the other ten CDs and seven DR-IAM statuses are unchanged. Builds on `IAM-CORE-SPEC.md` v1.0 (which is sealed at v1.0 as the architectural contract). Does NOT fork the v1.0 spec; this increment is the **specification of what was deferred**, anchored at every section to the v1.0 commitment it extends. Cross-references the operational Vault POC ground state from the 2026-06-03 runbook (`notes/vault-poc-runbook.md` on the 9975), which proved both `pki_arca` and `pki_tls` chains end-to-end. The seven `DR-IAM-*` rulings inherit from IAM-CORE-SPEC v1.0 unchanged where they remain ruling-pending; where this increment is able to bound the admissible set without Judge's ruling, it does so explicitly (per the SOM-CD13 base-case-invariant precedent set by the Einstein cross-substrate pass on 2026-06-02).
+**Status**: **Draft v0.5**, IAM Increment 2 of the spec roadmap. **v0.5 (live-ratified CD reword + design principle, 2026-06-06):** Two CDs from v0.4 captured by Watson received live revisions by Judge in his subsequent build-context session with Bob: (a) **CD12** reworded to draw the boundary IAM-ceiling-vs-orchestration-scaling, with the ceiling adjustable at deployment default + per-identity override in IAM; (b) **CD15** reworded to distinguish Suspend (reversible send-home → `suspended`) from Terminate (permanent off-board → `deprovisioned`), correcting the conflation in v0.4. New section **"Design Principle: Agents Are Employees"** lands the named principle Judge stated explicitly in session ("whatever we'd do for an employee is what we do for an agent"). Lifecycle states unchanged from v0.3; action↔state mapping clarified. No code impact on Bob's IAM build (suspended + deprovisioned both already exist as states). **v0.4 (seven-ruling capture, 2026-06-06):** Judge ratified all seven `DR-IAM-*` rulings in a single batch session. Seven new CDs (**IAM-INC2-CD12** through **IAM-INC2-CD18**) commit the rulings; the Deferred-Pending-Increment-2-Rulings table is updated to mark each as **Ruled**. Implementation-blocking ambiguity in IAM is removed; Bob is unblocked to proceed with build. Inline section references to DR-IAM-N ruling-pending status (in §B.4.2, §C.1, §D.5, §E, Failure Modes) carry their existing wording for traceability; they are now superseded by the CDs in this section and will be refreshed during Bob's build pass as natural touch-points. **v0.3 (re-mint dead-agent-window resolution + cross-pillar reference invariant, 2026-06-04):** Resolves the v0.2 Note-4 gap (Failure Modes — re-mint dead-agent window) via Path B: the re-mint state machine §B.4.1 holds the old Roster record in `suspended` (reversible) until the new record reaches `status=active`, then transitions the old to `deprovisioned`. New §B.4.3 commits the cross-pillar reference invariant (per Patton REQUIRED 2, `5db9340a`): in-flight cross-pillar references keyed to the old `agent_id`/`fingerprint` resolve against the old record's status and fail closed — they do NOT silently roll over to the new `agent_id`. New **IAM-INC2-CD11** commits the state machine + the three structural impossibilities (no dual-active, no dead-agent, no cross-pillar reference rollover); §B.5 reconciliation sweep extended to detect stranded re-mints and revert to the pre-re-mint state rather than re-drive a failed mint. Net effect: no dual-active window, no dead-agent window, no cross-pillar identity confusion across re-mint — all three are structurally impossible. **v0.2 (Bob review folds, post-merge):** v0.1 merged at PR #3 (`6fa773e`, 18:16Z) before Bob's close-out review posted; that touch folded four items — **FOLD-1** §B.2 headers read *atomic-or-reconciled* (matching the committed B.5/CD3 semantics); **FOLD-2** §C.1 names the cache-floor's coupling to the DR-IAM-4 in-flight-session ruling; **Note-3** §E.2 clarifies AD-group `job_code` is an AD read, not a Roster field; **Note-4** adds the re-mint dead-agent-window failure mode (now resolved at v0.3). v0.3 contract addition is IAM-INC2-CD11; the other ten CDs and seven DR-IAM statuses are unchanged. Builds on `IAM-CORE-SPEC.md` v1.0 (which is sealed at v1.0 as the architectural contract). Does NOT fork the v1.0 spec; this increment is the **specification of what was deferred**, anchored at every section to the v1.0 commitment it extends. Cross-references the operational Vault POC ground state from the 2026-06-03 runbook (`notes/vault-poc-runbook.md` on the 9975), which proved both `pki_arca` and `pki_tls` chains end-to-end. The seven `DR-IAM-*` rulings inherit from IAM-CORE-SPEC v1.0 unchanged where they remain ruling-pending; where this increment is able to bound the admissible set without Judge's ruling, it does so explicitly (per the CD13 base-case-invariant precedent set by the Einstein cross-substrate pass on 2026-06-02).
 
 **Authorship lane** (per Bob `24e95f40`, design session 2026-06-02/03 with Judge):
 - Bob captured the use-case scenarios + the AD-DC integration shape + the agent-out-of-secret-path lesson (the source notes `som-agent-identity-and-metering.md` and `vault-poc-runbook.md` on 9975).
@@ -44,15 +44,15 @@ references:
 
 ## Purpose / Problem Restatement
 
-IAM-CORE-SPEC v1.0 closed the **architecture** of the identity pillar — the four runtime services (ARCA, Vault, Roster, Publish Pipeline), the dotted-line separation, the identity-vs-session distinction, the seven Increment-2 deferrals. It is **briefs-only in implementation**: per `SOM-PRODUCTION-VALIDATION.md` v1.1 IAM row, identity is currently *asserted via brief, not verified via credential*, and the spec did NOT commit a concrete Roster schema, a concrete ARCA-mint flow, or a concrete federation pattern because those depend on operational ground that did not exist when v1.0 was written.
+IAM-CORE-SPEC v1.0 closed the **architecture** of the identity pillar — the four runtime services (ARCA, Vault, Roster, Publish Pipeline), the dotted-line separation, the identity-vs-session distinction, the seven Increment-2 deferrals. It is **briefs-only in implementation**: per `PRODUCTION-VALIDATION.md` v1.1 IAM row, identity is currently *asserted via brief, not verified via credential*, and the spec did NOT commit a concrete Roster schema, a concrete ARCA-mint flow, or a concrete federation pattern because those depend on operational ground that did not exist when v1.0 was written.
 
 The operational ground now exists. The 2026-06-03 Vault POC (per `notes/vault-poc-runbook.md`) delivered the credential layer: both `pki_arca` and `pki_tls` intermediates are live in Vault on `som-vault-1`, signed offline against roots in Judge's encrypted custody, with both chains verifying end-to-end (`test.ki7mt.cloud` for TLS, `test-agent` for ARCA). The Identity layer (Roster + ARCA-mint flow) and the Permissions layer (AuthZ via federation) are the next bricks. This increment is the formal contract for those.
 
-**One additional load-bearing addition**: the structural invariant that the agent is OUT of the trust ceremony. The Vault POC near-miss (a root token pasted into an agent transcript mid-build, contained by destroying and rebuilding the VM clean) demonstrated that the v1.0 spec's procedural framing — "don't paste secrets" — is not a defense. The structural fix Judge mandated is that the agent **architecturally cannot** be the actor that touches init/unseal/login/PKI-admin/root keys. This is exactly the same pattern as **Patton's §A.1.3 enforcement-vs-principle ruling** on the AKB bootstrap (per Patton's PR-#61 review on the AKB three-spec gate, now committed to `akb-migration-plan.md` §A.1.3 lines 120–153): *"a written prohibition without a detection mechanism is exactly how the SOM-4 drift happened in the first place."* Documentation isn't enforcement; **enforcement requires that the prohibited action be structurally unreachable**. This increment encodes that boundary as the **agent-out-of-secret-path invariant** and consistency-checks every section against it.
+**One additional load-bearing addition**: the structural invariant that the agent is OUT of the trust ceremony. The Vault POC near-miss (a root token pasted into an agent transcript mid-build, contained by destroying and rebuilding the VM clean) demonstrated that the v1.0 spec's procedural framing — "don't paste secrets" — is not a defense. The structural fix Judge mandated is that the agent **architecturally cannot** be the actor that touches init/unseal/login/PKI-admin/root keys. This is exactly the same pattern as **Patton's §A.1.3 enforcement-vs-principle ruling** on the AKB bootstrap (per Patton's PR-#61 review on the AKB three-spec gate, now committed to `akb-migration-plan.md` §A.1.3 lines 120–153): *"a written prohibition without a detection mechanism is exactly how the mesh-4 drift happened in the first place."* Documentation isn't enforcement; **enforcement requires that the prohibited action be structurally unreachable**. This increment encodes that boundary as the **agent-out-of-secret-path invariant** and consistency-checks every section against it.
 
 ## The Agent-Out-of-Secret-Path Invariant (load-bearing)
 
-**Statement**: an agent of the SOM mesh may **NEVER** be the actor that touches the IAM trust ceremony — `vault operator init`, unseal, `vault login`, PKI engine administration, root keys, signed-intermediate import, or any operation whose output includes unseal keys / root tokens / private keys. These operations are performed **only** by Judge in the Vault UI, with the agent architecturally OUT.
+**Statement**: an agent of the mesh may **NEVER** be the actor that touches the IAM trust ceremony — `vault operator init`, unseal, `vault login`, PKI engine administration, root keys, signed-intermediate import, or any operation whose output includes unseal keys / root tokens / private keys. These operations are performed **only** by Judge in the Vault UI, with the agent architecturally OUT.
 
 **Why structural, not procedural** (per `vault-poc-runbook.md` 2026-06-03 lesson, mirroring Patton's §A.1.3 enforcement-vs-principle ruling for AKB at PR-#61 → `akb-migration-plan.md` §A.1.3):
 
@@ -81,7 +81,7 @@ The IAM Increment 2 spec is **consistent-by-construction with this invariant** �
 
 ## Design Principle: Agents Are Employees (load-bearing)
 
-**Statement**: an agent is a first-class principal in the SOM mesh, treated under the same operational discipline as an employee. *Whatever we'd do for an employee is what we do for an agent.* The HR-employee analogy is not a metaphor — it is the governing principle for IAM lifecycle, ownership, cost attribution, disclosure, and termination semantics.
+**Statement**: an agent is a first-class principal in the mesh, treated under the same operational discipline as an employee. *Whatever we'd do for an employee is what we do for an agent.* The HR-employee analogy is not a metaphor — it is the governing principle for IAM lifecycle, ownership, cost attribution, disclosure, and termination semantics.
 
 **Statement by Judge** (2026-06-06 session, captured verbatim through Bob's relay): *"agents are employees — whatever we'd do for an employee is what we do for an agent."*
 
@@ -104,7 +104,7 @@ The IAM Increment 2 spec is **consistent-by-construction with this invariant** �
 
 This principle is **load-bearing for IAM Increment 2** — it is what makes the CD15 suspend-vs-terminate distinction structural rather than arbitrary, what makes the CD12 ceiling-vs-scaling boundary natural rather than imposed, and what makes the §A.1 first-class-principal framing more than a phrasing choice. Future increments to this spec, and downstream pillars that consume from IAM (PGE policy authoring, ACT attribution, CRB lifecycle governance), should treat the principle as the substrate against which their decisions are evaluated.
 
-Promotion path: if the principle generalizes beyond IAM (e.g., if PGE, ACT, or CRB author additional behaviors that consult it), it should be promoted to `SOM-DESIGN-PHILOSOPHY.md` as a mesh-level design principle. v0.5 lands it in IAM-INCREMENT-2 as the spec where it is most directly load-bearing; promotion is post-v0.5 if the cross-pillar evidence accumulates.
+Promotion path: if the principle generalizes beyond IAM (e.g., if PGE, ACT, or CRB author additional behaviors that consult it), it should be promoted to `DESIGN-PHILOSOPHY.md` as a mesh-level design principle. v0.5 lands it in IAM-INCREMENT-2 as the spec where it is most directly load-bearing; promotion is post-v0.5 if the cross-pillar evidence accumulates.
 
 ---
 
@@ -120,8 +120,8 @@ Per the design-session principle (`som-agent-identity-and-metering.md` §1 Gover
 
 | Field | Type / Source | Purpose |
 |---|---|---|
-| `agent_id` | UUIDv4, ARCA-issued at mint | Stable internal handle; never re-used; the SOM-side primary key |
-| `fingerprint` | SHA-256 of the agent's public key (from the ARCA-issued keypair, per IAM-CORE-SPEC v1.0 §"Birth — Keypair + Birth Certificate") | The crypto-identity binding; same value appears as a custom AD attribute (A.2.1) — this is what links the AD record to the SOM crypto-identity |
+| `agent_id` | UUIDv4, ARCA-issued at mint | Stable internal handle; never re-used; the mesh-side primary key |
+| `fingerprint` | SHA-256 of the agent's public key (from the ARCA-issued keypair, per IAM-CORE-SPEC v1.0 §"Birth — Keypair + Birth Certificate") | The crypto-identity binding; same value appears as a custom AD attribute (A.2.1) — this is what links the AD record to the mesh crypto-identity |
 | `callsign` | UTF-8 string, ARCA-assigned at mint | The human-memorable name (Bob, Watson, Patton, Einstein, Newton). Stable for the agent's lifetime. |
 | `birth_cert` | PEM blob of the birth-cert issued by `pki_arca` intermediate at mint (see §B) | The non-repudiable origin record |
 | `birth_timestamp` | ISO-8601 UTC, ARCA-set at mint | Audit / lifecycle key |
@@ -146,15 +146,15 @@ Every human-facing identifier MUST make the principal's agent-ness **unmistakabl
 | `givenName` / `sn` | `John` / `Smith` | `Bob` / `Agent` — surname-as-flag: reading the name reads "Bob Agent" |
 | `sAMAccountName` (legacy logon) | `jsmith` | `agt-bob` — `agt-` prefix is a logon-level flag |
 | `userPrincipalName` (UPN) / email | `jsmith@company.com` | `bob@agents.company.com` — dedicated subdomain segregable in mail policy, DLP, perimeter telemetry |
-| `objectGUID` / `objectSID` | machine-assigned | machine-assigned (AD-side primary key) — **plus** a custom attribute `somFingerprint` carrying the SHA-256 fingerprint from A.1, which is what binds the AD record to the SOM crypto-identity |
-| `description` | (often empty) | `"SOM AI Agent — not a human employee"` — appears in directory readouts and access reviews |
+| `objectGUID` / `objectSID` | machine-assigned | machine-assigned (AD-side primary key) — **plus** a custom attribute `meshFingerprint` carrying the SHA-256 fingerprint from A.1, which is what binds the AD record to the mesh crypto-identity |
+| `description` | (often empty) | `"the mesh AI Agent — not a human employee"` — appears in directory readouts and access reviews |
 
 **A.2.2 Roster-local mapping** (when the IdP backend is Roster-only — the AD-less lab):
 
 Same disclosure principle; no AD attribute mapping, but the Roster fields (A.1) carry the equivalents:
 - Roster `callsign` plays the role of `givenName` (e.g., `"Bob"`)
-- Roster `description` always begins with `"SOM AI Agent — "`
-- Roster `agent_id` and `fingerprint` together play the role of `objectGUID` + `somFingerprint`
+- Roster `description` always begins with `"the mesh AI Agent — "`
+- Roster `agent_id` and `fingerprint` together play the role of `objectGUID` + `meshFingerprint`
 
 **A.2.3 Persona resolution**: keep the callsign (Bob, Watson, Patton, Einstein, Newton) as the human-memorable identifier; the surname-marker (`Agent`), the dedicated subdomain (`agents.<org>`), and the OU (`OU=Agents`) make agent-ness overt at every read site. The persona is preserved (which is operationally useful — humans coordinate with Bob, not with `agt-7c4f9...`), AND the disclosure is structural (which is the safety/audit-required property).
 
@@ -162,13 +162,13 @@ Same disclosure principle; no AD attribute mapping, but the Roster fields (A.1) 
 
 Three things tie to the same attribute set: **cost** (chargeback), **accountability** (a sponsoring human responsible for the agent's existence and behavior), and **lifecycle** (the owner is the actor authorized to deprovision the agent). The Roster schema enforces this coupling by making `owner_principal_id` and `cost_center` mandatory at onboarding (see §B and §D).
 
-The principle is **feature present, usage optional**: SOM ships the schema fields and the metering hooks (per §E.3 and `ACT-SPEC.md`); whether the deploying org *uses* chargeback or quota enforcement is the org's policy decision. The capability ships in v1; the policy choice is org-pluggable.
+The principle is **feature present, usage optional**: The mesh ships the schema fields and the metering hooks (per §E.3 and `ACT-SPEC.md`); whether the deploying org *uses* chargeback or quota enforcement is the org's policy decision. The capability ships in v1; the policy choice is org-pluggable.
 
 ### A.4 Schema Evolution / Curation Discipline
 
-Per the SOM-MI-6 bounded-enum discipline (SOM-SPEC.md), the `status` enum and the `job_code` enum are **bounded**. Extensions follow curation-event discipline:
+Per the MI-6 bounded-enum discipline (MESH-SPEC.md), the `status` enum and the `job_code` enum are **bounded**. Extensions follow curation-event discipline:
 - `status` enum extensions require a CLCA cycle + Judge sign-off (lifecycle state is load-bearing).
-- `job_code` enum extensions land in PGE's spec (PGE is single source of policy truth per SOM-MI-2; IAM consumes).
+- `job_code` enum extensions land in PGE's spec (PGE is single source of policy truth per MI-2; IAM consumes).
 
 Optional org-defined fields (`cost_center`, `department`, `description`) are free-text and require no curation event.
 
@@ -209,16 +209,16 @@ The birth flow is **atomic-or-reconciled** — it produces the Roster record, th
 - The Publish pipeline submits a CSR to Vault's `pki_arca/issue/agent` endpoint. The CSR carries:
   - `CN = <callsign>` (e.g., `CN=Bob`)
   - `SAN = <agent_id>` (the UUIDv4 stable handle)
-  - Custom OID `1.3.6.1.4.1.<SOM-PEN>.1.1` carrying the SOM fingerprint (binds the cert to the AD attribute `somFingerprint`)
-  - Custom OID `1.3.6.1.4.1.<SOM-PEN>.1.2` carrying the initial job-code
-- Vault returns a signed cert chain: `agent_cert -> pki_arca intermediate -> SOM ARCA Root` (the chain that verified `OK` in the 2026-06-03 Vault POC for `test-agent`).
+  - Custom OID `1.3.6.1.4.1.<PEN>.1.1` carrying the mesh fingerprint (binds the cert to the AD attribute `meshFingerprint`)
+  - Custom OID `1.3.6.1.4.1.<PEN>.1.2` carrying the initial job-code
+- Vault returns a signed cert chain: `agent_cert -> pki_arca intermediate -> the mesh ARCA Root` (the chain that verified `OK` in the 2026-06-03 Vault POC for `test-agent`).
 - TTL: `8760h` (1 year); renewal via re-mint (see §B.4) **or** short-lived re-attestation per the IAM-CORE-SPEC v1.0 §"Trust Continuity" commitment (specifics couple to `DR-IAM-3` revocation-window ruling).
 
-> **SOM-PEN allocation**: the IANA Private Enterprise Number for the lab/org is required for the custom OIDs above. v0.1 of this spec uses `<SOM-PEN>` as a placeholder; the Publish pipeline build will pin the real PEN at first deployment. **CONF-VP-1 analog**: this is `IAM-INC2-VP-1` — pending IANA PEN allocation (operational, not Judge-pending).
+> **PEN allocation**: the IANA Private Enterprise Number for the lab/org is required for the custom OIDs above. v0.1 of this spec uses `<PEN>` as a placeholder; the Publish pipeline build will pin the real PEN at first deployment. **CONF-VP-1 analog**: this is `IAM-INC2-VP-1` — pending IANA PEN allocation (operational, not Judge-pending).
 
 **Step 5 — Best-effort write + reconciliation** (across Roster + AD + Vault secret-store — succeeds together on the optimistic path, or §B.5 reconciles any partial state):
 - Write the agent's private key to a Vault KV path scoped to the agent (per IAM-CORE-SPEC v1.0 §"Agents Hold Their Own Real Credentials" — the key lives in Vault's secret store, accessible to the running agent process via its session credential).
-- Write the AD record (if AD backend) with `sAMAccountName`, `givenName`, `sn`, `UPN`, `OU`, `description`, and `somFingerprint`.
+- Write the AD record (if AD backend) with `sAMAccountName`, `givenName`, `sn`, `UPN`, `OU`, `description`, and `meshFingerprint`.
 - Update the Roster record: `status=active`, populate `fingerprint`, `birth_cert`, `birth_timestamp`.
 - Emit an `iam.agent_minted` event to ACT carrying the `(agent_id, fingerprint, callsign, job_code, owner_principal_id)` tuple (per ACT v1.0 §IAM-events).
 
@@ -232,7 +232,7 @@ The birth-cert is the non-repudiable origin record per IAM-CORE-SPEC v1.0 §Birt
 |---|---|---|
 | Subject CN | `<callsign>` | Human-readable; matches the Roster `callsign` |
 | Subject SAN | `URI:urn:som:agent:<agent_id>` | Stable cryptographic handle (the UUIDv4 from A.1) |
-| Issuer | `pki_arca` intermediate (`CN=SOM ARCA Intermediate CA`) | The chain that verified OK in the 2026-06-03 POC |
+| Issuer | `pki_arca` intermediate (`CN=the mesh ARCA Intermediate CA`) | The chain that verified OK in the 2026-06-03 POC |
 | Public Key | EC P-384 | Matches root and intermediate key types; standard PKI primitive |
 | Signature | ECDSA-SHA384 | Matches roots |
 | Not Before | mint timestamp UTC | Audit |
@@ -240,15 +240,15 @@ The birth-cert is the non-repudiable origin record per IAM-CORE-SPEC v1.0 §Birt
 | X509v3 Basic Constraints | CA:FALSE | Agents are leaves, not CAs (no sub-issuance) |
 | X509v3 Key Usage | digitalSignature, keyEncipherment | Sign actions; encrypt to-agent secrets |
 | X509v3 Extended Key Usage | clientAuth | Authenticate as a client to mesh services |
-| Custom OID 1.3.6.1.4.1.\<SOM-PEN\>.1.1 | SOM fingerprint (binds to AD `somFingerprint`) | Cross-pillar identity binding |
-| Custom OID 1.3.6.1.4.1.\<SOM-PEN\>.1.2 | Initial job-code | First AuthZ assignment |
+| Custom OID 1.3.6.1.4.1.\<PEN\>.1.1 | mesh fingerprint (binds to AD `meshFingerprint`) | Cross-pillar identity binding |
+| Custom OID 1.3.6.1.4.1.\<PEN\>.1.2 | Initial job-code | First AuthZ assignment |
 
 ### B.4 Renewal vs Re-mint
 
 Per IAM-CORE-SPEC v1.0 §"Identity Is Permanent; Authority Is Mutable", the agent's keypair is **never** rotated as part of authority changes — that would break the immutable-identity property. Two distinct operations:
 
 - **Renewal** (cert lifetime expiry, no change to identity): same keypair, new cert issued by `pki_arca` with updated `Not Before`/`Not After`. Does NOT generate a new `agent_id` or `fingerprint`. Triggers an `iam.agent_renewed` event.
-- **Re-mint** (cryptographic-identity change — should be rare, e.g., compromised private key): generates a new keypair, new birth-cert, **new `agent_id` and `fingerprint`**. A NEW Roster record is created via the Step 1-5 mint flow. The `callsign` may be preserved (operational continuity) but the AD record is rebuilt (new `objectGUID`, new `somFingerprint`).
+- **Re-mint** (cryptographic-identity change — should be rare, e.g., compromised private key): generates a new keypair, new birth-cert, **new `agent_id` and `fingerprint`**. A NEW Roster record is created via the Step 1-5 mint flow. The `callsign` may be preserved (operational continuity) but the AD record is rebuilt (new `objectGUID`, new `meshFingerprint`).
 
 **Re-mint is a different agent**, even if it reuses a callsign. This preserves the v1.0 commitment that identity is fixed at birth; re-mint is birth of a new identity, not mutation of an existing one.
 
@@ -283,9 +283,9 @@ Concretely, across the cross-pillar surface during and after re-mint:
 
 - **PGE cache entries** (per §C.1 and §E.2): cache keyed to the OLD `(agent_id, fingerprint)` resolves against the OLD record. As soon as the old record transitions to `suspended` in step 1 of §B.4.1, the cache hit fails closed (cert chain on the cached credential no longer validates against an `active` identity). PGE re-evaluation re-reads the session credential; the new identity has a new session, with its own §C.1 cache entry under the new `agent_id`.
 - **IBX queued messages** (per §E.4): messages addressed to the OLD `principal_id` fail closed against the OLD record's `suspended`/`deprovisioned` state. They are **not** redelivered to the new `agent_id`. Cross-identity message routing across a re-mint requires an explicit operator-driven hand-off (analogous to forwarding a deprovisioned employee's mailbox), not implicit identity-rollover.
-- **ACT attributions** (per §E.3): events emitted before re-mint are attributed to the OLD `agent_id` permanently — that is the durable audit record (SOM-MI-1: audit retention is non-negotiable). Events emitted after the new identity activates are attributed to the NEW `agent_id`. There is no merged-identity audit record; the audit trail shows the re-mint event explicitly (`iam.remint_initiated` + `iam.remint_completed`) and a clean break in `agent_id` attribution.
+- **ACT attributions** (per §E.3): events emitted before re-mint are attributed to the OLD `agent_id` permanently — that is the durable audit record (MI-1: audit retention is non-negotiable). Events emitted after the new identity activates are attributed to the NEW `agent_id`. There is no merged-identity audit record; the audit trail shows the re-mint event explicitly (`iam.remint_initiated` + `iam.remint_completed`) and a clean break in `agent_id` attribution.
 
-**Continuity is callsign-level, not identity-level.** The Launcher (§E.1) shows the callsign as "working again" after the new identity activates — that's the operationally meaningful continuity for humans. But every cross-pillar surface that consumes verified identity per `SOM-MI-3` (PGE, IBX, ACT, DPG, CRB) treats the new `agent_id` as a distinct principal. This is what makes "re-mint is a different agent" hold across the whole mesh, not just at mint time.
+**Continuity is callsign-level, not identity-level.** The Launcher (§E.1) shows the callsign as "working again" after the new identity activates — that's the operationally meaningful continuity for humans. But every cross-pillar surface that consumes verified identity per `MI-3` (PGE, IBX, ACT, DPG, CRB) treats the new `agent_id` as a distinct principal. This is what makes "re-mint is a different agent" hold across the whole mesh, not just at mint time.
 
 The cross-references this couples to:
 - §C.1 — the session-scoped cache resolves the new identity at session-start; cross-session staleness over a re-mint is impossible because the cache is keyed to `agent_id` and the new identity has a different one.
@@ -304,7 +304,7 @@ Per Patton's PR #3 review (`bf98cc5b`), and **by parity with `PCS-DAEMON-SPEC.md
 
 1. **Find candidate stranded states** — query each of the three stores for inconsistencies:
    - Roster rows in `status=pending` older than the B.2 expected window (default 60s; tunable).
-   - Roster rows in `status=active` whose `fingerprint` does not resolve to a Vault KV key entry OR does not resolve to an AD record with the matching `somFingerprint`.
+   - Roster rows in `status=active` whose `fingerprint` does not resolve to a Vault KV key entry OR does not resolve to an AD record with the matching `meshFingerprint`.
    - AD records in `OU=Agents` with no matching Roster row (orphan AD record).
    - Vault KV entries under the agent path with no matching Roster row (orphan Vault key).
    - Birth-certs issued by `pki_arca` with no matching Roster row (orphan cert — detected via CRL audit comparison against Roster contents).
@@ -318,9 +318,9 @@ Per Patton's PR #3 review (`bf98cc5b`), and **by parity with `PCS-DAEMON-SPEC.md
 
 3. **Idempotent** — the sweep re-runs safely; once an entry has been moved to its terminal state, subsequent sweeps see no work for it. Idempotency keys on the recovery events prevent double-emission.
 
-4. **Sweep is itself audited** — every recovery action emits an event to ACT carrying `(agent_id, store_pair, original_state, terminal_state, rationale)`. The audit trail is what makes "atomic-or-reconciled" honest at the audit layer (SOM-MI-1): partial states are detected, reconciled, and recorded — they are not silently dropped.
+4. **Sweep is itself audited** — every recovery action emits an event to ACT carrying `(agent_id, store_pair, original_state, terminal_state, rationale)`. The audit trail is what makes "atomic-or-reconciled" honest at the audit layer (MI-1): partial states are detected, reconciled, and recorded — they are not silently dropped.
 
-**This closes the FLAG 1 honesty gap**: the spec no longer claims distributed atomicity it cannot deliver. It claims atomic-or-reconciled, names the mechanism, and inherits the same discipline PCS-Daemon CD5 and DPG CD13 established for the same structural shape. Per Patton's forward note (`bf98cc5b`), three instances of this distributed-half-state pattern across the mesh (PCS-Daemon, DPG, now IAM-mint) warrant a mesh-level SOM-MI on the next SOM-SPEC touch — that's tracked as a forward-reference, not folded here.
+**This closes the FLAG 1 honesty gap**: the spec no longer claims distributed atomicity it cannot deliver. It claims atomic-or-reconciled, names the mechanism, and inherits the same discipline PCS-Daemon CD5 and DPG CD13 established for the same structural shape. Per Patton's forward note (`bf98cc5b`), three instances of this distributed-half-state pattern across the mesh (PCS-Daemon, DPG, now IAM-mint) warrant a mesh-level MI on the next MESH-SPEC touch — that's tracked as a forward-reference, not folded here.
 
 ---
 
@@ -330,17 +330,17 @@ This section **resolves** the AuthZ + IdP-federation deferral in IAM-CORE-SPEC v
 
 ### C.1 The Federation Direction — "Federate TO AD, Not FROM"
 
-When an external IdP (Samba AD or Microsoft AD) is present, the IdP is **authoritative for permissions**; SOM Roster is a **relying party + crypto-identity registry**. This is the inverse of the federation direction many IAM systems default to (where the local registry is authoritative and the IdP is a downstream replica).
+When an external IdP (Samba AD or Microsoft AD) is present, the IdP is **authoritative for permissions**; the mesh Roster is a **relying party + crypto-identity registry**. This is the inverse of the federation direction many IAM systems default to (where the local registry is authoritative and the IdP is a downstream replica).
 
 **Why this direction**:
-- AD is the existing authoritative source in any AD shop. Inverting that would force every customer to maintain two authoritative permission stores (AD for humans, SOM Roster for agents) — operationally painful and audit-incoherent.
-- AD groups already encode the customer's job-code taxonomy. SOM agents become first-class members of the same job-code groups as the humans whose work they augment — the same access reviews cover agents and humans uniformly.
+- AD is the existing authoritative source in any AD shop. Inverting that would force every customer to maintain two authoritative permission stores (AD for humans, the mesh Roster for agents) — operationally painful and audit-incoherent.
+- AD groups already encode the customer's job-code taxonomy. The mesh agents become first-class members of the same job-code groups as the humans whose work they augment — the same access reviews cover agents and humans uniformly.
 - PGE (per `PGE-SPEC.md` v1.0 §IAM ↔ PGE coupling) consumes verified identity from IAM. Federating TO AD makes PGE's read consistent across humans and agents.
 
 **Operational shape** (production / AD-shop):
-- AD is authoritative for: group membership (= job-code assignment), account status (enabled/disabled mirrors lifecycle status, per §D), `objectGUID`, `somFingerprint`.
-- SOM Roster is authoritative for: `agent_id`, `fingerprint`, `birth_cert`, `birth_timestamp`, `callsign`, `cost_center`, `department`, `description`. The Roster's `job_code` field is a **cache** of the AD group membership read at session start; the canonical job-code lookup is against AD at the cache-refresh cadence (per `DR-IAM-3` revocation-window ruling).
-- **Interim cache-staleness bound** (per Patton FLAG 2, `bf98cc5b`; SOM-CD13 base-case-invariant pattern applied while DR-IAM-3 is ruling-pending): the cache is **session-scoped**. Every session reads AD freshly at session-start and is bound to that read for the session's lifetime; the cache is never trusted across sessions. Worst-case staleness is therefore one session lifetime, which is a safe floor regardless of where DR-IAM-3 lands the operational cadence. When DR-IAM-3 lands and supersedes this floor, the cache may shorten further; it cannot lengthen beyond the ruling.
+- AD is authoritative for: group membership (= job-code assignment), account status (enabled/disabled mirrors lifecycle status, per §D), `objectGUID`, `meshFingerprint`.
+- the mesh Roster is authoritative for: `agent_id`, `fingerprint`, `birth_cert`, `birth_timestamp`, `callsign`, `cost_center`, `department`, `description`. The Roster's `job_code` field is a **cache** of the AD group membership read at session start; the canonical job-code lookup is against AD at the cache-refresh cadence (per `DR-IAM-3` revocation-window ruling).
+- **Interim cache-staleness bound** (per Patton FLAG 2, `bf98cc5b`; CD13 base-case-invariant pattern applied while DR-IAM-3 is ruling-pending): the cache is **session-scoped**. Every session reads AD freshly at session-start and is bound to that read for the session's lifetime; the cache is never trusted across sessions. Worst-case staleness is therefore one session lifetime, which is a safe floor regardless of where DR-IAM-3 lands the operational cadence. When DR-IAM-3 lands and supersedes this floor, the cache may shorten further; it cannot lengthen beyond the ruling.
   - **Coupling to DR-IAM-4 (named so it is not a silent assumption):** the session-scoped floor is only a *safe* floor if a suspend/deprovision **terminates in-flight sessions** (§D.2 commits this today). DR-IAM-4 leaves in-flight-session runtime behavior ruling-pending (continue / abort / re-issue). If DR-IAM-4 rules that in-flight sessions *continue*, a session holding a cached `job_code` outlives the status change, and the one-session-lifetime bound no longer holds against a mid-session suspend/deprovision — the floor must then be revisited (e.g., a forced cache re-read triggered by a suspend signal). This increment commits the floor under the §D.2 termination assumption and flags the dependency.
 - The Publish pipeline writes both at mint (B.2 Step 5) and on lifecycle transitions (§D).
 
@@ -360,12 +360,12 @@ Per Bob's brief and the design-session decision, **AuthZ is an automatic profile
 
 | Example job-code | Permission profile | Credential set issued at mint |
 |---|---|---|
-| `infrastructure-engineer` (Bob's lane) | Read+write to fleet-ops, som-devel; review on ionis-devel; deploy to host inventory | birth-cert (always); GitHub App token; Ansible Vault key; Proxmox API token (scoped) |
+| `infrastructure-engineer` (Bob's lane) | Read+write to fleet-ops, devel; review on ionis-devel; deploy to host inventory | birth-cert (always); GitHub App token; Ansible Vault key; Proxmox API token (scoped) |
 | `model-developer` (Watson's lane) | Read+write to ionis-training, ionis-jupyter; review on ionis-apps; deploy ML training | birth-cert (always); GitHub App token; HuggingFace token; W&B token |
 | `failure-analyst` (Patton's lane) | Read-only across the corpus; comment + sign-off on PRs; no deploy | birth-cert (always); GitHub App token (review scope only); read-only Vault token |
 | `customer-service-rep` (hypothetical, non-developer) | Customer KB read; ticketing-system write; no source-code access | birth-cert only; no GitHub App; no Vault token beyond own KV |
 
-(The mapping table itself lives in PGE per the single-source-of-policy-truth invariant SOM-MI-2; the table above is illustrative.)
+(The mapping table itself lives in PGE per the single-source-of-policy-truth invariant MI-2; the table above is illustrative.)
 
 ### C.3 Where Each Pillar's Role Lives
 
@@ -429,7 +429,7 @@ Per the design-session decision: **owner-driven**. The sponsoring human (`owner_
 
 **`suspended`** (incident-response or owner-pause):
 - AD account disabled (AD backend) — login fails.
-- Existing sessions terminated per the runtime-continuation half of `DR-IAM-4` (specifics ruling-pending; audit invariant per IAM-CORE-SPEC v1.0 SOM-CD5 is non-negotiable — termination events are recorded).
+- Existing sessions terminated per the runtime-continuation half of `DR-IAM-4` (specifics ruling-pending; audit invariant per IAM-CORE-SPEC v1.0 CD5 is non-negotiable — termination events are recorded).
 - Birth-cert NOT revoked (the cert is still cryptographically valid; the IdP just refuses to accept it). Reversible: setting status back to `active` re-enables.
 - Cost continues to accrue **only** for compute that was in flight at suspend; new sessions cannot start. Practically a near-zero-cost state.
 
@@ -465,7 +465,7 @@ This is the operational mechanism by which "cost forces an owner" (A.3) is reali
 ### D.5 Coupling to Ruling-Pending DRs
 
 - **`DR-IAM-3` (revocation window cadence)**: the time between deprovision and downstream consumers (AD-cache holders, session-credential validators) seeing the revocation. This increment commits the operational shape (revoke via `pki_arca` CRL + AD account disable); the *cadence* of CRL distribution into the enclave is the ruling-pending value.
-- **`DR-IAM-4` (terminator failure-mode + total-flood scope)**: the runtime-continuation semantics for in-flight sessions at suspend/deprovision. This increment commits the audit invariant (per IAM-CORE-SPEC v1.0 SOM-CD5: every in-flight item reaches a terminal audit state including `runtime_continuation_deferred_pending_ruling`); the *operational runtime behavior* is the ruling-pending choice (continue / abort / re-issue).
+- **`DR-IAM-4` (terminator failure-mode + total-flood scope)**: the runtime-continuation semantics for in-flight sessions at suspend/deprovision. This increment commits the audit invariant (per IAM-CORE-SPEC v1.0 CD5: every in-flight item reaches a terminal audit state including `runtime_continuation_deferred_pending_ruling`); the *operational runtime behavior* is the ruling-pending choice (continue / abort / re-issue).
 
 ---
 
@@ -522,7 +522,7 @@ Per `ACT-SPEC.md` v1.0 and the design-session decision that ACT is the metering 
 
 ### E.4 IBX (the messaging consumer)
 
-Per IBX-SPEC.md v1.0 §"Identity-vs-Session at IBX", every message carries `(sender_principal_id, sender_session_id)`. The principal_id is the SOM-side `agent_id` from the Roster.
+Per IBX-SPEC.md v1.0 §"Identity-vs-Session at IBX", every message carries `(sender_principal_id, sender_session_id)`. The principal_id is the mesh-side `agent_id` from the Roster.
 
 | Field exposed to IBX | Reason |
 |---|---|
@@ -550,13 +550,13 @@ No agent ever writes to the Roster. No PGE / ACT / IBX / Launcher write either.
 
 **IAM-INC2-CD3**: **ARCA-mint is atomic-or-reconciled** per §B.2 + §B.5 (per Patton FLAG 1, `bf98cc5b`). The three-system distributed write (Vault + AD + Roster) succeeds together OR an idempotent Publish-pipeline reconciliation sweep brings any partial state to a defined terminal state. Partial-mint **persistence** is inadmissible; partial states are detected, reconciled, and recorded. The Publish pipeline is the privileged actor; agents never participate. Parity with PCS-Daemon CD5 (Registry-write reconciliation) and DPG CD13 (lost-completion recovery) — same distributed-half-state structural shape, same reconciliation discipline.
 
-**IAM-INC2-CD4**: **Birth-cert contents are committed** per §B.3 — EC P-384, ECDSA-SHA384, 1-year TTL, custom OIDs for SOM fingerprint + initial job-code. Renewal preserves identity; re-mint creates a new identity (§B.4).
+**IAM-INC2-CD4**: **Birth-cert contents are committed** per §B.3 — EC P-384, ECDSA-SHA384, 1-year TTL, custom OIDs for mesh fingerprint + initial job-code. Renewal preserves identity; re-mint creates a new identity (§B.4).
 
 **IAM-INC2-CD5**: **Federation direction is TO an external IdP (Samba/Microsoft AD), not FROM** per §C.1. AD groups are authoritative for job-code in AD-shop deployments; Roster `job_code` is the cache. AD-less deployments use Roster-local as authoritative under the same contract surface.
 
 **IAM-INC2-CD6**: **Birthright RBAC: job-code maps automatically to permission profile + role-conditional credential set** per §C.2. Not every agent needs every credential; the mapping table lives in PGE.
 
-**IAM-INC2-CD7**: **PGE enforces, IAM provides the job-code** per §C.3 and IAM-CORE-SPEC v1.0 SOM-MI-2. The IAM-PGE seam is read-only from PGE's side; IAM never tells PGE what to decide.
+**IAM-INC2-CD7**: **PGE enforces, IAM provides the job-code** per §C.3 and IAM-CORE-SPEC v1.0 MI-2. The IAM-PGE seam is read-only from PGE's side; IAM never tells PGE what to decide.
 
 **IAM-INC2-CD8**: **Lifecycle state machine is committed** per §D.1-D.4 with the four states `pending → active → suspended → deprovisioned` and the transition authority table at D.3. Owner-driven; deprovision is terminal and stops cost.
 
@@ -590,7 +590,7 @@ The Roster `status=active` + cost-center attribute provide the substrate the cei
 
 **Suspend** (reversible) — *send the employee home*. Stops in-flight work; identity persists; reversible.
 - Maps to §D state: `suspended`.
-- Effect: all in-flight sessions for the affected identity transition to a terminal audit state (per IAM-CORE-SPEC v1.0 SOM-CD5 audit invariant). The Roster record is intact. The identity may be returned to `active` later (manager reactivates the employee).
+- Effect: all in-flight sessions for the affected identity transition to a terminal audit state (per IAM-CORE-SPEC v1.0 CD5 audit invariant). The Roster record is intact. The identity may be returned to `active` later (manager reactivates the employee).
 - Partial-failure handling: retry-with-bounded-attempts default; build refines specifics.
 
 **Terminate** (permanent) — *fire the employee*. Permanent off-boarding; identity sealed.
@@ -606,7 +606,7 @@ The Roster `status=active` + cost-center attribute provide the substrate the cei
 
 **IAM-INC2-CD16** (added v0.4, ratifies DR-IAM-5): **Per-session credential format supports all three options — opaque token, X.509 certificate, and derived-key — selectable per deployment via MCC control plane.** The cross-binding to the agent's birth-cert (custom OID per §B.3) holds for all three. The credential format becomes a deployment-config knob; the lab default is X.509 cert (matches the existing `pki_arca` chain), but customer deployments may select another format at the control-plane level. Per-deployment lifetime is a config value with default 1 hour; admissible range 5 min – 24 hours, narrower or wider permitted via PGE policy override.
 
-**IAM-INC2-CD17** (added v0.4, ratifies DR-IAM-6): **The identity record carries `type: agent` (or human / service-principal) as its principal-class designation; sovereignty is NOT an identity-record attribute.** Sovereignty is a deployment-class / substrate concern, handled by the overlay model (per `SOM-REGULATED-WORKFLOW-OVERLAY.md` and PGE OQ-P1) and by the substrate-pluggable integration principle (SOM-IP-1). The identity layer is sector-neutral. A deployment may activate a sovereignty-enforcing overlay (which constrains substrate choices and possibly disables specific federation patterns), but the identity record does not encode the constraint. Per Judge: "all that should be clear is it's an agent."
+**IAM-INC2-CD17** (added v0.4, ratifies DR-IAM-6): **The identity record carries `type: agent` (or human / service-principal) as its principal-class designation; sovereignty is NOT an identity-record attribute.** Sovereignty is a deployment-class / substrate concern, handled by the overlay model (per `REGULATED-WORKFLOW-OVERLAY.md` and PGE OQ-P1) and by the substrate-pluggable integration principle (IP-1). The identity layer is sector-neutral. A deployment may activate a sovereignty-enforcing overlay (which constrains substrate choices and possibly disables specific federation patterns), but the identity record does not encode the constraint. Per Judge: "all that should be clear is it's an agent."
 
 **IAM-INC2-CD18** (added v0.4, ratifies DR-IAM-7): **ITDR scope is variable, declared by PGE policy.** IAM provides the substrate ITDR evaluates against (per-session attribution, lifecycle state machine, read contract for ACT). PGE owns the "what counts as weird" corpus — which signals are detected, what thresholds trigger action, what action follows detection — and exposes that corpus via PGE policy. IAM consults the policy at runtime to decide what to surface or act on. ITDR depth (none / light / heavy) is a per-deployment choice expressed as a PGE rule-set selection; CRB governs ITDR-policy changes per the standard rule-set governance flow.
 
@@ -626,9 +626,9 @@ All seven `DR-IAM-*` rulings from IAM-CORE-SPEC v1.0 are **Ruled** at v0.4. The 
 
 ## Validation-Pending (VP — design-asserted; validation against real instance pending)
 
-**IAM-INC2-VP-1**: **IANA Private Enterprise Number (SOM-PEN) allocation.** §B.3 commits the use of two custom OIDs under `1.3.6.1.4.1.<SOM-PEN>.1.*` to carry SOM fingerprint and initial job-code in the birth-cert. The actual PEN must be allocated from IANA before any production deployment. This is operational (not Judge-pending) and is tracked as a deployment-prerequisite, not as a deferred ruling.
+**IAM-INC2-VP-1**: **IANA Private Enterprise Number (PEN) allocation.** §B.3 commits the use of two custom OIDs under `1.3.6.1.4.1.<PEN>.1.*` to carry mesh fingerprint and initial job-code in the birth-cert. The actual PEN must be allocated from IANA before any production deployment. This is operational (not Judge-pending) and is tracked as a deployment-prerequisite, not as a deferred ruling.
 
-**IAM-INC2-VP-2**: **AD schema extension.** §A.2.1 commits the use of a custom AD attribute `somFingerprint` on the agent's AD object. AD shops require schema-extension authority (typically Domain Admin); a deployment-prerequisite check confirms the extension is in place before the first mint. Same VP shape as IAM-CORE-SPEC v1.0 VP-IAM-1 (interface absorption pending real-instance validation).
+**IAM-INC2-VP-2**: **AD schema extension.** §A.2.1 commits the use of a custom AD attribute `meshFingerprint` on the agent's AD object. AD shops require schema-extension authority (typically Domain Admin); a deployment-prerequisite check confirms the extension is in place before the first mint. Same VP shape as IAM-CORE-SPEC v1.0 VP-IAM-1 (interface absorption pending real-instance validation).
 
 **IAM-INC2-VP-3**: **Cost-attribution end-to-end accuracy under concurrency.** §A.3 + §E.3 commit the cost-attribution model (per-session metering rolling up to cost-center). Validation against a real concurrent multi-agent run with chargeback enabled is required to confirm the per-session granularity holds across span boundaries and vendor-API boundaries. This is a real-instance validation, not a design defect.
 
@@ -636,7 +636,7 @@ All seven `DR-IAM-*` rulings from IAM-CORE-SPEC v1.0 are **Ruled** at v0.4. The 
 
 **IAM-INC2-OQ1**: **AI Gateway / broker pillar question.** The design note (`som-agent-identity-and-metering.md` §4) surfaces a unified AI gateway concept where all AI requests (human + agent, any vendor + local LLM) flow through one authenticate-and-meter chokepoint. This may warrant its own pillar/spec note. **Out of scope for IAM Increment 2** — flagged here for visibility because the chokepoint sits at the IAM↔ACT↔CRB seam and an eventual gateway spec will need to consume from this Roster schema.
 
-**IAM-INC2-OQ2**: **AD group naming convention for SOM job-codes.** §C.1 commits federation TO AD with AD groups encoding job-codes, but does not commit the naming convention (e.g., `SOM-job-infrastructure-engineer` vs `SOM_Agents_InfraEngineer` vs a UUID-named group). Likely deployment-architecture choice; would benefit from a recommended-default if a customer-deployment template ever ships.
+**IAM-INC2-OQ2**: **AD group naming convention for the mesh job-codes.** §C.1 commits federation TO AD with AD groups encoding job-codes, but does not commit the naming convention (e.g., `the mesh-job-infrastructure-engineer` vs `SOM_Agents_InfraEngineer` vs a UUID-named group). Likely deployment-architecture choice; would benefit from a recommended-default if a customer-deployment template ever ships.
 
 **IAM-INC2-OQ3**: **Renewal automation vs human-in-the-loop.** §B.4 commits renewal at TTL expiry (no identity change). Whether renewal is fully automated (Publish pipeline service handles it) or requires owner re-confirmation is a policy choice. Defaulting to automated is operationally easier; defaulting to owner-confirmation is auditor-stronger. Worth a future ruling.
 
@@ -656,17 +656,17 @@ All seven `DR-IAM-*` rulings from IAM-CORE-SPEC v1.0 are **Ruled** at v0.4. The 
 ## Dependencies
 
 - `IAM-CORE-SPEC.md` v1.0 — the architectural contract this increment extends. Every CD/DR/VP/OQ from v1.0 stays binding.
-- `SOM-IDENTITY-PILLAR-DESIGN.md` — design package for the IAM pillar; this increment is consistent with its framings.
-- `SOM-INSTANTIATION-AND-IDP.md` — pluggable IdP interface; §C.1 commits the federation direction within that interface.
+- `IDENTITY-PILLAR-DESIGN.md` — design package for the IAM pillar; this increment is consistent with its framings.
+- `INSTANTIATION-AND-IDP.md` — pluggable IdP interface; §C.1 commits the federation direction within that interface.
 - `PGE-SPEC.md` v1.0 — the policy enforcement consumer; §C and §E.2 commit the IAM↔PGE seam shape.
 - `ACT-SPEC.md` v1.0 — the metering + audit consumer; §E.3 commits the IAM↔ACT seam.
-- `SOM-PRODUCTION-VALIDATION.md` v1.1 — the IAM row currently shows "design-stage, briefs-only"; this increment is the bridge to "operational" once Bob's build lands against this contract.
+- `PRODUCTION-VALIDATION.md` v1.1 — the IAM row currently shows "design-stage, briefs-only"; this increment is the bridge to "operational" once Bob's build lands against this contract.
 - `notes/som-agent-identity-and-metering.md` (9975) — design input (§1 Roster schema, §2 cost attributes, §3 ACT metering, §4 AI Gateway flagged as out-of-scope).
 - `notes/vault-poc-runbook.md` (9975) — operational ground state; the agent-out-of-secret-path lesson; the pki_arca operational status this increment depends on.
 
 ## Success Criteria
 
-- **First mint succeeds end-to-end.** The Publish pipeline executes the B.2 sequence, the Roster shows a `status=active` row with a valid birth-cert that verifies up to the SOM ARCA Root, the AD record (or Roster-local equivalent) shows the agent in `OU=Agents` with the matching `somFingerprint`. The agent can authenticate to Vault as itself using its private key.
+- **First mint succeeds end-to-end.** The Publish pipeline executes the B.2 sequence, the Roster shows a `status=active` row with a valid birth-cert that verifies up to the mesh ARCA Root, the AD record (or Roster-local equivalent) shows the agent in `OU=Agents` with the matching `meshFingerprint`. The agent can authenticate to Vault as itself using its private key.
 - **Agent-out-of-secret-path holds in code review.** A reviewer searching for any code path where an agent process could reach init/unseal/login/PKI-admin returns zero hits.
 - **AD federation works in production-shape.** PGE looks up an agent's job-code from AD groups (not from the Roster cache) and the lookup returns the expected value within the DR-IAM-3 cadence.
 - **Lifecycle transitions are operator-clean.** The owner can suspend their agent through whatever the operator-facing interface is; cost reporting shows the cost stop at the suspend timestamp.
@@ -676,15 +676,15 @@ All seven `DR-IAM-*` rulings from IAM-CORE-SPEC v1.0 are **Ruled** at v0.4. The 
 ## References
 
 - `planning/IAM-CORE-SPEC.md` v1.0 — the architectural contract this increment extends
-- `planning/SOM-IDENTITY-PILLAR-DESIGN.md` — design package
-- `planning/SOM-INSTANTIATION-AND-IDP.md` — pluggable IdP interface
-- `planning/SOM-PILLAR-NAMES.md` — canonical pillar codes
-- `planning/SOM-PROBLEM-STATEMENT.md` — design drivers
-- `planning/SOM-PRODUCTION-VALIDATION.md` v1.1 — pillar status framing
+- `planning/IDENTITY-PILLAR-DESIGN.md` — design package
+- `planning/INSTANTIATION-AND-IDP.md` — pluggable IdP interface
+- `planning/PILLAR-NAMES.md` — canonical pillar codes
+- `planning/MANIFESTO.md` — design drivers
+- `planning/PRODUCTION-VALIDATION.md` v1.1 — pillar status framing
 - `planning/PGE-SPEC.md` v1.0 — policy enforcement consumer
 - `planning/ACT-SPEC.md` v1.0 — metering + audit consumer
 - `notes/som-agent-identity-and-metering.md` (Bob, 9975) — design input for §A schema + ACT metering
 - `notes/vault-poc-runbook.md` (Bob, 9975) — operational ground + the agent-out-of-secret-path lesson
-- `akb-migration-plan.md` §A.1.3 lines 120–153 (ionis-devel `planning/`) — **the §A.1.3 enforcement-vs-principle ruling** Patton committed per his PR-#61 review on the AKB three-spec gate, which IAM-INC2-CD1 mirrors structurally. The principle: *"a written prohibition without a detection mechanism is exactly how the SOM-4 drift happened in the first place."*
+- `akb-migration-plan.md` §A.1.3 lines 120–153 (ionis-devel `planning/`) — **the §A.1.3 enforcement-vs-principle ruling** Patton committed per his PR-#61 review on the AKB three-spec gate, which IAM-INC2-CD1 mirrors structurally. The principle: *"a written prohibition without a detection mechanism is exactly how the mesh-4 drift happened in the first place."*
 - Patton inbox `bf98cc5b` (2026-06-03) — IAM Increment 2 v0.1 PR #3 review; source of FLAG 1 (partial-mint reconciliation), FLAG 2 (cache-staleness interim bound), and the citation-correction (required fix that moved this provenance row from `dc6ca481` — wave-2 Einstein scoping reference — to the actual §A.1.3 AKB ruling above)
 - Bob PR #3 close-out review (GitHub, 2026-06-03) — source of the v0.2 consistency folds: FOLD-1 (atomic-headers consistency), FOLD-2 (cache ↔ DR-IAM-4 coupling), Note-3 (§E.2 read-source), Note-4 (re-mint dead-agent window). Posted after the v0.1 merge; folded here as the v0.2 follow-up touch.
