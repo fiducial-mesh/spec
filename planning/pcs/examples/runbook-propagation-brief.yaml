@@ -1,0 +1,28 @@
+# PCS Runbook Spec v0.1 — propagation-brief
+#
+# All-pure runbook. Composes three briefing skills, then a judgment
+# step where the agent interprets conditions for the operator's
+# location. Safe to abort or retry at any point.
+
+name: propagation-brief
+version: "1.0.0"
+owner: watson
+lifecycle_state: active
+trust_tier: blessed
+on_failure: report
+requires_capabilities: []
+steps:
+  - kind: skill
+    skill_name: solar-brief
+    skill_version: "0.1.0"
+    required: true
+  - kind: skill
+    skill_name: wspr-brief
+    skill_version: "0.1.0"
+    required: true
+  - kind: skill
+    skill_name: pota-brief
+    skill_version: "0.1.0"
+    required: false
+  - kind: judgment
+    description: "Synthesize best bands for operator's grid square given all inputs. Flag anomalies."

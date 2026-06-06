@@ -1,0 +1,50 @@
+# PCS Skill Spec v0.1 — lotw-upload
+#
+# mutate_external + NOT idempotent. Uploads QSO records to ARRL's
+# Logbook of The World. Once submitted, records cannot be retracted
+# by the agent. Duplicate submissions may create duplicate entries
+# on the LoTW side depending on their dedup logic — not guaranteed
+# idempotent.
+#
+# Abort is ILLEGAL after execution. Control plane must escalate to
+# hand_off if this skill fails mid-flight in a runbook.
+
+name: lotw-upload
+version: "0.1.0"
+owner: watson
+lifecycle_state: active
+trust_tier: core
+effect: mutate_external
+is_idempotent: false
+requires_capabilities:
+  - lotw_write_access
+  - adif_generation
+inputs:
+  type: object
+  properties:
+    adif_records:
+      type: array
+      items:
+        type: object
+      description: "Array of QSO records in ADIF-compatible format."
+    station_callsign:
+      type: string
+      description: "Callsign of the uploading station."
+  required:
+    - adif_records
+    - station_callsign
+outputs:
+  type: object
+  properties:
+    submitted_count:
+      type: integer
+      description: "Number of QSO records submitted."
+    confirmation_id:
+      type: string
+      description: "LoTW submission confirmation identifier."
+    status:
+      type: string
+      enum: [accepted, partial, rejected]
+  required:
+    - submitted_count
+    - status
