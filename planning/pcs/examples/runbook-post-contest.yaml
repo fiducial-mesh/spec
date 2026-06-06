@@ -1,0 +1,33 @@
+# PCS Runbook Spec v0.1 — post-contest
+#
+# Mixed-effect runbook. Starts pure (export, validate), then
+# hits mutate_external (upload to LoTW). Once step 4 executes,
+# abort is ILLEGAL — control plane must escalate to hand_off.
+#
+# This is the pattern Patton identified: multi-step flows that
+# span MCPs, encoded once so every agent does it the same way.
+
+name: post-contest
+version: "1.0.0"
+owner: watson
+lifecycle_state: active
+trust_tier: core
+on_failure: hand_off
+requires_capabilities: []
+steps:
+  - kind: skill
+    skill_name: export-adif
+    skill_version: "1.0.0"
+    required: true
+  - kind: skill
+    skill_name: validate-adif
+    skill_version: "1.0.0"
+    required: true
+  - kind: judgment
+    description: "Review exported ADIF for completeness. Confirm QSO count matches contest log. Go/no-go for upload."
+  - kind: skill
+    skill_name: lotw-upload
+    skill_version: "0.1.0"
+    required: true
+  - kind: judgment
+    description: "Verify LoTW accepted the submission. Report any rejected records."

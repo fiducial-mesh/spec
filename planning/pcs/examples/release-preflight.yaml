@@ -1,0 +1,66 @@
+# PCS Skill Spec v0.1 — release-preflight
+#
+# BORDERLINE CASE. This was originally a single "release" skill that
+# combined validation (read-only) with judgment (CHANGELOG adequacy).
+#
+# The crisp test: "If two different agents would do this identically,
+# it's a skill." The validation steps (version check, security tests,
+# git status, PyPI comparison) are deterministic — any agent gets the
+# same result. But CHANGELOG review requires judgment.
+#
+# Resolution: split. The deterministic preflight is a SKILL (this file).
+# The full release workflow including CHANGELOG judgment, go/no-go
+# decision, and tag+publish is a RUNBOOK that composes this skill as
+# its first step.
+#
+# This is the kind of borderline case the notes predicted would
+# stress-test the model first.
+
+name: release-preflight
+version: "0.1.0"
+owner: bob
+lifecycle_state: active
+trust_tier: blessed
+effect: pure
+requires_capabilities:
+  - git_read_access
+  - pypi_read_access
+  - python_runtime
+inputs:
+  type: object
+  properties:
+    repo_path:
+      type: string
+      description: "Absolute path to the repository root."
+    repo_name:
+      type: string
+      description: "Repository name (e.g., 'solar-mcp')."
+  required:
+    - repo_path
+    - repo_name
+outputs:
+  type: object
+  properties:
+    version_local:
+      type: string
+      description: "Version from pyproject.toml."
+    version_pypi:
+      type: string
+      description: "Latest version on PyPI (null if unpublished)."
+    security_tests_passed:
+      type: boolean
+    other_tests_passed:
+      type: boolean
+    git_clean:
+      type: boolean
+    version_bumped:
+      type: boolean
+      description: "True if local version > PyPI version."
+    ready:
+      type: boolean
+      description: "True if all checks pass."
+  required:
+    - version_local
+    - security_tests_passed
+    - git_clean
+    - ready
