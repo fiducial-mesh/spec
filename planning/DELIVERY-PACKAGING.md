@@ -85,7 +85,7 @@ per-pillar discipline.
 
 .NET 10 publishes container images directly (no Dockerfile). Host-level pieces that cannot
 containerize — the **PCS-Daemon** (controls host plugins, cf. `PCS-DAEMON-SPEC.md`), the
-GPU/driver layer, and the **`som` CLI** — ship as **RPM** (existing COPR muscle). Dual-format
+GPU/driver layer, and the **`mesh` CLI** — ship as **RPM** (existing COPR muscle). Dual-format
 by necessity. Both formats share the same *delivery discipline* — substrate is per-environment,
 named, and gated by the delivery conformance run (per the install-time three-gate composite,
 DP-CD7 → DP-CD8 → `CONFORMANCE.md` CONF-CD4) — though the specific parameterization
@@ -124,7 +124,7 @@ host doesn't choke). Framework-clean ≠ deployment-certified — the deployment
 validated module + FIPS mode — but the mesh never generates the finding. (Couples to the
 `ENGINEERING-STANDARDS.md` FIPS-hygiene gate.)
 
-**DP-CD7 — Installer: one `som` CLI, .NET Native AOT single-file binary.** Keeps the core C#
+**DP-CD7 — Installer: one `mesh` CLI, .NET Native AOT single-file binary.** Keeps the core C#
 (the customer's house language in the IHFA case); AOT → no .NET runtime dependency on the box
 to bootstrap it; single static file, air-gap-copyable. (Go static binary is the documented
 fallback if AOT proves fiddly — existing ionis-apps muscle.) Flow: `load-bundle →
@@ -189,12 +189,12 @@ explicitly so a future reader doesn't read "substrate-substitutable" as "any Lin
 ## Success Criteria
 
 - **Single offline bundle installs the full mesh on an air-gapped box** with zero network access
-  (litmus: disconnect, sneakernet, `som` install succeeds).
+  (litmus: disconnect, sneakernet, `mesh` install succeeds).
 - **Every artifact is signed + SBOM'd + provenance-attested**, verifiable offline; CI fails on a
   missing/invalid signature, SBOM, or non-approved-crypto usage.
 - **One topology model renders to all three runtimes** (Quadlet / Nomad / Helm) without a forked
   install path.
-- **Solo-minimal litmus**: `som dev up` stands up the whole mesh on free components (Rocky +
+- **Solo-minimal litmus**: `mesh dev up` stands up the whole mesh on free components (Rocky +
   Podman/Quadlet + Postgres+pgvector + OpenBao) in an afternoon.
 - **FIPS-clean**: a FIPS-mode RHEL install generates zero FIPS-140-3 findings attributable to the mesh
   packaging.
@@ -219,5 +219,5 @@ explicitly so a future reader doesn't read "substrate-substitutable" as "any Lin
   keep it pluggable.
 - **DP-OQ2** ✅ **RESOLVED**: this spec lives in `KI7MT/specs/planning/`; the `pcs-*`→`pcs-*`
   shift is done.
-- **DP-OQ3**: AOT vs Go for the `som` CLI — AOT is the lean-C# default; confirm AOT handles the
+- **DP-OQ3**: AOT vs Go for the `mesh` CLI — AOT is the lean-C# default; confirm AOT handles the
   process/file/network orchestration cleanly before foreclosing the Go fallback.
