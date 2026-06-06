@@ -62,7 +62,7 @@ This spec answers Bob's 10 lifecycle questions and codifies Patton's promotion d
    - List of explicitly-excluded files (templates, notes, papers)
 2. **Patton review** (mandatory, action-priority inbox message from Bob → Patton):
    - Patton receives the dry-run report and the integration PR (if any frontmatter / inference / rule changes are bundled with the bootstrap)
-   - Patton's job at this gate is **no-overclaim-in-classification** review — same discipline as no-overclaim review on canonical SOM docs. Specifically: are any documents reading as cross-role that aren't; are any failure-class docs not marked `violates_invariant=true`; are any inherited-frontmatter-pattern over-tagging issues surfaced (the SOM-4 lesson, per `c6773933`).
+   - Patton's job at this gate is **no-overclaim-in-classification** review — same discipline as no-overclaim review on canonical Fiducial Mesh docs. Specifically: are any documents reading as cross-role that aren't; are any failure-class docs not marked `violates_invariant=true`; are any inherited-frontmatter-pattern over-tagging issues surfaced (the SOM-4 lesson, per `c6773933`).
    - Patton can require source-frontmatter corrections (PR-#60-style) before the gate clears. Source fixes are landed pre-write, not as post-ingest curation events (per Patton's `c6773933` ruling: fix the source, not the projection).
 3. **Patton sign-off → Judge approval**:
    - When Patton clears the dry-run, he sends an info-priority message confirming the gate passes.
@@ -82,7 +82,7 @@ This spec answers Bob's 10 lifecycle questions and codifies Patton's promotion d
 - `ionis-devel/planning/**.md`
 - `ionis-devel/archive/planning/**.md`
 - `ionis-devel/shared-context/**.md`
-- `som-pcs-spec/spec/**.md`
+- `spec/spec/**.md`
 - `som-pcs-registry/**.md`
 - `som-pcs-control-plane/**.md`
 
@@ -119,7 +119,7 @@ This spec answers Bob's 10 lifecycle questions and codifies Patton's promotion d
 
 | Value | Source pattern | Notes |
 |---|---|---|
-| `spec` | `som-pcs-spec/spec/**.md`, `CLAUDE.md`, security framework | Authored spec content, highest authority |
+| `spec` | `spec/spec/**.md`, `CLAUDE.md`, security framework | Authored spec content, highest authority |
 | `planning-active` | `planning/**.md` (non-archive, non-notes) | Current planning, may evolve |
 | `planning-draft` | `planning/notes/**.md` | Working drafts (default excluded from ingest) |
 | `archive` | `archive/**.md` | Historical reference, marked `deprecated` by default |
@@ -159,7 +159,7 @@ Einstein's substrate-trap finding: the underlying vector model (`bge-large-en-v1
 
 | Source | Default tier | Rationale |
 |---|---|---|
-| `som-pcs-spec/spec/` | `validated` | Authored spec content |
+| `spec/spec/` | `validated` | Authored spec content |
 | `archive/planning/V*-RESULTS.md` | `validated` | Historical post-mortems, immutable |
 | `shared-context/architecture-philosophy.md` | `validated` | Foundational principles |
 | `CLAUDE.md` | `validated` | Project source of truth |
@@ -289,7 +289,7 @@ Documented as **gap** to track. Phase-1 ships with this gap explicit, not papere
 
 Hard precedence, never overridden:
 
-1. **Spec** (som-pcs-spec, V16 laws, security framework, MCP-SECURITY-FRAMEWORK) — absolute authority. Never overridden by AKB.
+1. **Spec** (spec, V16 laws, security framework, MCP-SECURITY-FRAMEWORK) — absolute authority. Never overridden by AKB.
 2. **Source code + current configuration** — current state of the world. Second authority.
 3. **Validated AKB chunks** — encoded judgment. Lower authority than spec.
 4. **Draft AKB chunks** — explicitly contingent. Lower authority than validated.

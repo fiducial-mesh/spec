@@ -18,7 +18,7 @@ references:
   - planning/akb-lifecycle.md
   - planning/akb-review-trajectory.md
   - planning/templates/akb-document-template.md
-  - som-spec/planning/REPO-SHAPE-DECISIONS.md
+  - spec/planning/REPO-SHAPE-DECISIONS.md
   - shared-context/skills/akb-doc/SKILL.md
 ---
 
@@ -68,7 +68,7 @@ The ingest pipeline assigns metadata using these rules in priority order:
 | `ionis-devel/shared-context/domain-wisdom.md` | `shared-context` | `physics`, `astrophysics` | `false` |
 | `ionis-devel/shared-context/TRAINING-SOPS.md` | `runbook` | `design-intent`, `infrastructure` | `false` |
 | `ionis-devel/resources/*.md` | `shared-context` | `design-intent` | `false` |
-| `som-pcs-spec/spec/**.md` | `spec` | `design-intent`, `infrastructure` | `false` |
+| `spec/spec/**.md` | `spec` | `design-intent`, `infrastructure` | `false` |
 | `som-pcs-registry/**.md` | `spec` | `design-intent`, `infrastructure` | `false` |
 | `som-pcs-control-plane/**.md` | `spec` | `design-intent`, `infrastructure` | `false` |
 | `papers/**.md` | **EXCLUDED** | n/a | n/a (research-style, not AKB-ingested) |
@@ -103,7 +103,7 @@ Initial inference rule assigned `all roles` to every `.claude/skills/**/SKILL.md
 
 ### Phase A.1.2 — Frontmatter Authoring Discipline (new section, v0.2)
 
-**Surfaced by the SOM-4 over-broad-tagging issue (PR #60, 2026-06-02):** four SOM mesh-architecture canonical docs were carrying inherited all-five-roles frontmatter (`design-intent + infrastructure + failure-mode + physics + astrophysics`), over-tagging them on the role axis. Mesh-arch docs are not propagation physics — physics and astrophysics agents should not be retrieving SOM pillar names as relevant context to ionospheric or astro queries. Patton ruled `c6773933` to fix the source of truth pre-bootstrap rather than maintain a curation-layer correction.
+**Surfaced by the SOM-4 over-broad-tagging issue (PR #60, 2026-06-02):** four Fiducial Mesh mesh-architecture canonical docs were carrying inherited all-five-roles frontmatter (`design-intent + infrastructure + failure-mode + physics + astrophysics`), over-tagging them on the role axis. Mesh-arch docs are not propagation physics — physics and astrophysics agents should not be retrieving Fiducial Mesh pillar names as relevant context to ionospheric or astro queries. Patton ruled `c6773933` to fix the source of truth pre-bootstrap rather than maintain a curation-layer correction.
 
 **The Frontmatter Authoring Contract** (binding for all docs ingested into AKB):
 
@@ -146,10 +146,10 @@ For each document being ingested, the dry-run inspects the frontmatter `roles` a
 - `CLAUDE.md` (universal project source-of-truth; intentional all-5 by inference design — added per issue #79)
 
 **Anything else carrying `physics` or `astrophysics`** is **flagged as a suspected over-broad-role assignment** and surfaces in the dry-run report. Examples that would have been caught pre-PR-#60:
-- `planning/SOM-PILLAR-NAMES.md` carrying physics + astrophysics → flag (mesh-arch doc, not physics)
-- `planning/SOM-PRODUCTION-VALIDATION.md` carrying physics + astrophysics → flag
-- `planning/SOM-PROBLEM-STATEMENT.md` carrying physics + astrophysics → flag
-- `planning/SOM-TECHNICAL-OVERVIEW.md` carrying physics + astrophysics → flag
+- `planning/PILLAR-NAMES.md` carrying physics + astrophysics → flag (mesh-arch doc, not physics)
+- `planning/PRODUCTION-VALIDATION.md` carrying physics + astrophysics → flag
+- `planning/MANIFESTO.md` carrying physics + astrophysics → flag
+- `planning/TECHNICAL-OVERVIEW.md` carrying physics + astrophysics → flag
 
 **Resolution discipline** (per Patton's `c6773933` ruling on source-vs-projection):
 - Each flagged document must be either (a) corrected at the source-frontmatter level via PR before the bootstrap proceeds, or (b) explicitly added to the expected-patterns allowlist with justification in the bootstrap-event log.

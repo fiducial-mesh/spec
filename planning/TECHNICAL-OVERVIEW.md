@@ -173,4 +173,4 @@ The IAM pillar carries the load-bearing answer to the regulated-industries varia
 - [`MCP-SECURITY-FRAMEWORK.md`](MCP-SECURITY-FRAMEWORK.md) — PGE operational spec
 - `diagrams/mesh-architecture.png` — legacy 7-pillar three-plane decomposition visual
 - `diagrams/mesh_architecture_with_identity_and_arca.svg` — current 8-pillar visual with the IAM pillar and ARCA above the dotted line
-- `diagrams/som_connection_detail_runtime_flows.svg` — runtime data-flow diagram
+- `diagrams/mesh_connection_detail_runtime_flows.svg` — runtime data-flow diagram

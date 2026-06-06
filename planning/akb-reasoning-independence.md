@@ -61,7 +61,7 @@ Two mechanisms compose:
 | Newton | sovereign-local astro | `astrophysics`: solar, ionospheric, propagation domain content |
 
 **Default role assignment at ingest** (directory-path based):
-- `som-pcs-spec/spec/` → `[design-intent, infrastructure]`
+- `spec/spec/` → `[design-intent, infrastructure]`
 - `archive/planning/V*-RESULTS.md` → `[failure-mode, design-intent]`
 - `planning/PHASE-5-*.md` → `[design-intent, physics]`
 - `planning/AGENT-FRICTION-CATALOG.md` → `[infrastructure, failure-mode]`
@@ -88,7 +88,7 @@ Two mechanisms compose:
 
 **Bootstrap-time check**: count `DISTINCT source_doc WHERE roles ⊇ KNOWN_ROLES` against the cap.
 
-**Current utilization** (post-PR-#60 frontmatter correction): **8 documents / 50** — comfortable headroom. The 4 SOM mesh-arch docs were corrected in PR #60 because they were mis-tagged cross-role; the remaining 8 are intentional (CLAUDE.md, MCP-SECURITY-FRAMEWORK.md, architecture-philosophy.md, akb-tier0-content.md, akb-doc skill, security-review skill, plus a few more).
+**Current utilization** (post-PR-#60 frontmatter correction): **8 documents / 50** — comfortable headroom. The 4 Fiducial Mesh mesh-arch docs were corrected in PR #60 because they were mis-tagged cross-role; the remaining 8 are intentional (CLAUDE.md, MCP-SECURITY-FRAMEWORK.md, architecture-philosophy.md, akb-tier0-content.md, akb-doc skill, security-review skill, plus a few more).
 
 **Overflow handling**: if a future ingest event would push the count to 51, **bootstrap fails with overflow report**. Resolution is a PR-#60-style frontmatter sweep: identify the most over-broad-tagged docs (mesh-arch docs wrongly carrying physics/astrophysics, planning docs wrongly carrying all-roles, etc.) and correct the source frontmatter. Maintaining a curation-layer correction on top of wrong source frontmatter is forbidden per Patton's `c6773933` ruling — fix the source, not the projection.
 

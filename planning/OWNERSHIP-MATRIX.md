@@ -4,7 +4,7 @@
 **Date**: 2026-05-17
 **Authors**: KI7MT (intent + approval), Bob (drafting), Watson (review + approval)
 **Related**:
-- [PCS Adoption Plan](https://github.com/KI7MT/som-spec/blob/main/planning/PCS-ADOPTION-PLAN.md)
+- [PCS Adoption Plan](https://github.com/fiducial-mesh/spec/blob/main/planning/PCS-ADOPTION-PLAN.md)
 - [Agent Friction Catalog](AGENT-FRICTION-CATALOG.md)
 - [Workspace Consistency Rationale](WORKSPACE-CONSISTENCY-RATIONALE.md)
 
@@ -36,10 +36,10 @@ If all three align, no agent crosses up. If they drift, you get organizational c
 
 | Repo | Primary owner | Cross-review | Notes |
 |---|---|---|---|
-| `som-pcs-spec` | **Watson** (architecture) | Bob (operator feedback), Patton (structural) | KI7MT final authority on spec direction |
+| `spec` | **Watson** (architecture) | Bob (operator feedback), Patton (structural) | KI7MT final authority on spec direction |
 | `som-pcs-control-plane` | **Watson** (implementation) | Bob (dogfood reports) | Watson coded it |
 | `som-pcs-registry` | **Watson** (implementation) | Bob (dogfood reports) | Watson coded it |
-| `som-pcs-registry-demo` | **Watson** (demo content) | Bob | Community-facing, public reference |
+| `pcs-registry-demo` | **Watson** (demo content) | Bob | Community-facing, public reference |
 
 ### Operations repos (three-way split)
 
@@ -77,7 +77,7 @@ Lives in `ionis-devel/runbooks/`. These compose skills from multiple ops repos (
 - **Approval gate**: explicit KI7MT sign-off (these touch both products)
 - **Review**: Patton (structural), Watson (if research-side impact), Bob (if fleet-side impact)
 
-> **Note on foundation plugins (PCS v0.2 constraint)**: per the project-scoped sharing rule in `som-pcs-spec/spec/11-procedures.md`, foundation plugins must live within the same project tree as the domain plugins that depend on them. Each ops repo gets its own foundation plugin (`fleet-ops-core`, `ionis-ai-ops-core`, `qso-graph-ops-core`). Cross-project procedure sharing is deferred to a future spec version. The three-way ops split is consistent with this — each ops repo is self-contained at the framework level.
+> **Note on foundation plugins (PCS v0.2 constraint)**: per the project-scoped sharing rule in `spec/spec/11-procedures.md`, foundation plugins must live within the same project tree as the domain plugins that depend on them. Each ops repo gets its own foundation plugin (`fleet-ops-core`, `ionis-ai-ops-core`, `qso-graph-ops-core`). Cross-project procedure sharing is deferred to a future spec version. The three-way ops split is consistent with this — each ops repo is self-contained at the framework level.
 
 ### Product repos (per-repo, opt-in)
 
@@ -192,7 +192,7 @@ authorized_repos:
   primary:
     - (review-only)
   cross_review:
-    - KI7MT/som-pcs-spec (architecture review)
+    - KI7MT/spec (architecture review)
     - IONIS-AI/ionis-devel (physics/architecture content)
 ```
 

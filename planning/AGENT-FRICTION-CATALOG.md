@@ -4,8 +4,8 @@
 **Date**: 2026-05-17
 **Authors**: KI7MT (methodology), Bob/Claude-9975 (session-derived evidence)
 **Related**:
-- [PCS Spec v0.1](https://github.com/KI7MT/som-pcs-spec)
-- [PCS Adoption Plan](https://github.com/KI7MT/som-spec/blob/main/planning/PCS-ADOPTION-PLAN.md)
+- [PCS Spec v0.1](https://github.com/fiducial-mesh/spec)
+- [PCS Adoption Plan](https://github.com/fiducial-mesh/spec/blob/main/planning/PCS-ADOPTION-PLAN.md)
 - Memory: `project_pcs_contribution_flow.md`
 
 ---
@@ -327,7 +327,7 @@ This is a stronger architectural commitment than v0.1 makes explicit. v0.1's `ha
 This document is the source artifact. From here:
 
 1. Send Watson an inbox message proposing the procedure layer + resumption semantics for PCS v0.2 — link to this doc
-2. Open a discussion issue on `KI7MT/som-pcs-spec` referencing this evidence
+2. Open a discussion issue on `KI7MT/spec` referencing this evidence
 3. Use the friction catalog as the "why this is needed" section of any RFC
 
 ---

@@ -20,7 +20,7 @@ references:
   - planning/akb-awareness-layer.md
   - planning/akb-reasoning-independence.md
   - planning/akb-lifecycle.md
-  - som-spec/planning/REPO-SHAPE-DECISIONS.md
+  - spec/planning/REPO-SHAPE-DECISIONS.md
   - papers/THE-DIALECTICAL-ENGINE.md
   - papers/FROM-NANOMETERS-TO-NEURONS.md
 ---
