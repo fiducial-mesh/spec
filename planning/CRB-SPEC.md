@@ -15,31 +15,31 @@ author_id: watson
 violates_invariant: false
 invariant_class: ""
 references:
-  - planning/SOM-PILLAR-NAMES.md
-  - planning/SOM-PRODUCTION-VALIDATION.md
-  - planning/SOM-PROBLEM-STATEMENT.md
-  - planning/SOM-TECHNICAL-OVERVIEW.md
-  - planning/SOM-CONCURRENCY-AND-ARCHETYPES.md
+  - planning/PILLAR-NAMES.md
+  - planning/PRODUCTION-VALIDATION.md
+  - planning/MANIFESTO.md
+  - planning/TECHNICAL-OVERVIEW.md
+  - planning/CONCURRENCY-AND-ARCHETYPES.md
   - planning/IBX-SPEC.md
   - planning/IAM-CORE-SPEC.md
   - planning/ACT-SPEC.md
   - planning/DPG-SPEC.md
   - planning/PILLAR-SPEC-TEMPLATE.md
-  - planning/SOM-SPEC.md
+  - planning/MESH-SPEC.md
 ---
 
 # CRB Spec — Compute Resource Broker Pillar Contract
 
-**Scope**: Formalizes the contract for **CRB** (Compute Resource Broker), the Control-Plane pillar that provides hardware-aware workload dispatch across the SOM compute fleet. Covers the **workload classification taxonomy** (per `SOM-PROBLEM-STATEMENT.md` v0.6 §6.2 — GPU-bound, DB-bound, reasoning-bound, mixed), the **dispatch policy contract** (how a workload's classification maps to a target host), the **hardware topology model** (the host inventory and DAC routing fabric the broker schedules against), the **substrate substitutability** (the DAC + per-host-venv reference substrate at v1.0 → Nomad/Slurm/Kubernetes-equivalent admissible per the Exit Test), and the **coupling boundaries** with IBX (dispatch requests as PCTs), IAM (broker daemon identity when built), ACT (dispatch event audit emission), DPG (clean seam — CRB dispatches to *where*; DPG isolates *how*; orthogonal concerns), and Workforce (the agents emitting workloads).
+**Scope**: Formalizes the contract for **CRB** (Compute Resource Broker), the Control-Plane pillar that provides hardware-aware workload dispatch across the mesh compute fleet. Covers the **workload classification taxonomy** (per `MANIFESTO.md` v0.6 §6.2 — GPU-bound, DB-bound, reasoning-bound, mixed), the **dispatch policy contract** (how a workload's classification maps to a target host), the **hardware topology model** (the host inventory and DAC routing fabric the broker schedules against), the **substrate substitutability** (the DAC + per-host-venv reference substrate at v1.0 → Nomad/Slurm/Kubernetes-equivalent admissible per the Exit Test), and the **coupling boundaries** with IBX (dispatch requests as PCTs), IAM (broker daemon identity when built), ACT (dispatch event audit emission), DPG (clean seam — CRB dispatches to *where*; DPG isolates *how*; orthogonal concerns), and Workforce (the agents emitting workloads).
 
-**Status**: **Validated v1.1** — seventh (final) instantiation of the pillar-spec template (`planning/PILLAR-SPEC-TEMPLATE.md`, merged 2026-06-05 at `9c67f57`); with this, all 7 pillar v1.1 refreshes are complete. v1.1 adds the per-pillar manifest layer (§ Substrate Matrix + § Telemetry Contract) instantiating the mesh-level contracts in `SOM-SPEC.md` (SOM-MI-8, SOM-MI-11, § Tested Substrate Profiles); CD13 + CD14 record the v1.1 commitments. The v1.0 contract surface (classification taxonomy, dispatch-policy contract, hardware topology model, substrate substitutability, coupling boundaries, CD1–CD12) is **unchanged** — v1.1 is **purely additive** (no substrate-of-record change). CRB is **design-stage** — the broker daemon is not built; CRB is codified-by-convention (per Patton's watch-out #1). The Substrate Matrix names *seams the broker build will have*, every row design-stage. Capability-framing applies throughout (Patton's PR #31 lesson), most sharply on the accelerator-runtime seam (the taxonomy's `gpu_bound` is the accelerator-compute capability, not a CUDA lock-in).
+**Status**: **Validated v1.1** — seventh (final) instantiation of the pillar-spec template (`planning/PILLAR-SPEC-TEMPLATE.md`, merged 2026-06-05 at `9c67f57`); with this, all 7 pillar v1.1 refreshes are complete. v1.1 adds the per-pillar manifest layer (§ Substrate Matrix + § Telemetry Contract) instantiating the mesh-level contracts in `MESH-SPEC.md` (MI-8, MI-11, § Tested Substrate Profiles); CD13 + CD14 record the v1.1 commitments. The v1.0 contract surface (classification taxonomy, dispatch-policy contract, hardware topology model, substrate substitutability, coupling boundaries, CD1–CD12) is **unchanged** — v1.1 is **purely additive** (no substrate-of-record change). CRB is **design-stage** — the broker daemon is not built; CRB is codified-by-convention (per Patton's watch-out #1). The Substrate Matrix names *seams the broker build will have*, every row design-stage. Capability-framing applies throughout (Patton's PR #31 lesson), most sharply on the accelerator-runtime seam (the taxonomy's `gpu_bound` is the accelerator-compute capability, not a CUDA lock-in).
 
 **v1.1 adds (additive manifest layer):**
-1. **§ Substrate Matrix** — three CRB substrate seams (scheduling/dispatch backend, accelerator runtime, telemetry sink) as the substitutability boundary per SOM-MI-8 + SOM-CD15 (CD13). Complements the existing § Substrate Substitutability (Patton's watch-out #2) — that section is the dispatch-backend Exit-Test narrative; the matrix is the formal manifest.
-2. **§ Telemetry Contract** — `som.crb.*` spans/metrics/log events per SOM-MI-11, with the MI-1 (`crb.*` audit to ACT) vs MI-11 (observability) distinction (CD14).
+1. **§ Substrate Matrix** — three CRB substrate seams (scheduling/dispatch backend, accelerator runtime, telemetry sink) as the substitutability boundary per MI-8 + CD15 (CD13). Complements the existing § Substrate Substitutability (Patton's watch-out #2) — that section is the dispatch-backend Exit-Test narrative; the matrix is the formal manifest.
+2. **§ Telemetry Contract** — `mesh.crb.*` spans/metrics/log events per MI-11, with the MI-1 (`crb.*` audit to ACT) vs MI-11 (observability) distinction (CD14).
 3. **§ Acceptance Criteria** (renamed from § Success Criteria) — prepends the 5 non-negotiables; the v1.0 CRB-specific success criteria are retained below.
 
-**Prior status (v1.0, retained)**: Item 5b of the spec-campaign queue (per Patton's `87d77f55` + ruling `251c9511` that DPG and CRB are separate; CRB after DPG). The CRB pillar is **operationally codified-by-convention today, NOT yet automated by a broker daemon** — same design-vs-built framing the IAM spec used. Per `SOM-PRODUCTION-VALIDATION.md` v1.1 §CRB: *"CRB is operationally codified by convention, not yet automated by a broker daemon. Workload assignment lives in `CLAUDE.md` and the per-agent execution context, and is reliable in practice today; a future CRB spec will land daemon-process automation. Until that lands, the pillar's 'validation' claim is that the dispatch* discipline *is in production, not that a CRB-daemon is."* This spec is the formal contract for *what gets built* when the broker daemon implementation begins; the **ruling-dependent parts** (broker bootstrap credential, per-session credential format, in-flight dispatch handling on broker session termination, per-broker concurrency cap) stay marked **Deferred-Pending-Increment-2-Rulings** per the spec-campaign discipline.
+**Prior status (v1.0, retained)**: Item 5b of the spec-campaign queue (per Patton's `87d77f55` + ruling `251c9511` that DPG and CRB are separate; CRB after DPG). The CRB pillar is **operationally codified-by-convention today, NOT yet automated by a broker daemon** — same design-vs-built framing the IAM spec used. Per `PRODUCTION-VALIDATION.md` v1.1 §CRB: *"CRB is operationally codified by convention, not yet automated by a broker daemon. Workload assignment lives in `CLAUDE.md` and the per-agent execution context, and is reliable in practice today; a future CRB spec will land daemon-process automation. Until that lands, the pillar's 'validation' claim is that the dispatch* discipline *is in production, not that a CRB-daemon is."* This spec is the formal contract for *what gets built* when the broker daemon implementation begins; the **ruling-dependent parts** (broker bootstrap credential, per-session credential format, in-flight dispatch handling on broker session termination, per-broker concurrency cap) stay marked **Deferred-Pending-Increment-2-Rulings** per the spec-campaign discipline.
 
 **Patton's two watch-outs for this spec, addressed explicitly throughout the body** (per his `4759a355` forward note):
 
@@ -50,7 +50,7 @@ references:
 
 ## Purpose / Problem Restatement
 
-Per `SOM-PROBLEM-STATEMENT.md` v0.6 §6.2 ("The Workload Classification driver — CRB scope"): **most SOM work is not GPU-bound.** It's database analytics, agent reasoning, document workflows, and audit. The bottleneck isn't "not enough compute" — it's **lacking visibility into which workloads can run in parallel on existing compute**.
+Per `MANIFESTO.md` v0.6 §6.2 ("The Workload Classification driver — CRB scope"): **most the mesh work is not GPU-bound.** It's database analytics, agent reasoning, document workflows, and audit. The bottleneck isn't "not enough compute" — it's **lacking visibility into which workloads can run in parallel on existing compute**.
 
 The lab's hardware fleet is heterogeneous on purpose:
 - **9975WX (Threadripper, control node)** — 32C/64T, 128 GB DDR5, **RTX PRO 6000 96 GB**, ClickHouse, Newton (Llama 3.3 70B), all CUDA workloads
@@ -63,7 +63,7 @@ Different workload classes have natural hosts: GPU-bound goes to 9975WX (only ho
 **Two architectural guarantees CRB commits**:
 
 1. **Hardware-aware dispatch**: every workload that requires specific compute resources (GPU, large unified memory, ClickHouse substrate, etc.) is routed to a host that can satisfy them. The broker dispatches against a hardware inventory; the workload's classification determines target eligibility; the dispatch decision is auditable through ACT.
-2. **Workload classification as first-class concept**: SOM has at least three primary workload classes (GPU-bound, DB-bound, reasoning-bound) and a fourth catch-all (mixed). CRB-as-pillar commits the classification taxonomy as the substrate for dispatch decisions. The taxonomy is bounded (curation event to extend) and structural (every dispatch request declares its class).
+2. **Workload classification as first-class concept**: The mesh has at least three primary workload classes (GPU-bound, DB-bound, reasoning-bound) and a fourth catch-all (mixed). CRB-as-pillar commits the classification taxonomy as the substrate for dispatch decisions. The taxonomy is bounded (curation event to extend) and structural (every dispatch request declares its class).
 
 **Current implementation gap, named explicitly**: today (2026-06-02) the lab has **no broker daemon**. Dispatch happens by operator/agent convention recorded in `CLAUDE.md` § Infrastructure and `CLAUDE.md` § AI Agents. The convention works at the lab's current scale (single-operator + N-agents, four hosts, three workload classes). The implementation gap closes when Bob builds the broker daemon per this spec's contract; until then, CRB exists as a discipline-of-record, not as a service. The spec body defends the design-vs-built line at every reference per Patton's watch-out #1.
 
@@ -73,7 +73,7 @@ CRB-as-pillar has three architectural components that v1.0 commits, plus one sub
 
 | Component | Role |
 |---|---|
-| **Workload Classification Taxonomy** | The bounded set of workload classes the broker recognizes. Per `SOM-PROBLEM-STATEMENT.md` v0.6 §6.2: at minimum GPU-bound, DB-bound, reasoning-bound + a catch-all `mixed` class. Each dispatch request declares its class. Adding a new class requires explicit curation event (mirrors the ACT event-type taxonomy discipline). |
+| **Workload Classification Taxonomy** | The bounded set of workload classes the broker recognizes. Per `MANIFESTO.md` v0.6 §6.2: at minimum GPU-bound, DB-bound, reasoning-bound + a catch-all `mixed` class. Each dispatch request declares its class. Adding a new class requires explicit curation event (mirrors the ACT event-type taxonomy discipline). |
 | **Dispatch Policy** | The mapping from workload class to eligible target hosts. Substrate-agnostic — the policy says "GPU-bound → host with NVIDIA GPU + CUDA toolkit installed"; the deployment's hardware inventory determines which actual hosts match. |
 | **Broker Daemon** (build target — not yet built) | The service that accepts dispatch requests, applies the classification + policy, selects a target host, dispatches the workload, and tracks the dispatch outcome. v1.0 commits the daemon's behavior contract; today the role is played by operator/agent convention. |
 | **Substrate primitive (v1.0 reference)** | DAC routing (10.60.1.0/24 Thunderbolt 4, 10.60.2.0/24 SFP+, 10.60.3.0/24 SFP+) + per-host venv (`$WORKSPACE_ROOT/.venv/bin/python` on every host). |
@@ -97,7 +97,7 @@ v1.0 commits four workload classes. The set is bounded; adding a new class requi
 | `gpu_bound` | Workload requires GPU compute for primary execution (CUDA kernels, neural network training/inference on accelerators). | Host with NVIDIA GPU + CUDA toolkit, GPU memory ≥ requested. Today: 9975WX (RTX PRO 6000). Mac MPS workloads are a sub-class — see `mps_bound` below. |
 | `mps_bound` | Workload requires Apple MPS backend specifically (PyTorch MPS, Mac unified memory). | Host with Apple Silicon + MPS-compatible runtime. Today: M3 Ultra. Sub-class of GPU-class workloads where the accelerator family is Apple, not NVIDIA. |
 | `db_bound` | Workload requires direct database substrate access (ClickHouse queries against `wspr.*`, `solar.*`, `pskr.*` etc.). | Host with low-latency network path to the database (DAC 10 Gbps preferred over LAN). Today: 9975WX (substrate-local) or any DAC-connected host (9975WX or M3 over DAC). |
-| `reasoning_bound` | Workload is primarily agent reasoning + tool calls; minimal infrastructure dependency beyond a Python venv. | Any host with a SOM-conformant Python venv. Today: 9975WX, M3, EPYC all qualify. |
+| `reasoning_bound` | Workload is primarily agent reasoning + tool calls; minimal infrastructure dependency beyond a Python venv. | Any host with a the mesh-conformant Python venv. Today: 9975WX, M3, EPYC all qualify. |
 | `mixed` | Workload combines multiple classes (e.g., training that pulls ClickHouse data and runs CUDA forward passes). | Host satisfying the strictest constraint among the workload's sub-class requirements. Today: 9975WX (only host with both RTX PRO 6000 AND DAC access to ClickHouse). |
 
 ### Why this taxonomy (not more, not less)
@@ -152,7 +152,7 @@ Each host in the inventory has:
 | Field | Purpose |
 |---|---|
 | `host_id` | Unique identifier (e.g., `9975wx`, `m3-ultra`, `epyc-7302p`) |
-| `host_class` | Bounded enum: `control`, `sage`, `forge`, `judge`, `worker`. The host's primary role in the SOM control/compute/state planes (per `SOM-PROBLEM-STATEMENT.md` v0.6 §0). |
+| `host_class` | Bounded enum: `control`, `sage`, `forge`, `judge`, `worker`. The host's primary role in the mesh control/compute/state planes (per `MANIFESTO.md` v0.6 §0). |
 | `os` | Operating system + version (`rocky-9.7`, `macos-15`, `freebsd-13` for TrueNAS, etc.) |
 | `cpu` | CPU model + core count |
 | `memory_bytes` | Total RAM |
@@ -186,9 +186,9 @@ The CRB substrate is the **dispatch + execution fabric** — DAC routing today, 
 | **Nomad** | Distributed scheduler with workload constraints, host attributes, allocation lifecycle | Acceptable v1.x — would consume the same CRB contract, broker becomes a Nomad job emitter |
 | **Slurm** | HPC-style scheduler with resource classes, fair-share queues | Acceptable v1.x — same contract consumption |
 | **Kubernetes** | Container-style scheduler with node selectors, resource requests | Acceptable v1.x — broker becomes a k8s controller |
-| **Custom daemon** | SOM-specific broker implementing the v1.0 contract directly against the lab's hardware | Acceptable v1.x — Bob's likely first build target |
+| **Custom daemon** | The mesh-specific broker implementing the v1.0 contract directly against the lab's hardware | Acceptable v1.x — Bob's likely first build target |
 
-**The contract is what holds across substrate change.** Per `SOM-PROBLEM-STATEMENT.md` v0.6 §4 Exit Test: a pillar that doesn't survive substrate substitution is a lock-in defect. The CRB contract — classification taxonomy + policy function shape + inventory schema — must be expressible in every substrate above. v1.0 commits this property and adds the dedicated success criterion (per § Success Criteria below).
+**The contract is what holds across substrate change.** Per `MANIFESTO.md` v0.6 §4 Exit Test: a pillar that doesn't survive substrate substitution is a lock-in defect. The CRB contract — classification taxonomy + policy function shape + inventory schema — must be expressible in every substrate above. v1.0 commits this property and adds the dedicated success criterion (per § Success Criteria below).
 
 ### Why DAC + per-host-venv is the right reference substrate at v1.0
 
@@ -198,7 +198,7 @@ The CRB substrate is the **dispatch + execution fabric** — DAC routing today, 
 
 ### Discipline against premature substrate complexity
 
-v1.0 commits: **the broker daemon implementation, when built, does not prematurely adopt Nomad/Slurm/k8s machinery.** The first build is a SOM-specific daemon consuming the v1.0 contract directly against the lab's DAC fabric. Later substrates absorb when actual scale demands them. This is the same discipline IBX v1.0 applied to its substrate (ClickHouse today, NATS/Kafka/Redis later); same Exit-Test posture.
+v1.0 commits: **the broker daemon implementation, when built, does not prematurely adopt Nomad/Slurm/k8s machinery.** The first build is a the mesh-specific daemon consuming the v1.0 contract directly against the lab's DAC fabric. Later substrates absorb when actual scale demands them. This is the same discipline IBX v1.0 applied to its substrate (ClickHouse today, NATS/Kafka/Redis later); same Exit-Test posture.
 
 ## Coupling Boundary: IBX ↔ CRB (Dispatch Request + Result Return)
 
@@ -207,7 +207,7 @@ CRB is **both** a consumer of IBX (dispatch requests arrive as PCTs) and a provi
 ### What CRB consumes from IBX (dispatch request side)
 
 - **Dispatch requests arrive as `action`-priority PCTs** addressed to `recipient=crb-broker` (when the broker daemon exists) or via the existing convention path (operator/agent dispatches directly to the target host — today's reference).
-- **Worker-pool dispatch** is NOT the canonical pattern for CRB — broker daemons are singleton-ish (per the Reasoner archetype, not the Worker archetype, per `SOM-CONCURRENCY-AND-ARCHETYPES.md` §2). CRB does not need many concurrent broker sessions; one or a small handful per deployment suffice.
+- **Worker-pool dispatch** is NOT the canonical pattern for CRB — broker daemons are singleton-ish (per the Reasoner archetype, not the Worker archetype, per `CONCURRENCY-AND-ARCHETYPES.md` §2). CRB does not need many concurrent broker sessions; one or a small handful per deployment suffice.
 - **The PCT carries the dispatch request payload** in field 3 (`context`) and field 5 (`success criteria`). Scope (field 4) declares the workload's classification + resource constraints; authority bounds (field 6) determine whether dispatch routing requires Judge approval (high-stakes workloads via Judge gate; routine dispatches do not).
 
 ### What CRB provides to IBX (result side)
@@ -310,38 +310,38 @@ CRB depends on three substrate seams. Its peer-pillar couplings (IBX, IAM, ACT, 
 
 | Seam | Contract (role + version floor) | Sovereign reference (version floor) | Supported alternatives (version floor) |
 |------|---------------------------------|-------------------------------------|----------------------------------------|
-| **Scheduling / dispatch backend** | Hardware-aware dispatch: classification → eligible-host selection via a pure-function policy (bounded eligibility, tiered fallback with `policy_no_match`); allocation-lifecycle tracking; an inventory-driven eligibility filter | **SOM custom broker daemon** over DAC routing + per-host venv (v1.0 reference; see § Substrate Substitutability) | Nomad 1.7+, Slurm 23+, Kubernetes 1.29+ — the broker becomes a job emitter / controller against the same CRB contract (per § Substrate Substitutability) |
+| **Scheduling / dispatch backend** | Hardware-aware dispatch: classification → eligible-host selection via a pure-function policy (bounded eligibility, tiered fallback with `policy_no_match`); allocation-lifecycle tracking; an inventory-driven eligibility filter | **the mesh custom broker daemon** over DAC routing + per-host venv (v1.0 reference; see § Substrate Substitutability) | Nomad 1.7+, Slurm 23+, Kubernetes 1.29+ — the broker becomes a job emitter / controller against the same CRB contract (per § Substrate Substitutability) |
 | **Accelerator runtime** (the compute substrate `gpu_bound` / `mps_bound` workloads target) | Accelerator compute addressable by job-spec; per-job resource accounting (device memory + compute time); multi-device coordination primitive for tensor-parallel workloads. **The taxonomy's `gpu_bound` is the *capability*, not a CUDA lock-in** — a `gpu_bound` workload is satisfiable by any conforming accelerator runtime on an eligible host | **CUDA 12.x** (NVIDIA; 9975WX RTX PRO 6000) + **Apple MPS** (M3 Ultra; the `mps_bound` sub-class) | ROCm 6+ (AMD), Vulkan compute, oneAPI (Intel) — each satisfying the accelerator-compute capability on a host that carries it. The substrate is the *target host's* accelerator; CRB matches workloads to it via the inventory's `accelerators` field, never hard-coding a vendor. |
-| **Telemetry sink** (per SOM-MI-11; OTLP-on-the-wire) | OTLP traces + metrics; JSON logs to stderr; sink via `OTEL_EXPORTER_OTLP_ENDPOINT` | Grafana / Prometheus / Tempo stack | Azure Monitor / App Insights, Datadog, OCI Monitoring, any OTLP-compatible sink |
+| **Telemetry sink** (per MI-11; OTLP-on-the-wire) | OTLP traces + metrics; JSON logs to stderr; sink via `OTEL_EXPORTER_OTLP_ENDPOINT` | Grafana / Prometheus / Tempo stack | Azure Monitor / App Insights, Datadog, OCI Monitoring, any OTLP-compatible sink |
 
-**Conformance**: when the broker daemon is built, CI runs the multi-profile conformance suite (CONF-CD1..11) against **≥ 2 products per seam** from the supported set — for the scheduling backend, the same dispatch battery (classification → expected eligible-host set, `policy_no_match` on no capacity) must produce identical decisions across tested schedulers; for the accelerator runtime, a `gpu_bound` workload must dispatch + account correctly across ≥ 2 accelerator families on hosts that carry them. A seam change that fails any tested profile does not merge (SOM-CD15).
+**Conformance**: when the broker daemon is built, CI runs the multi-profile conformance suite (CONF-CD1..11) against **≥ 2 products per seam** from the supported set — for the scheduling backend, the same dispatch battery (classification → expected eligible-host set, `policy_no_match` on no capacity) must produce identical decisions across tested schedulers; for the accelerator runtime, a `gpu_bound` workload must dispatch + account correctly across ≥ 2 accelerator families on hosts that carry them. A seam change that fails any tested profile does not merge (CD15).
 
-**Out-of-set substrates**: a deployment using a scheduler or accelerator runtime not listed is **not covered** by CRB's substitutability claim — new profile (CONF-CD11) + conformance-suite extension + the multi-profile run passing per SOM-CD15.
+**Out-of-set substrates**: a deployment using a scheduler or accelerator runtime not listed is **not covered** by CRB's substitutability claim — new profile (CONF-CD11) + conformance-suite extension + the multi-profile run passing per CD15.
 
 **Relation to § Substrate Substitutability**: that section (Patton's watch-out #2) is CRB's Exit-Test narrative for the dispatch-backend seam; this matrix is the formal manifest. The dispatch-backend row's alternatives are the substrate classes enumerated there.
 
 ## Telemetry Contract
 
-Per SOM-MI-11, the CRB broker emits OTLP traces, OTLP metrics, and JSON-structured logs to stderr when built; the sink is selected by the customer via `OTEL_EXPORTER_OTLP_ENDPOINT`; SOM does not name the backend. Naming follows the template: `som.crb.<operation>` for spans, `som.crb.<metric>` for metrics. **Design-stage**: the contract is what the broker emits when built (CRB is codified-by-convention today; no daemon).
+Per MI-11, the CRB broker emits OTLP traces, OTLP metrics, and JSON-structured logs to stderr when built; the sink is selected by the customer via `OTEL_EXPORTER_OTLP_ENDPOINT`; the mesh does not name the backend. Naming follows the template: `mesh.crb.<operation>` for spans, `mesh.crb.<metric>` for metrics. **Design-stage**: the contract is what the broker emits when built (CRB is codified-by-convention today; no daemon).
 
 ### Spans
 
 | Operation | Span name | Required attributes (beyond identity, session, service.*) |
 |-----------|-----------|-----------------------------------------------------------|
-| Accept + validate a dispatch request | `som.crb.dispatch.request` | `dispatch_id`, `workload_class`, `requester_identity` |
-| Evaluate the dispatch policy | `som.crb.policy.evaluate` | `dispatch_id`, `workload_class`, `eligible_host_count`, `selected_host`, `match_outcome` (`matched` / `no_match`) |
-| Initiate workload execution on the target host | `som.crb.dispatch.start` | `dispatch_id`, `target_host` |
-| Workload completes (success / failure) | `som.crb.dispatch.complete` | `dispatch_id`, `target_host`, `outcome` |
+| Accept + validate a dispatch request | `mesh.crb.dispatch.request` | `dispatch_id`, `workload_class`, `requester_identity` |
+| Evaluate the dispatch policy | `mesh.crb.policy.evaluate` | `dispatch_id`, `workload_class`, `eligible_host_count`, `selected_host`, `match_outcome` (`matched` / `no_match`) |
+| Initiate workload execution on the target host | `mesh.crb.dispatch.start` | `dispatch_id`, `target_host` |
+| Workload completes (success / failure) | `mesh.crb.dispatch.complete` | `dispatch_id`, `target_host`, `outcome` |
 
 ### Metrics
 
 | Metric name | Type | Unit | Meaning |
 |-------------|------|------|---------|
-| `som.crb.dispatch.latency_ms` | histogram | milliseconds | Policy-evaluation + dispatch-initiation duration |
-| `som.crb.dispatch.rate` | counter | dispatches | Cumulative dispatches by outcome (`success` / `failure` / `rejected`) |
-| `som.crb.policy.no_match_total` | counter | count | Cumulative `policy_no_match` events — capacity / inventory-gap signal |
-| `som.crb.host.utilization` | gauge | fraction | Per-host workload occupancy by class — fleet-balance signal |
-| `som.crb.queue.depth` | gauge | count | Queued workloads per class awaiting an eligible host |
+| `mesh.crb.dispatch.latency_ms` | histogram | milliseconds | Policy-evaluation + dispatch-initiation duration |
+| `mesh.crb.dispatch.rate` | counter | dispatches | Cumulative dispatches by outcome (`success` / `failure` / `rejected`) |
+| `mesh.crb.policy.no_match_total` | counter | count | Cumulative `policy_no_match` events — capacity / inventory-gap signal |
+| `mesh.crb.host.utilization` | gauge | fraction | Per-host workload occupancy by class — fleet-balance signal |
+| `mesh.crb.queue.depth` | gauge | count | Queued workloads per class awaiting an eligible host |
 
 ### Log events
 
@@ -373,9 +373,9 @@ Per SOM-MI-11, the CRB broker emits OTLP traces, OTLP metrics, and JSON-structur
 CRB emits **both** signal classes, kept distinct:
 
 - **MI-1 (audit)** — the **`crb.*` event stream to ACT** (`crb.dispatch_requested`, `crb.policy_evaluated`, `crb.dispatch_started`, `crb.dispatch_completed`, `crb.policy_no_match`, `crb.dispatch_request_rejected`) per § Coupling Boundary: ACT ↔ CRB. The durable accountability record — *what was dispatched where, under whose authority, with what outcome*. The `crb.*` enum extension to ACT is tracked in VP-CRB-1.
-- **MI-11 (observability)** — the `som.crb.*` spans + metrics + log events above. Operational + fleet-balance + cost-attribution.
+- **MI-11 (observability)** — the `mesh.crb.*` spans + metrics + log events above. Operational + fleet-balance + cost-attribution.
 
-The two are separate streams: a dispatch's *accountability* (who dispatched what to which host) lives in the MI-1 `crb.*` stream; its *operational characteristics* (dispatch latency, queue depth, host utilization) live in the MI-11 `som.crb.*` stream. Per the template style rule, they are not collapsed.
+The two are separate streams: a dispatch's *accountability* (who dispatched what to which host) lives in the MI-1 `crb.*` stream; its *operational characteristics* (dispatch latency, queue depth, host utilization) live in the MI-11 `mesh.crb.*` stream. Per the template style rule, they are not collapsed.
 
 ## Closed Decisions (CDs — v1.0–v1.1 Commitments)
 
@@ -399,13 +399,13 @@ The two are separate streams: a dispatch's *accountability* (who dispatched what
 
 **CD10**: **MPS is a sub-class of GPU classification, not a peer.** `gpu_bound` workloads landing on MPS-only hosts fail at framework load; explicit `mps_bound` prevents this mispairing.
 
-**CD11**: **Broker daemon does not prematurely adopt distributed-scheduler machinery** (Nomad/Slurm/k8s). First build is a SOM-specific daemon consuming the v1.0 contract directly. Later substrates absorb when actual scale demands them. Same discipline as IBX v0→v1.
+**CD11**: **Broker daemon does not prematurely adopt distributed-scheduler machinery** (Nomad/Slurm/k8s). First build is a the mesh-specific daemon consuming the v1.0 contract directly. Later substrates absorb when actual scale demands them. Same discipline as IBX v0→v1.
 
 **CD12**: **Honest design-vs-built framing throughout** (Patton's watch-out #1). CRB is convention today; daemon is build target. Spec body never reads CRB as "having a daemon" or "operational broker"; every reference to the daemon is explicit about its build-target status.
 
-**CD13 (v1.1 — Substrate Matrix is design-stage, capability-framed, CRB substitutability boundary)**: Per SOM-MI-8 + § Tested Substrate Profiles + Patton's PR #31 capability-framing lesson. § Substrate Matrix names three CRB substrate seams (scheduling/dispatch backend, accelerator runtime, telemetry sink) as the broker daemon's substitutability boundary. Every row is **design-stage** (CRB is codified-by-convention; no daemon). Contract columns are **capability-framed** — most sharply the **accelerator-runtime seam: the taxonomy's `gpu_bound` is the accelerator-compute capability (CUDA sovereign-ref + Apple MPS for the `mps_bound` sub-class; ROCm / Vulkan / oneAPI alternatives), never a CUDA lock-in**. CRB is the Reasoner archetype (singleton-ish), so it has **no IBX worker-pool claim-queue seam**. The § Substrate Substitutability section (Patton's watch-out #2) is the dispatch-backend Exit-Test narrative; this matrix is the formal manifest. Substitutability under SOM-CD15 covers exactly the rows listed; out-of-set substrates require a new conformance run.
+**CD13 (v1.1 — Substrate Matrix is design-stage, capability-framed, CRB substitutability boundary)**: Per MI-8 + § Tested Substrate Profiles + Patton's PR #31 capability-framing lesson. § Substrate Matrix names three CRB substrate seams (scheduling/dispatch backend, accelerator runtime, telemetry sink) as the broker daemon's substitutability boundary. Every row is **design-stage** (CRB is codified-by-convention; no daemon). Contract columns are **capability-framed** — most sharply the **accelerator-runtime seam: the taxonomy's `gpu_bound` is the accelerator-compute capability (CUDA sovereign-ref + Apple MPS for the `mps_bound` sub-class; ROCm / Vulkan / oneAPI alternatives), never a CUDA lock-in**. CRB is the Reasoner archetype (singleton-ish), so it has **no IBX worker-pool claim-queue seam**. The § Substrate Substitutability section (Patton's watch-out #2) is the dispatch-backend Exit-Test narrative; this matrix is the formal manifest. Substitutability under CD15 covers exactly the rows listed; out-of-set substrates require a new conformance run.
 
-**CD14 (v1.1 — Telemetry Contract is design-stage MI-11 manifest; MI-1 `crb.*` audit vs MI-11 observability kept distinct)**: Per SOM-MI-11 + the pillar-spec template + Patton's audit-vs-observability stream distinction. § Telemetry Contract names CRB spans (`som.crb.dispatch.{request,start,complete}`, `som.crb.policy.evaluate`), metrics (`som.crb.dispatch.latency_ms`, `.dispatch.rate`, `.policy.no_match_total`, `.host.utilization`, `.queue.depth`), and log events. Every signal is **design-stage**. The two stream classes are distinct: the **MI-1 audit stream is the `crb.*` event sequence to ACT** (durable dispatch accountability, per § Coupling Boundary: ACT ↔ CRB, VP-CRB-1); the **MI-11 observability stream is `som.crb.*`** (operational + fleet-balance + cost-attribution). The AC5 audit-emission path (Path A vs Path B) follows `#22` at build time.
+**CD14 (v1.1 — Telemetry Contract is design-stage MI-11 manifest; MI-1 `crb.*` audit vs MI-11 observability kept distinct)**: Per MI-11 + the pillar-spec template + Patton's audit-vs-observability stream distinction. § Telemetry Contract names CRB spans (`mesh.crb.dispatch.{request,start,complete}`, `mesh.crb.policy.evaluate`), metrics (`mesh.crb.dispatch.latency_ms`, `.dispatch.rate`, `.policy.no_match_total`, `.host.utilization`, `.queue.depth`), and log events. Every signal is **design-stage**. The two stream classes are distinct: the **MI-1 audit stream is the `crb.*` event sequence to ACT** (durable dispatch accountability, per § Coupling Boundary: ACT ↔ CRB, VP-CRB-1); the **MI-11 observability stream is `mesh.crb.*`** (operational + fleet-balance + cost-attribution). The AC5 audit-emission path (Path A vs Path B) follows `#22` at build time.
 
 ## Deferred-Pending-Increment-2-Rulings (DRs)
 
@@ -444,11 +444,11 @@ The two are separate streams: a dispatch's *accountability* (who dispatched what
 
 ## Dependencies
 
-- **`SOM-PILLAR-NAMES.md`** v1.1 — CRB pillar entry of record
-- **`SOM-PRODUCTION-VALIDATION.md`** v1.1 — CRB row records the codified-by-convention status; this spec advances the row to "specification complete (validated)" while preserving the "daemon not yet built" honesty
-- **`SOM-PROBLEM-STATEMENT.md`** v0.6 — §6.2 The Workload Classification driver names the underlying design question; this spec resolves it into the taxonomy and dispatch contract
-- **`SOM-TECHNICAL-OVERVIEW.md`** v0.2 — Control Plane framing for CRB
-- **`SOM-CONCURRENCY-AND-ARCHETYPES.md`** — Reasoner-archetype framing for the broker daemon
+- **`PILLAR-NAMES.md`** v1.1 — CRB pillar entry of record
+- **`PRODUCTION-VALIDATION.md`** v1.1 — CRB row records the codified-by-convention status; this spec advances the row to "specification complete (validated)" while preserving the "daemon not yet built" honesty
+- **`MANIFESTO.md`** v0.6 — §6.2 The Workload Classification driver names the underlying design question; this spec resolves it into the taxonomy and dispatch contract
+- **`TECHNICAL-OVERVIEW.md`** v0.2 — Control Plane framing for CRB
+- **`CONCURRENCY-AND-ARCHETYPES.md`** — Reasoner-archetype framing for the broker daemon
 - **`IBX-SPEC.md`** v1.0 — IBX provides the dispatch-request and result-return PCT transport
 - **`IAM-CORE-SPEC.md`** v1.0 — broker daemon identity model (when built)
 - **`ACT-SPEC.md`** v1.0 — `crb.*` events for audit emission; VP-CRB-1 tracks the cross-spec curation event dependency
@@ -466,19 +466,19 @@ The broker conforms to the security framework (`planning/MCP-SECURITY-FRAMEWORK.
 
 ### 2. Instrumented-by-default
 
-The broker emits the OTLP traces + metrics of § Telemetry Contract. **Measure (design-stage)**: when built, an OTel Collector observes the full `som.crb.*` span + metric sets across a sample dispatch; a missing named span/metric is a non-conformance.
+The broker emits the OTLP traces + metrics of § Telemetry Contract. **Measure (design-stage)**: when built, an OTel Collector observes the full `mesh.crb.*` span + metric sets across a sample dispatch; a missing named span/metric is a non-conformance.
 
 ### 3. JSON logs
 
-The broker emits structured JSON logs to stderr with the required keys + trace correlation per SOM-MI-11. **Measure (design-stage)**: when built, every stderr line is valid JSON carrying `trace_id` + `span_id`.
+The broker emits structured JSON logs to stderr with the required keys + trace correlation per MI-11. **Measure (design-stage)**: when built, every stderr line is valid JSON carrying `trace_id` + `span_id`.
 
 ### 4. CLI-first, UI-second
 
-Every broker management function (submit dispatch, query dispatch state, list inventory, inspect policy) is runnable on a CLI/API surface before any MCC pane exists; the MCC pane is a thin client per SOM-CD14. **Measure (design-stage)**: when built, the full dispatch lifecycle is drivable headless via CLI/MCP; the MCC pane renders only existing CLI/API surfaces.
+Every broker management function (submit dispatch, query dispatch state, list inventory, inspect policy) is runnable on a CLI/API surface before any MCC pane exists; the MCC pane is a thin client per CD14. **Measure (design-stage)**: when built, the full dispatch lifecycle is drivable headless via CLI/MCP; the MCC pane renders only existing CLI/API surfaces.
 
 ### 5. Audit emission
 
-The broker emits an accountability event for every dispatch — the `crb.*` event stream per § Coupling Boundary: ACT ↔ CRB (`crb.dispatch_requested` … `crb.dispatch_completed`, plus `crb.policy_no_match` / `crb.dispatch_request_rejected`). Per **Path A** (emission-as-build-standard, default until `#22` resolves to Path B), these land on the SOM-MI-1 stream ACT consumes downstream; VP-CRB-1 tracks the `crb.*` enum extension. The author checks `KI7MT/som-spec#22` at build time. **Measure (design-stage)**: when built, every dispatch has a corresponding durable `crb.*` event sequence from request through completion; a dispatch with no audit trail is a no-bypass violation.
+The broker emits an accountability event for every dispatch — the `crb.*` event stream per § Coupling Boundary: ACT ↔ CRB (`crb.dispatch_requested` … `crb.dispatch_completed`, plus `crb.policy_no_match` / `crb.dispatch_request_rejected`). Per **Path A** (emission-as-build-standard, default until `#22` resolves to Path B), these land on the MI-1 stream ACT consumes downstream; VP-CRB-1 tracks the `crb.*` enum extension. The author checks `KI7MT/specs#22` at build time. **Measure (design-stage)**: when built, every dispatch has a corresponding durable `crb.*` event sequence from request through completion; a dispatch with no audit trail is a no-bypass violation.
 
 ### v1.0 CRB-specific success criteria (retained)
 
@@ -494,13 +494,13 @@ The broker emits an accountability event for every dispatch — the `crb.*` even
 
 ## References
 
-- `planning/SOM-SPEC.md` — mesh-level invariants (SOM-MI-8, SOM-MI-11, § Tested Substrate Profiles) the v1.1 manifest instantiates
+- `planning/MESH-SPEC.md` — mesh-level invariants (MI-8, MI-11, § Tested Substrate Profiles) the v1.1 manifest instantiates
 - `planning/PILLAR-SPEC-TEMPLATE.md` — the v1.1 manifest-section template + acceptance criteria
-- `planning/SOM-PILLAR-NAMES.md` v1.1 — CRB pillar entry of record
-- `planning/SOM-PRODUCTION-VALIDATION.md` v1.1 — CRB codified-by-convention status
-- `planning/SOM-PROBLEM-STATEMENT.md` v0.6 — §6.2 The Workload Classification driver
-- `planning/SOM-TECHNICAL-OVERVIEW.md` v0.2 — Control Plane framing
-- `planning/SOM-CONCURRENCY-AND-ARCHETYPES.md` — Reasoner-archetype framing
+- `planning/PILLAR-NAMES.md` v1.1 — CRB pillar entry of record
+- `planning/PRODUCTION-VALIDATION.md` v1.1 — CRB codified-by-convention status
+- `planning/MANIFESTO.md` v0.6 — §6.2 The Workload Classification driver
+- `planning/TECHNICAL-OVERVIEW.md` v0.2 — Control Plane framing
+- `planning/CONCURRENCY-AND-ARCHETYPES.md` — Reasoner-archetype framing
 - `planning/IBX-SPEC.md` v1.0 — PCT transport
 - `planning/IAM-CORE-SPEC.md` v1.0 — broker daemon identity
 - `planning/ACT-SPEC.md` v1.0 — crb.* events; VP-CRB-1 cross-spec dependency

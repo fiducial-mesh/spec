@@ -14,7 +14,7 @@ severity: high
 incident_class: workflow
 disposition: open
 references:
-  - planning/SOM-SPEC.md
+  - planning/MESH-SPEC.md
   - planning/IBX-SPEC.md
   - CLAUDE.md
 ---
@@ -31,7 +31,7 @@ rewritten as a property of the workflow.
 
 ## 1. Problem Description
 
-Nine GitHub issues in `som-spec` — the pillar-spec template (#6, #24) and the seven
+Nine GitHub issues in `specs` — the pillar-spec template (#6, #24) and the seven
 pillar-spec v1.1 refreshes (#10 IBX, #11 IAM-Core, #12 ACT, #13 PCS-Daemon, #14 DPG,
 #15 CRB, #16 PGE) — were marked **CLOSED-COMPLETED**, but **none of their deliverables
 exist on `main`**:
@@ -62,7 +62,7 @@ the message record.)*
 
 | Time | Event | Source |
 |------|-------|--------|
-| (Wave-1, PRs #25/#28) | Mesh-level foundations land correctly: **SOM-MI-11** (telemetry contract) and **SOM-MI-8 / § Tested Substrate Profiles** (substrate matrix at mesh level) are committed to `SOM-SPEC.md` and verified. | `SOM-SPEC.md`, prior Patton close-outs |
+| (Wave-1, PRs #25/#28) | Mesh-level foundations land correctly: **MI-11** (telemetry contract) and **MI-8 / § Tested Substrate Profiles** (substrate matrix at mesh level) are committed to `MESH-SPEC.md` and verified. | `MESH-SPEC.md`, prior Patton close-outs |
 | (the "close-all-20" push) | Nine issues (#6, #24, #10–#16) are moved to CLOSED-COMPLETED as part of a bulk close. The per-pillar Substrate-Matrix / Telemetry-Contract sections and the template are **not committed**. | issue tracker vs repo state |
 | 2026-06-04 ~21:52 | An agent begins building IBX, hits spec question #10 (v1.1 gap) + a CD4 substrate question — first signal something is missing at the spec layer. | inbox `1eb7222d` |
 | 2026-06-04 ~22:09 | Investigation widens: grep confirms **all seven** pillar specs lack the sections and the template file is absent. The scope is recognized as "bigger than #10" — nine closed issues, zero landed artifacts. Build is **blocked**. | inbox `6316686f` |
@@ -78,7 +78,7 @@ The conditions that made this possible, stated as workflow properties:
 2. **Issue closure and artifact landing were decoupled.** Closing an issue is a tracker
    action; landing an artifact is a commit. Nothing bound the two — an issue could close
    whether or not its PR merged or its file changed.
-3. **The mesh-level foundations genuinely landed** (SOM-MI-11, SOM-MI-8). This is the
+3. **The mesh-level foundations genuinely landed** (MI-11, MI-8). This is the
    trap: because the *centralized* version of the work was real and correct, a plausible
    reading existed ("the per-pillar sections were folded into the mesh invariants, so the
    issues are satisfied") that made the closes look defensible. Partial-truth masked the
@@ -174,7 +174,7 @@ Closed-loop Action: the corrective fixes *this* occurrence; the preventive remov
   self-imposed, no ratification needed — I author the gap, I close it.**
 
 ### D-5 — Partial-truth (real mesh-level work) masked the gap
-- **Corrective:** Document explicitly in SOM-SPEC that SOM-MI-11 / SOM-MI-8 are
+- **Corrective:** Document explicitly in MESH-SPEC that MI-11 / MI-8 are
   mesh-level and whether per-pillar sections are (A) satisfied-centrally or (B) still
   owed — so the ambiguity that made the closes look defensible cannot recur. (Disposition:
   (B) owed, per `d53993b2`.)
@@ -206,8 +206,8 @@ described) — the verification is itself a guard against this incident's own ro
 ## Note on AIR-as-a-pillar
 
 This document is AIR-001, an *incident*. The **AIR pillar** (the standing system: schema,
-lifecycle, CLCA-tracking) is a separate proposal that requires Judge sign-off per SOM-CD1
-(eight pillars) + SOM-PILLAR-NAMES discipline. AIR-001 does not wait on that ratification —
+lifecycle, CLCA-tracking) is a separate proposal that requires Judge sign-off per CD1
+(eight pillars) + PILLAR-NAMES discipline. AIR-001 does not wait on that ratification —
 the incident is live and its deficiencies need CLCA now. The pillar spec is how the *next*
 incident is caught; AIR-001 is how *this* one is fixed. They proceed in parallel; neither
 blocks the other.

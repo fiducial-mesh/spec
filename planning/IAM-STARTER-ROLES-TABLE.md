@@ -20,7 +20,7 @@ references:
 
 # IAM Starter Roles Table — Plain-English Job Descriptions
 
-**Scope**: a starter set of agent roles for the SOM mesh, written as plain-English job descriptions — the way a manager would describe what each employee does. Owned by IAM (the principal-class designation lives in the identity record); enforced by PGE (the policy corpus says what each role is permitted to do). This document is the **starter draft for Judge's red-line**. It does not commit to a final taxonomy; it captures the working roles already in the lab and proposes the plain-English mapping.
+**Scope**: a starter set of agent roles for the mesh, written as plain-English job descriptions — the way a manager would describe what each employee does. Owned by IAM (the principal-class designation lives in the identity record); enforced by PGE (the policy corpus says what each role is permitted to do). This document is the **starter draft for Judge's red-line**. It does not commit to a final taxonomy; it captures the working roles already in the lab and proposes the plain-English mapping.
 
 **Tone discipline** (per Judge direction 2026-06-06): job-description-sheet style. No spec-code jargon. No `CD-N`, no `§-refs`, no `MI-codes`. A manager reading this should be able to tell whether each role is correctly described without consulting the spec.
 

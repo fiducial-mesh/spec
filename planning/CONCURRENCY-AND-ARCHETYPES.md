@@ -1,5 +1,5 @@
 ---
-title: "SOM Concurrency Model and Agent Archetypes"
+title: "the mesh Concurrency Model and Agent Archetypes"
 doc_type: spec
 status: draft
 version: v0.1
@@ -15,17 +15,17 @@ author_id: patton
 violates_invariant: false
 invariant_class: ""
 references:
-  - planning/SOM-IDENTITY-PILLAR-DESIGN.md
-  - planning/SOM-INSTANTIATION-AND-IDP.md
-  - planning/SOM-DESIGN-PHILOSOPHY.md
+  - planning/IDENTITY-PILLAR-DESIGN.md
+  - planning/INSTANTIATION-AND-IDP.md
+  - planning/DESIGN-PHILOSOPHY.md
   - planning/IBX-SPEC.md
-  - planning/SOM-PILLAR-NAMES.md
-  - planning/SOM-PROBLEM-STATEMENT.md
+  - planning/PILLAR-NAMES.md
+  - planning/MANIFESTO.md
 ---
 
-# SOM Concurrency Model and Agent Archetypes
+# the mesh Concurrency Model and Agent Archetypes
 
-*Provisional design doc. Captures the concurrency model (identity-vs-session) and the agent archetypes (worker / reasoner / quorum-voter) that surfaced from real document-processing examples. DESIGN — none of this is built; current state is briefs-only (identity asserted not verified; no Vault/Roster/ARCA/login/credentials/broker exist yet). This document is INPUT to the Increment-2 Judge rulings, not a front-run of them — it surfaces the concurrency dimension the rulings need to account for, and explicitly defers the rulings themselves. Names provisional ("SOM"). Open items stay open.*
+*Provisional design doc. Captures the concurrency model (identity-vs-session) and the agent archetypes (worker / reasoner / quorum-voter) that surfaced from real document-processing examples. DESIGN — none of this is built; current state is briefs-only (identity asserted not verified; no Vault/Roster/ARCA/login/credentials/broker exist yet). This document is INPUT to the Increment-2 Judge rulings, not a front-run of them — it surfaces the concurrency dimension the rulings need to account for, and explicitly defers the rulings themselves. Names provisional ("the mesh"). Open items stay open.*
 
 ---
 
@@ -183,7 +183,7 @@ This is a substantial Python/ML subsystem (per the tech-stack decision: ML => Py
 
 ---
 
-## 8. Relationship to other SOM work (no front-running)
+## 8. Relationship to other the mesh work (no front-running)
 
 - **Increment 2:** this document is INPUT to the seven Increment-2 rulings (concurrency cap values, revocation semantics, ITDR-over-ACT scope), not a replacement for them. It surfaces the concurrency dimension those rulings must account for. It commits no ruling.
 - **IBX spec (Watson):** directly informs IBX's open questions — concurrency-safe claiming, lease/retry, the "one task per PCT" enforcement question. The worker-pool queue semantics are IBX (or work-queue) concerns.

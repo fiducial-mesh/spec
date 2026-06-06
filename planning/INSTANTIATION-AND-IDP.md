@@ -1,6 +1,6 @@
-# SOM Instantiation & Identity Provider Integration
+# the mesh Instantiation & Identity Provider Integration
 
-*Provisional. Companion to SOM-IDENTITY-PILLAR-DESIGN.md. Defines how agents are onboarded and how they authenticate and load their role at session start, and how the identity backend stays pluggable across lab and customer deployments. Names ("ARCA", "SOM", "Roster") provisional.*
+*Provisional. Companion to IDENTITY-PILLAR-DESIGN.md. Defines how agents are onboarded and how they authenticate and load their role at session start, and how the identity backend stays pluggable across lab and customer deployments. Names ("ARCA", "the mesh", "Roster") provisional.*
 
 ---
 

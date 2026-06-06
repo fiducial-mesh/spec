@@ -14,11 +14,11 @@ author_id: watson
 violates_invariant: false
 invariant_class: ""
 references:
-  - planning/SOM-SPEC.md
-  - planning/SOM-PROBLEM-STATEMENT.md
-  - planning/SOM-CONFORMANCE.md
-  - planning/SOM-DESIGN-PHILOSOPHY.md
-  - planning/SOM-ENGINEERING-STANDARDS.md
+  - planning/MESH-SPEC.md
+  - planning/MANIFESTO.md
+  - planning/CONFORMANCE.md
+  - planning/DESIGN-PHILOSOPHY.md
+  - planning/ENGINEERING-STANDARDS.md
   - planning/IAM-CORE-SPEC.md
   - planning/IAM-INCREMENT-2.md
   - planning/IBX-SPEC.md
@@ -28,11 +28,11 @@ references:
 
 # MCC Spec — Mesh Control Center as Pluggable Host-Frame
 
-**Scope**: MCC (Mesh Control Center) is specified as a **pluggable host-frame** that composes the SOM pillars (IAM, IBX, PCS, ACT, AKB, CRB, PGE, DPG) as **loadable modules**. The fleet and human users point at *one* endpoint — MCC — which dispatches requests to the right pillar plugin. MCC is the central locus for substrate handles (database connections, Vault tokens, telemetry sinks), the IAM auth hook (every request is authenticated against IAM before reaching a plugin), and the operator surface (web admin screen — never CLI for operations). This spec reconciles SOM-CD14 (which previously framed MCC as a thin consumer surface "aggregator") into the corrected frame-and-plugins model. The plugin contract emerges from **IAM as plugin #1** — minimal frame + the contract IAM exercises, hardened as ACT/PCS/etc. plug in next. MCC remains **not a 9th pillar** — pillar count stays at eight; MCC is the structural host the eight pillars live inside.
+**Scope**: MCC (Mesh Control Center) is specified as a **pluggable host-frame** that composes the mesh pillars (IAM, IBX, PCS, ACT, AKB, CRB, PGE, DPG) as **loadable modules**. The fleet and human users point at *one* endpoint — MCC — which dispatches requests to the right pillar plugin. MCC is the central locus for substrate handles (database connections, Vault tokens, telemetry sinks), the IAM auth hook (every request is authenticated against IAM before reaching a plugin), and the operator surface (web admin screen — never CLI for operations). This spec reconciles CD14 (which previously framed MCC as a thin consumer surface "aggregator") into the corrected frame-and-plugins model. The plugin contract emerges from **IAM as plugin #1** — minimal frame + the contract IAM exercises, hardened as ACT/PCS/etc. plug in next. MCC remains **not a 9th pillar** — pillar count stays at eight; MCC is the structural host the eight pillars live inside.
 
-**Authorship note (design-decided, capture mode)**: Watson-authored, Bob-contributed (build-side plugin-contract read). The substantive design was decided in Judge's 2026-06-06 session with Bob — the kernel/frame model, the single endpoint commitment, the IAM-as-first-plugin sequencing, the web-admin-only operator surface — and is **not re-litigated** in this spec. The spec's job is to write the decided design down to the standard expected of SOM contracts, reconcile it with SOM-CD14, and specify the frame contract and plugin contract precisely enough that Bob can build MCC-frame-v0 + IAM-as-plugin-#1 as one coherent build. Inverted-origin review chain follows the spec landing per the lab's review convention.
+**Authorship note (design-decided, capture mode)**: Watson-authored, Bob-contributed (build-side plugin-contract read). The substantive design was decided in Judge's 2026-06-06 session with Bob — the kernel/frame model, the single endpoint commitment, the IAM-as-first-plugin sequencing, the web-admin-only operator surface — and is **not re-litigated** in this spec. The spec's job is to write the decided design down to the standard expected of the mesh contracts, reconcile it with CD14, and specify the frame contract and plugin contract precisely enough that Bob can build MCC-frame-v0 + IAM-as-plugin-#1 as one coherent build. Inverted-origin review chain follows the spec landing per the lab's review convention.
 
-**Status**: **Draft v0.1**, Phase 2 gate of the `som-devel/BUILD-PLAN.md` build sequence. Phase 1 (IBX scaffold + IAM application code + iam-1 host VM provisioned + IAM host prep) merged 2026-06-06 ~15:34 UTC. Phase 2 unblocks when this spec lands. The plugin contract is **minimum-viable at v0.1**; the IAM build (Phase 2's first plugin) will exercise it and surface gaps that fold into v0.2. ACT/PCS plugin builds (Phase 3+) further harden the contract.
+**Status**: **Draft v0.1**, Phase 2 gate of the `devel/BUILD-PLAN.md` build sequence. Phase 1 (IBX scaffold + IAM application code + iam-1 host VM provisioned + IAM host prep) merged 2026-06-06 ~15:34 UTC. Phase 2 unblocks when this spec lands. The plugin contract is **minimum-viable at v0.1**; the IAM build (Phase 2's first plugin) will exercise it and surface gaps that fold into v0.2. ACT/PCS plugin builds (Phase 3+) further harden the contract.
 
 ## Purpose / Problem Restatement
 
@@ -40,17 +40,17 @@ Three structural problems converge on this spec:
 
 1. **The pre-MCC operating model is per-host-stdio-with-sprayed-creds.** Today, each pillar's surface is exposed as a stdio MCP server that the calling agent has direct access to, with credentials scattered across the operator's filesystem (per-org PATs in `~/.config/gh-tokens/`, ClickHouse credentials in `~/.clickhouse-client/`, Vault tokens implicit). This works at lab scale with one human operator and a small agent fleet; it does not survive the move to multi-customer deployments where each customer's substrate is different, credentials must live in *that customer's* secret store, and the agents pointing at it should not need per-host configuration to function. A single endpoint that authenticates the caller, holds the substrate credentials centrally, and dispatches to the right pillar plugin is the natural resolution.
 
-2. **SOM-CD14's "MCC is a thin consumer surface aggregator" framing under-specifies what MCC actually does.** Per SOM-SPEC.md v1.x SOM-CD14, MCC "aggregates pillar seams as panes for human operators; owns no business logic, no policy enforcement, no identity verification, no audit storage." This framing was correct for the *human-surface* aspect of MCC (an admin UI presenting pillar functions to operators), but it leaves unspecified the *hosting* aspect — where do the pillar implementations actually run, who holds the substrate handles, how does authentication wrap every call, how do plugins register and discover each other. The corrected framing is that MCC is **both** the human surface *and* the host frame; the pillars are plugins that live inside MCC. The aggregator framing in SOM-CD14 stays correct as a *partial* characterization; it just was not the whole story.
+2. **CD14's "MCC is a thin consumer surface aggregator" framing under-specifies what MCC actually does.** Per MESH-SPEC.md v1.x CD14, MCC "aggregates pillar seams as panes for human operators; owns no business logic, no policy enforcement, no identity verification, no audit storage." This framing was correct for the *human-surface* aspect of MCC (an admin UI presenting pillar functions to operators), but it leaves unspecified the *hosting* aspect — where do the pillar implementations actually run, who holds the substrate handles, how does authentication wrap every call, how do plugins register and discover each other. The corrected framing is that MCC is **both** the human surface *and* the host frame; the pillars are plugins that live inside MCC. The aggregator framing in CD14 stays correct as a *partial* characterization; it just was not the whole story.
 
 3. **The plugin contract is under-specified without a worked example.** Naming "pillars are plugins" abstractly invites over-design — every contract surface that *could* exist gets specified, the build never starts, the spec churns. The lab's discipline (per the spec campaign plan, the operator-as-architect pattern, the "agents are employees" frame) is the opposite: **define the minimum frame + the contract the first plugin exercises**, then harden as more plugins join. IAM is the first plugin because the IAM build is already code-complete (per Phase 1) and is the most security-sensitive pillar (agent-out-of-secret-path, Vault dependency, AD federation) — if the plugin contract survives IAM, it survives the rest.
 
-This spec specifies the frame, the plugin contract that IAM will exercise, the operator surface, and the SOM-CD14 reconciliation.
+This spec specifies the frame, the plugin contract that IAM will exercise, the operator surface, and the CD14 reconciliation.
 
 ## The Kernel/Frame Model (load-bearing structural choice)
 
-**Statement**: MCC is to SOM what the Linux kernel is to a Linux distribution. MCC is the **kernel/frame**; the pillars (IAM, IBX, PCS, ACT, AKB, CRB, PGE, DPG) are **modules** loaded by the frame at runtime. Every external call (from an agent, a human, an external system) enters MCC's transport layer, is authenticated against the IAM plugin, is dispatched to the target pillar plugin, and returns through MCC's response layer.
+**Statement**: MCC is to the mesh what the Linux kernel is to a Linux distribution. MCC is the **kernel/frame**; the pillars (IAM, IBX, PCS, ACT, AKB, CRB, PGE, DPG) are **modules** loaded by the frame at runtime. Every external call (from an agent, a human, an external system) enters MCC's transport layer, is authenticated against the IAM plugin, is dispatched to the target pillar plugin, and returns through MCC's response layer.
 
-**Why kernel/frame, not microservice mesh**: a microservice-style mesh (each pillar as its own deployable network service, talking to each other over RPC) would scatter substrate credentials across every pillar's deployment, fork the auth surface (each service does its own AuthN/AuthZ), and shift the substrate-pluggability concern from one spec (SOM-IP-1) to N specs (per service). The kernel/frame model centralizes:
+**Why kernel/frame, not microservice mesh**: a microservice-style mesh (each pillar as its own deployable network service, talking to each other over RPC) would scatter substrate credentials across every pillar's deployment, fork the auth surface (each service does its own AuthN/AuthZ), and shift the substrate-pluggability concern from one spec (IP-1) to N specs (per service). The kernel/frame model centralizes:
 
 - Substrate handles in one place (the frame holds the Postgres pool, the Vault client, the AD/IdP federation handle, the OTel sink)
 - AuthN/AuthZ at the frame boundary (IAM plugin enforces both; pillars trust the frame's authenticated context)
@@ -58,12 +58,12 @@ This spec specifies the frame, the plugin contract that IAM will exercise, the o
 - Telemetry sink in one place (the frame collects per-plugin spans/metrics/logs and emits to the OTel sink)
 - Operator surface in one place (the web admin UI is part of the frame)
 
-The model is well-mapped engineering — Linux kernel modules, OSGi bundles, Apache Felix, plug-in architectures across decades of software. SOM is not inventing a new pattern; it is selecting a known pattern that fits the substrate-pluggable mesh's structural requirements.
+The model is well-mapped engineering — Linux kernel modules, OSGi bundles, Apache Felix, plug-in architectures across decades of software. The mesh is not inventing a new pattern; it is selecting a known pattern that fits the substrate-pluggable mesh's structural requirements.
 
-**Why this does not make MCC a 9th pillar**: pillars are the eight *contract surfaces* that customers consume. MCC is the *host* those contract surfaces run inside. The host is part of the deployment but it is not one of the contracts; it is the substrate the contracts live on. SOM-CD1 (eight pillars compose into one mesh) is unaffected. SOM-MI-10 (eight pillar contracts + the other twelve mesh invariants) is unaffected. MCC adds a frame layer below the pillar contracts, parallel to how SOM-IP-1 specifies the substrate layer below the mesh — neither is a pillar; both are structural hosts the pillars depend on.
+**Why this does not make MCC a 9th pillar**: pillars are the eight *contract surfaces* that customers consume. MCC is the *host* those contract surfaces run inside. The host is part of the deployment but it is not one of the contracts; it is the substrate the contracts live on. CD1 (eight pillars compose into one mesh) is unaffected. MI-10 (eight pillar contracts + the other twelve mesh invariants) is unaffected. MCC adds a frame layer below the pillar contracts, parallel to how IP-1 specifies the substrate layer below the mesh — neither is a pillar; both are structural hosts the pillars depend on.
 
 **Implications**:
-- A pillar implementation that does not plug into MCC is not a deployable SOM pillar. Pillars without the plugin contract are spec-only artifacts.
+- A pillar implementation that does not plug into MCC is not a deployable the mesh pillar. Pillars without the plugin contract are spec-only artifacts.
 - MCC failure mode is mesh failure mode. If MCC is down, the mesh is down (no endpoint to call). High-availability is a deployment-class concern handled by MCC's hosting model (multiple MCC instances behind a load balancer, with shared substrate handles), not by individual pillars exposing themselves separately.
 - The IAM plugin is structurally special: it is the AuthN/AuthZ gate every other plugin's calls pass through. The IAM plugin must be loaded before any other plugin can serve requests. The frame enforces this load order.
 
@@ -90,7 +90,7 @@ The deployed system stack, top-to-bottom:
                           │
                           ▼ (HTTP / MCP, all to one URL)
 ┌─────────────────────────────────────────────────────────┐
-│              MCC Frame (Som.Console)                    │  ← The Host
+│              MCC Frame (Mesh.Console)                    │  ← The Host
 │  ┌──────────────────────────────────────────────────┐   │
 │  │  Transport (HTTP + MCP)                          │   │
 │  ├──────────────────────────────────────────────────┤   │
@@ -114,7 +114,7 @@ The deployed system stack, top-to-bottom:
 
 **Read top-to-bottom**: consumers (humans via admin UI, agents via MCP) point at MCC; MCC's transport layer authenticates the call via IAM, dispatches to the right plugin, and the plugin uses substrate handles from the frame to do its work.
 
-**Read bottom-to-top in deployment**: substrate (customer-pluggable per SOM-IP-1) is provisioned first; MCC frame is deployed with substrate handles configured; pillar plugins are loaded; the deployment is live.
+**Read bottom-to-top in deployment**: substrate (customer-pluggable per IP-1) is provisioned first; MCC frame is deployed with substrate handles configured; pillar plugins are loaded; the deployment is live.
 
 ## The Frame Contract — what MCC provides to plugins
 
@@ -139,7 +139,7 @@ A pillar implementation that wants to plug into MCC satisfies the following cont
 
 ### v0.1 Plugin Contract
 
-A SOM pillar plugin must provide:
+A the mesh pillar plugin must provide:
 
 1. **A read-only MCP tool surface** — the agent-facing read operations on the pillar (e.g., for IAM: read agent's own identity, read role, read permissions). The plugin registers these as MCP tools with the frame at startup; the frame routes inbound MCP calls to them after auth.
 
@@ -147,7 +147,7 @@ A SOM pillar plugin must provide:
 
 3. **A substrate dependency declaration** — the plugin names which substrate handles it requires (e.g., for IAM: Postgres pool, Vault client, AD/IdP federation handle). The frame fails plugin load if a required handle is not available.
 
-4. **MI-11 telemetry emission** — per SOM-IP-2 (Pillar Telemetry Contract): the plugin emits OTel spans for its operations, metrics for its rates and depths, and JSON logs with the required attributes (per the pillar-spec template's § Required attributes). The plugin uses the frame's telemetry handle; the frame holds the OTel exporter.
+4. **MI-11 telemetry emission** — per IP-2 (Pillar Telemetry Contract): the plugin emits OTel spans for its operations, metrics for its rates and depths, and JSON logs with the required attributes (per the pillar-spec template's § Required attributes). The plugin uses the frame's telemetry handle; the frame holds the OTel exporter.
 
 5. **A Judge-gate declaration** — operations requiring elevated confirmation (e.g., for IAM: Terminate per IAM-INCREMENT-2 CD15) are declared by the plugin at registration. The frame enforces the elevated confirmation flow before dispatching.
 
@@ -171,33 +171,33 @@ The following are NOT specified in v0.1 because IAM does not exercise them yet:
 - **Suspend** — send an agent home (calls the IAM plugin's suspend operation; reversible).
 - **Terminate** — fire an agent (calls the IAM plugin's terminate operation; permanent; Judge-gated with elevated confirm; per IAM-INCREMENT-2 CD15).
 - **Audit log** — read recent audit events (consumes ACT plugin's read surface).
-- **Telemetry dashboard** — embedded Grafana / Tempo / Prometheus dashboards (per SOM-CD14's original "MCC embeds existing observability" framing — that part of CD14 is preserved unchanged).
+- **Telemetry dashboard** — embedded Grafana / Tempo / Prometheus dashboards (per CD14's original "MCC embeds existing observability" framing — that part of CD14 is preserved unchanged).
 
-**Authentication**: the admin UI authenticates the human via IAM, federated to the customer's AD/Entra/IdP per SOM-MI-8 and CONF-CD1..11. The same IAM plugin that authenticates agent calls authenticates human operators. There is no separate human-auth surface.
+**Authentication**: the admin UI authenticates the human via IAM, federated to the customer's AD/Entra/IdP per MI-8 and CONF-CD1..11. The same IAM plugin that authenticates agent calls authenticates human operators. There is no separate human-auth surface.
 
-**Implementation**: per SOM-CD14, the admin UI is **web (ASP.NET Core + Blazor)**, lives in the `Som.Console` project in `som-core`. The inbox-ui prototype is the seed; production MCC admin UI grows from it.
+**Implementation**: per CD14, the admin UI is **web (ASP.NET Core + Blazor)**, lives in the `Mesh.Console` project in `core`. The inbox-ui prototype is the seed; production MCC admin UI grows from it.
 
 **CLI exception**: a debug/admin CLI exists at the frame level for emergencies (e.g., MCC start/stop, plugin load/unload at startup, debug-mode requests). This is operator-of-last-resort, not the operator's normal interaction; the UI is the normal path.
 
-## SOM-CD14 Reconciliation
+## CD14 Reconciliation
 
-SOM-SPEC.md v1.x SOM-CD14 currently reads (in part):
+MESH-SPEC.md v1.x CD14 currently reads (in part):
 
 > *"MCC (Mesh Control Center) is the human control plane, not a 9th pillar. ... MCC aggregates pillar seams as panes for human operators; it owns no business logic, no policy enforcement, no identity verification, no audit storage."*
 
 **What stays correct**: MCC is the human control plane; not a 9th pillar (pillar count stays at eight); MCC owns no business logic, no policy enforcement, no identity verification, no audit storage (those are PGE / IAM / ACT plugins' jobs); embedded observability (Grafana / Tempo / Prometheus) stays as the pattern; CLI-first/UI-second discipline holds at the plugin level (every operation reachable via the admin UI is also reachable via the frame's underlying API a plugin handler responds to).
 
-**What needs to extend**: SOM-CD14's current framing of MCC as a "consumer surface" / "aggregator" is incomplete. MCC is **also** the **host frame** the pillars run inside. The frame holds the substrate handles, the auth hook, the plugin dispatch, the telemetry sink, the config registry — all the structural concerns that a deployment needs *somewhere* and that go unowned without an explicit hosting model.
+**What needs to extend**: CD14's current framing of MCC as a "consumer surface" / "aggregator" is incomplete. MCC is **also** the **host frame** the pillars run inside. The frame holds the substrate handles, the auth hook, the plugin dispatch, the telemetry sink, the config registry — all the structural concerns that a deployment needs *somewhere* and that go unowned without an explicit hosting model.
 
-**Proposed SOM-CD14 amendment** (this spec proposes; ratification at Judge's hand):
+**Proposed CD14 amendment** (this spec proposes; ratification at Judge's hand):
 
-> *"MCC (Mesh Control Center) is the human control plane **AND the pluggable host-frame the pillars run inside**, not a 9th pillar. MCC aggregates pillar seams as panes for human operators **and hosts the pillar implementations as loadable modules**; it owns no business logic, no policy enforcement, no identity verification, no audit storage (those live in the respective plugin pillars). **It owns the transport layer, the IAM auth hook, the plugin dispatch, the substrate handles (pg pool, Vault client, IdP federation, OTel sink), the configuration registry, and the Judge-gate hook.** Pillar count stays at eight (SOM-CD1 unaffected); MCC is a *consumer surface* parallel to the agent-facing MCP protocol **AND the structural host the pillar contracts live inside**. The CLI-first/UI-second discipline ensures every admin UI surface reflects a plugin operation an authorized caller could invoke — MCC is never a privileged or parallel-and-divergent control surface. Implementation: web (ASP.NET Core + Blazor), `Som.Console` project in `som-core`. The inbox-ui prototype is the seed; production MCC grows from it."*
+> *"MCC (Mesh Control Center) is the human control plane **AND the pluggable host-frame the pillars run inside**, not a 9th pillar. MCC aggregates pillar seams as panes for human operators **and hosts the pillar implementations as loadable modules**; it owns no business logic, no policy enforcement, no identity verification, no audit storage (those live in the respective plugin pillars). **It owns the transport layer, the IAM auth hook, the plugin dispatch, the substrate handles (pg pool, Vault client, IdP federation, OTel sink), the configuration registry, and the Judge-gate hook.** Pillar count stays at eight (CD1 unaffected); MCC is a *consumer surface* parallel to the agent-facing MCP protocol **AND the structural host the pillar contracts live inside**. The CLI-first/UI-second discipline ensures every admin UI surface reflects a plugin operation an authorized caller could invoke — MCC is never a privileged or parallel-and-divergent control surface. Implementation: web (ASP.NET Core + Blazor), `Mesh.Console` project in `core`. The inbox-ui prototype is the seed; production MCC grows from it."*
 
-The amendment is additive (preserves every existing claim in CD14 and adds the host-frame role). It does not change the pillar count, the conformance scope, or the SOM-MI-10 invariant. Once ratified, this spec replaces "consumer surface" with "consumer surface AND host frame" at all CD14-citing references in the SOM corpus.
+The amendment is additive (preserves every existing claim in CD14 and adds the host-frame role). It does not change the pillar count, the conformance scope, or the MI-10 invariant. Once ratified, this spec replaces "consumer surface" with "consumer surface AND host frame" at all CD14-citing references in the mesh corpus.
 
 ## Substrate Matrix
 
-Per the pillar-spec template (and SOM-IP-1), every spec that integrates substrate names the capabilities it requires. MCC's substrate requirements:
+Per the pillar-spec template (and IP-1), every spec that integrates substrate names the capabilities it requires. MCC's substrate requirements:
 
 | Capability requirement | Why MCC needs it | Reference connector |
 |---|---|---|
@@ -209,11 +209,11 @@ Per the pillar-spec template (and SOM-IP-1), every spec that integrates substrat
 | **TLS terminator (or self-handled TLS)** | Frame exposes HTTPS-only endpoints (no HTTP) | Caddy / nginx / native ASP.NET Kestrel TLS |
 | **Process supervisor / orchestrator** | Hosting the frame process with restart, log capture, resource limits | systemd (lab) / Kubernetes / Podman / Nomad |
 
-Per SOM-IP-1 and SOM-CONFORMANCE: a deployment chooses its substrate per seam; MCC is conformant against the named reference connectors and against any substrate that satisfies the capability requirements per the multi-profile conformance run (SOM-CD15 + CONF-CD1..11).
+Per IP-1 and CONFORMANCE: a deployment chooses its substrate per seam; MCC is conformant against the named reference connectors and against any substrate that satisfies the capability requirements per the multi-profile conformance run (CD15 + CONF-CD1..11).
 
 ## Telemetry Contract
 
-Per SOM-IP-2 (Pillar Telemetry Contract). MCC emits telemetry **about the frame itself** (separately from per-plugin telemetry):
+Per IP-2 (Pillar Telemetry Contract). MCC emits telemetry **about the frame itself** (separately from per-plugin telemetry):
 
 ### Spans
 
@@ -249,8 +249,8 @@ Per SOM-IP-2 (Pillar Telemetry Contract). MCC emits telemetry **about the frame 
 
 ### Required attributes (per MI-11, all MCC events)
 
-- `service.name = "som.mcc"`
-- `service.namespace = "som-mesh"`
+- `service.name = "mesh.mcc"`
+- `service.namespace = "fiducial-mesh"`
 - `deployment.environment` (lab / customer-id)
 - `trace_id` / `span_id` for correlation
 - `principal.id` for any event after authentication
@@ -262,7 +262,7 @@ JSON log lines to stdout; OTLP for spans and metrics. The frame's OTel sink (per
 
 ### Explicitly NOT in this spec
 
-Per-plugin telemetry (the IAM plugin's own spans/metrics/logs, the IBX plugin's, etc.) is specified per pillar in that pillar's own spec, per SOM-IP-2's pillar telemetry contract. MCC's frame telemetry is in addition to, not in place of, per-plugin telemetry.
+Per-plugin telemetry (the IAM plugin's own spans/metrics/logs, the IBX plugin's, etc.) is specified per pillar in that pillar's own spec, per IP-2's pillar telemetry contract. MCC's frame telemetry is in addition to, not in place of, per-plugin telemetry.
 
 ## Acceptance Criteria — five non-negotiables (per pillar-spec template)
 
@@ -310,7 +310,7 @@ Per-plugin telemetry (the IAM plugin's own spans/metrics/logs, the IBX plugin's,
 
 **MCC-CD4**: **Operator interaction is the web admin UI; CLI is for build/test/emergency only.** Per § Operator Surface. Customer deployments operate via UI, never shell. The lab's operating model matches the customer's.
 
-**MCC-CD5**: **SOM-CD14 is reconciled — MCC is consumer surface AND host frame.** Per § SOM-CD14 Reconciliation. Amendment proposed in this spec; once ratified by Judge, replaces "consumer surface" with "consumer surface AND host frame" at all CD14-citing references.
+**MCC-CD5**: **CD14 is reconciled — MCC is consumer surface AND host frame.** Per § CD14 Reconciliation. Amendment proposed in this spec; once ratified by Judge, replaces "consumer surface" with "consumer surface AND host frame" at all CD14-citing references.
 
 **MCC-CD6**: **Plugin load order is IAM-first.** Per § Kernel/Frame Model. The frame loads IAM before any other plugin can serve requests, because every other plugin's calls authenticate through the IAM auth hook. A frame startup that cannot load IAM fails closed (no plugins serve requests).
 
@@ -318,7 +318,7 @@ Per-plugin telemetry (the IAM plugin's own spans/metrics/logs, the IBX plugin's,
 
 **MCC-CD8**: **Judge-gate hook is frame-level.** Per § Plugin Contract item 5. Plugins declare which operations require elevated confirmation; the frame enforces the elevated confirmation flow before dispatching to the plugin handler. The Judge-gate UX (the elevated-confirm dialog in the admin UI) is part of the frame, not part of each plugin.
 
-**MCC-CD9**: **MCC is not a 9th pillar.** Per § Kernel/Frame Model. Pillar count stays at eight; SOM-CD1 unaffected; SOM-MI-10 unaffected. MCC is the structural host the pillars live inside.
+**MCC-CD9**: **MCC is not a 9th pillar.** Per § Kernel/Frame Model. Pillar count stays at eight; CD1 unaffected; MI-10 unaffected. MCC is the structural host the pillars live inside.
 
 ## Deferred-Pending-Ruling
 
@@ -340,7 +340,7 @@ Per-plugin telemetry (the IAM plugin's own spans/metrics/logs, the IBX plugin's,
 
 **OQ-MCC-1**: **Where does MCC's own configuration live?** The frame holds substrate handles configured at startup; the configuration source (env vars, a config file at a known path, a secrets-store lookup, an admin-UI bootstrap) is not yet specified. Recommendation: a config file at a known path on the host (`/etc/som/mcc.yaml` or similar) with secrets-store references for credentials. Defer detailed schema to Bob's build pass; this OQ flags the scope.
 
-**OQ-MCC-2**: **How does the frame discover which plugins to load?** Compile-time inclusion in the `Som.Console` solution (all pillars built into one binary), runtime discovery from a plugins directory (separate assemblies loaded at startup), or hybrid (core plugins compile-time, optional plugins runtime). v0.1 recommendation: compile-time inclusion of all eight pillars in the `Som.Console` binary. Hybrid is a later concern if customer deployments want pillar-selection.
+**OQ-MCC-2**: **How does the frame discover which plugins to load?** Compile-time inclusion in the `Mesh.Console` solution (all pillars built into one binary), runtime discovery from a plugins directory (separate assemblies loaded at startup), or hybrid (core plugins compile-time, optional plugins runtime). v0.1 recommendation: compile-time inclusion of all eight pillars in the `Mesh.Console` binary. Hybrid is a later concern if customer deployments want pillar-selection.
 
 **OQ-MCC-3**: **What is the MCC-to-plugin call interface in code?** A C# interface (`ISomPlugin`) implemented by each pillar, called from the frame via direct method invocation? An MCP-over-process-boundary even within MCC (plugins as in-process MCP servers)? Direct method invocation is the obvious starter; cleaner test boundaries might warrant MCP-internal. Defer detailed interface to Bob's build pass; this OQ flags the scope.
 
@@ -366,31 +366,31 @@ Per-plugin telemetry (the IAM plugin's own spans/metrics/logs, the IBX plugin's,
 
 ## Dependencies
 
-- som-core pillar implementations at the v1.1+ contract baseline (IAM, IBX, ACT, PCS, AKB, CRB, PGE, DPG). v0.1 of this spec is built against IAM-CORE-SPEC v1.1 + IAM-INCREMENT-2 v0.5 specifically.
-- SOM-IP-1 (Substrate-Pluggable Integration) — MCC's substrate handles are the cross-cutting concretization of IP-1 for the deployed mesh.
-- SOM-IP-2 (Pillar Telemetry Contract, proposed) — MCC's per-plugin telemetry pass-through depends on each plugin satisfying IP-2.
-- SOM-CONFORMANCE.md — MCC's substrate matrix is conformance-defined per the same model.
-- `som-devel/BUILD-PLAN.md` Phase 2 — this spec is the Phase 2 gate.
-- SOM-CD14 reconciliation amendment (proposed in § SOM-CD14 Reconciliation) — once ratified, the SOM-SPEC.md update lands; until ratified, this spec's framing is the working version pending the formal CD14 update.
+- core pillar implementations at the v1.1+ contract baseline (IAM, IBX, ACT, PCS, AKB, CRB, PGE, DPG). v0.1 of this spec is built against IAM-CORE-SPEC v1.1 + IAM-INCREMENT-2 v0.5 specifically.
+- IP-1 (Substrate-Pluggable Integration) — MCC's substrate handles are the cross-cutting concretization of IP-1 for the deployed mesh.
+- IP-2 (Pillar Telemetry Contract, proposed) — MCC's per-plugin telemetry pass-through depends on each plugin satisfying IP-2.
+- CONFORMANCE.md — MCC's substrate matrix is conformance-defined per the same model.
+- `devel/BUILD-PLAN.md` Phase 2 — this spec is the Phase 2 gate.
+- CD14 reconciliation amendment (proposed in § CD14 Reconciliation) — once ratified, the MESH-SPEC.md update lands; until ratified, this spec's framing is the working version pending the formal CD14 update.
 
 ## Success Criteria
 
-- **v0.1 (this revision)**: spec written, frame contract specified, plugin contract specified against IAM's surfaces, operator surface specified, SOM-CD14 reconciliation proposed, acceptance criteria explicit. Build (MCC-frame-v0 + IAM-as-plugin-#1) is unblocked.
+- **v0.1 (this revision)**: spec written, frame contract specified, plugin contract specified against IAM's surfaces, operator surface specified, CD14 reconciliation proposed, acceptance criteria explicit. Build (MCC-frame-v0 + IAM-as-plugin-#1) is unblocked.
 - **v0.2** (post-IAM-plugin-build): contract updates surfaced by the IAM build folded in; gaps named in § Out of v0.1 reviewed against ACT/PCS plug-in surfaces; HA topology (DR-MCC-1) reconsidered if customer-deployment pressure surfaces.
 - **v1.0** (mesh-promotion): all eight pillars plug in successfully; cross-plugin coordination spec'd; HA topology resolved; fault-injection validation (VP-MCC-2) complete; multi-customer / multi-tenant decision (DR-MCC-2) resolved if commercial pressure surfaces.
 
 ## References
 
-- `planning/SOM-SPEC.md` — mesh invariants; SOM-CD14 (current framing) and SOM-CD1 (eight pillars)
-- `planning/SOM-CONFORMANCE.md` — stipulate→connect→certify model; per-seam conformance; extended to per-frame-substrate conformance for MCC
-- `planning/SOM-DESIGN-PHILOSOPHY.md` — first principles; the substrate-pluggable mesh's structural commitments
-- `planning/SOM-ENGINEERING-STANDARDS.md` — CLI-first / UI-second discipline (Acceptance Criterion #4)
+- `planning/MESH-SPEC.md` — mesh invariants; CD14 (current framing) and CD1 (eight pillars)
+- `planning/CONFORMANCE.md` — stipulate→connect→certify model; per-seam conformance; extended to per-frame-substrate conformance for MCC
+- `planning/DESIGN-PHILOSOPHY.md` — first principles; the substrate-pluggable mesh's structural commitments
+- `planning/ENGINEERING-STANDARDS.md` — CLI-first / UI-second discipline (Acceptance Criterion #4)
 - `planning/IAM-CORE-SPEC.md` — IAM pillar contract v1.1; the first plugin's exercised surfaces
 - `planning/IAM-INCREMENT-2.md` — IAM increment 2 v0.5; mint / lifecycle / federation; CD15 Suspend-vs-Terminate; CD12 ceiling-vs-scaling; Agents Are Employees design principle
 - `planning/IBX-SPEC.md` — IBX pillar contract; second plugin in build sequence
 - `planning/PILLAR-SPEC-TEMPLATE.md` — shape conventions; Substrate Matrix and Telemetry Contract required sections
 - `planning/PCS-DAEMON-SPEC.md` — PCS pillar contract; later plugin
-- `som-devel/BUILD-PLAN.md` Phase 2 — the build sequence this spec gates
-- `som-core` repository — `src/Iam`, `src/Ibx` etc.; `Som.Console` project for the frame
+- `devel/BUILD-PLAN.md` Phase 2 — the build sequence this spec gates
+- `core` repository — `src/Iam`, `src/Ibx` etc.; `Mesh.Console` project for the frame
 - Linux kernel modules architecture — well-mapped pattern this spec selects
-- ASP.NET Core + Blazor — implementation substrate for the admin UI (per SOM-CD14, preserved unchanged)
+- ASP.NET Core + Blazor — implementation substrate for the admin UI (per CD14, preserved unchanged)

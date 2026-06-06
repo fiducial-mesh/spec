@@ -1,12 +1,12 @@
-# Sovereign Orchestration Mesh — Design Philosophy & Conceptual Frame
+# Fiducial Mesh — Design Philosophy & Conceptual Frame
 
-*Provisional name: Sovereign Orchestration Mesh (SOM). Working draft — conceptual frame for the specification, the board business justification, and the methodology paper.*
+*Provisional name: Fiducial Mesh (the mesh). Working draft — conceptual frame for the specification, the board business justification, and the methodology paper.*
 
 ---
 
 ## The thesis in one sentence
 
-SOM composes **human authority** and **agent capability** into a single governed, identity-rooted, auditable mesh — because each half alone solves only half the problem, and regulated sectors need the whole.
+The mesh composes **human authority** and **agent capability** into a single governed, identity-rooted, auditable mesh — because each half alone solves only half the problem, and regulated sectors need the whole.
 
 ---
 
@@ -16,7 +16,7 @@ SOM composes **human authority** and **agent capability** into a single governed
 
 **A pure-human process is the problem these organizations already have.** It is too slow, too expensive, cannot scale to modern data volumes, and cannot maintain perfect, continuous audit. Human judgment is irreplaceable at the decisions that matter — and ruinously inefficient applied to everything else.
 
-Each is half a solution. SOM is the composition: agents supply superhuman capability and tireless execution; humans supply irreplaceable judgment, legal accountability, and final authority at the gates that matter. **The invention is the governed seam between them.**
+Each is half a solution. The mesh is the composition: agents supply superhuman capability and tireless execution; humans supply irreplaceable judgment, legal accountability, and final authority at the gates that matter. **The invention is the governed seam between them.**
 
 ---
 
@@ -38,7 +38,7 @@ This duality is the reason every pillar exists. Each pillar does one of two thin
 - **Memory, cognition, domain knowledge.** A human's bounded memory and knowledge are partly limitations — but they are *also* accidental safety features. A human loan officer cannot instantly read 200,000 borrower files; that friction is an unplanned privacy control. An agent can. Granting agents the memory and knowledge humans lack therefore *removes the accidental safety rails human cognitive limits provided.* The mesh must artificially re-impose what biology imposed naturally: need-to-know, role-bounded access, segregation of duties.
 - **Enforced forgetting.** Human forgetting is sometimes a feature — data minimization and retention limits are *required* by several regimes. An agent's perfect persistent memory can violate retention rules by remembering too well. Memory must be designed to *forget on purpose* — retention limits, erasure, expiring context — not merely to remember well.
 
-**The one-line consequence:** SOM lets an organization have superhuman capability *without* superhuman blast radius. The hard part is not replicating human governance — it is governing entities that are *more* capable than humans in exactly the dimensions where human limits were quietly doing safety work.
+**The one-line consequence:** The mesh lets an organization have superhuman capability *without* superhuman blast radius. The hard part is not replicating human governance — it is governing entities that are *more* capable than humans in exactly the dimensions where human limits were quietly doing safety work.
 
 ---
 
@@ -73,14 +73,14 @@ The duality above is realized through one organizing principle: **the Agentic Wo
 
 This is the bridge between *how the mesh works* and *why an organization is allowed to deploy it*: the AI is held to the same standard of identity, authorization, and auditability the organization already holds its employees to. Critically, the metaphor maps **structure** (identity, authz, audit, offboarding) exactly — but never **liability**: accountability terminates in a human, never in the agent. Identity exists for attribution and control, not legal personhood.
 
-Identity is foundational because **without it, nothing else binds.** It is the root of trust every other pillar is downstream of, and it is specified to the Tier-0 ceiling with two non-negotiable invariants: *no bypass* (no action without an authenticated principal) and *fail strict* (when in doubt, halt). The full treatment is in the companion document, SOM-IDENTITY-PILLAR-DESIGN.md.
+Identity is foundational because **without it, nothing else binds.** It is the root of trust every other pillar is downstream of, and it is specified to the Tier-0 ceiling with two non-negotiable invariants: *no bypass* (no action without an authenticated principal) and *fail strict* (when in doubt, halt). The full treatment is in the companion document, IDENTITY-PILLAR-DESIGN.md.
 
 ## Why this frame matters for adoption and for the claim
 
-The frame is deliberately *not exotic*. A well-run regulated organization already is an orchestration mesh of principals operating under identity, authority, segregation of duties, audit, and escalation. SOM reconstructs that same accountability fabric and makes agents first-class principals within it. To a board or an auditor, the message is reassuring and true: **the AI is held to the same standard of identity, authorization, and auditability you already hold your employees to.**
+The frame is deliberately *not exotic*. A well-run regulated organization already is an orchestration mesh of principals operating under identity, authority, segregation of duties, audit, and escalation. The mesh reconstructs that same accountability fabric and makes agents first-class principals within it. To a board or an auditor, the message is reassuring and true: **the AI is held to the same standard of identity, authorization, and auditability you already hold your employees to.**
 
-The compliance regimes (SOX, HIPAA, FIPS/defense, and others) map cleanly *because they were written for human-and-system organizations.* SOM satisfies them by reconstructing the accountability fabric they assume — which is why a sector-neutral core of compliance-and-audit mechanisms, bound to specific regimes by sector profiles, is the natural architecture rather than a convenience.
+The compliance regimes (SOX, HIPAA, FIPS/defense, and others) map cleanly *because they were written for human-and-system organizations.* The mesh satisfies them by reconstructing the accountability fabric they assume — which is why a sector-neutral core of compliance-and-audit mechanisms, bound to specific regimes by sector profiles, is the natural architecture rather than a convenience.
 
 ---
 
-*Status: conceptual frame, provisional. Pillar count and naming subject to the specification pass. "SOM" is a working label pending name clearance.*
+*Status: conceptual frame, provisional. Pillar count and naming subject to the specification pass. "the mesh" is a working label pending name clearance.*

@@ -1,0 +1,176 @@
+---
+title: "Fiducial Mesh (the mesh) — Technical Overview"
+doc_type: planning-canonical
+status: draft
+version: v0.2
+authors:
+  - einstein
+  - watson
+  - judge
+date: "2026-06-01"
+roles:
+  - design-intent
+  - infrastructure
+  - failure-mode
+author_id: watson
+violates_invariant: false
+invariant_class: ""
+classification: "External release subject to IP review"
+references:
+  - planning/PILLAR-NAMES.md
+  - planning/MANIFESTO.md
+  - planning/PRODUCTION-VALIDATION.md
+  - planning/DESIGN-PHILOSOPHY.md
+  - planning/IDENTITY-PILLAR-DESIGN.md
+  - planning/INSTANTIATION-AND-IDP.md
+  - planning/PCS-ADOPTION-PLAN.md
+  - planning/akb-awareness-layer.md
+---
+
+# Fiducial Mesh (the mesh) — Technical Overview
+
+**Visual reference**: [`diagrams/mesh-architecture.png`](diagrams/mesh-architecture.png) (legacy, 7-pillar PNG) and [`diagrams/mesh_architecture_with_identity_and_arca.svg`](diagrams/mesh_architecture_with_identity_and_arca.svg) (current, 8-pillar with the mesh's IAM pillar and ARCA above the dotted line).
+
+> **Status — v0.2 draft.** External-facing companion to the lab-internal [`MANIFESTO.md`](MANIFESTO.md) (design-driver capture) and [`PRODUCTION-VALIDATION.md`](PRODUCTION-VALIDATION.md) (production-validation record, v1.1 with IAM as design-stage row). v0.2 adds the mesh's IAM pillar (foundational, eighth) per the design package landed 2026-06-01. This document is the paper / pitch / external-readers version of the mesh architecture; classification "External release subject to IP review." Treat the internal documents as authoritative for the validation record and design driver corpus; this document is the synthesis intended for outside audiences.
+>
+> **Design-vs-implementation discipline for IAM is load-bearing.** Where this document describes the IAM pillar, it describes the **design** — current implementation is briefs only (no Vault, no Roster, no ARCA, no login, no credentials, no enforcement). The seven other pillars are at the maturity stages cited in `PRODUCTION-VALIDATION.md`; the IAM pillar is not yet built. External readers should treat the IAM section as the build target and the seven-pillar maturity table in the validation manifesto as the implementation record. Promotion of IAM to "operational" or "validated" requires built services *and* a Patton-signed-off verification pass; neither has occurred.
+
+## Introduction
+
+The Fiducial Mesh (the mesh) is a multi-plane, cognitive operating system designed from the ground up for deployment on highly secure, air-gapped customer infrastructure. Its purpose is to orchestrate, secure, and govern complex collaborations among multi-agent AI workforces ("agents at work") while ensuring absolute data sovereignty and deterministic process control. The mesh provides the infrastructure standard for running private, agentic workloads without cloud dependencies.
+
+The architecture is **air-gapped ready and exfiltration hostile** by construction, not by configuration. Sovereignty is not just where the workloads run; it is whether the architecture can be operated without trust-bearing paths to a counterparty.
+
+## Structural Planes of the Mesh
+
+The mesh is organized into four distinct sections — the Issuance Plane (above the dotted line, sovereign root of trust, offline) and three runtime planes (Control, Compute, State) — that enforce logical separation between issuance, governing policy, cognitive execution, and persistent state. The dotted-line separation between issuance and runtime is a deliberate security property: ARCA is never in the action path, can therefore be kept offline, and an offline authority cannot be attacked over the network during operation. Pillar bindings used throughout this document are the names of record from [`PILLAR-NAMES.md`](PILLAR-NAMES.md).
+
+### 1. The Issuance Plane — Sovereign Root of Trust (above the dotted line)
+
+The Issuance Plane sits **above the dotted line** that separates issuance from runtime. It is offline, sovereign to the deploying organization, and never in the action path. Its only role is to mint identities and step out.
+
+**Core component:**
+
+- **ARCA (Agentic Root CA)** — the per-organization root of trust for agent identity. The "county clerk" of the sovereign deployment: it issues birth certificates (signed keypair bindings) and then has no further operational role. Each customer runs its own ARCA — identity is sovereign to the organization, with no dependency on the vendor or any external root. Runtime verification is local (signature + trust chain), never a callback to ARCA. Separating the issuing authority from the runtime is a deliberate security property: an offline authority cannot be attacked over the network during operation, and "the running mesh cannot issue itself new authority" is segregation of duties applied to the identity infrastructure itself — a control auditors specifically look for. ARCA is the issuance component of **the mesh's IAM pillar**; see Section 1a for the runtime half of the same pillar, which sits on the Control Plane. ARCA's naming is provisional pending name clearance. **Current implementation: not built. The dotted-line separation, the offline-root posture, the intermediate-CA scheme, and the agent-DNA lifecycle are all design — no ARCA service or signing infrastructure exists yet.** See `IDENTITY-PILLAR-DESIGN.md` for the full design.
+
+### 2. The Control Plane — Governance Layer
+
+The Control Plane is the authoritative governing body of the mesh. It manages workflow lifecycle, enforces policy, brokers compute resources, and handles all communication between the mesh and human operators.
+
+**Core components — six elements** (IAM-runtime, IBX, PGE, CRB, PCS, Judge):
+
+- **The IAM pillar (runtime half — identity verification + authorization)** — the runtime half of the mesh's IAM pillar; sits **beneath PGE** because authorization consumes verified identity. Every other Control Plane component (PCS, PGE, CRB, IBX) and the Judge gate are *downstream* of IAM and inherit its strength. A flaw in IAM is therefore not a local defect; it is a flaw in every guarantee above it. The runtime services in the design are **Vault** (credentials and secrets — integrate, don't build: HashiCorp Vault, cloud KMS/HSM, PKCS#11), **Roster/Profile** (non-secret identity + role + brief; the "HR system"), and the **Publish pipeline** (the privileged onboarding actor that writes a new agent's identity into Vault and Roster). Two non-negotiable Tier-0 invariants govern the pillar: **no bypass** (no action without an authenticated principal — no "trusted because internal") and **fail strict** (under error, ambiguity, unavailability, or unverifiable state, the system halts). The pillar maps cleanly onto the employee lifecycle — Employee ID = agent fingerprint (public key, immutable), the person themselves = agent DNA (private key, never leaves the agent), job code = authorization policy, badge-in = sign action, manager-approval = Judge gate, personnel file = ACT audit, termination = credential revocation. The HR mapping is exact for **structure** but never for **liability**: accountability terminates in a human, never in the agent. **Current implementation: briefs only.** No Vault, no Roster, no Publish pipeline, no login, no credentials, no enforcement exists yet. Identity in the running lab is asserted via brief (the agent is "Patton" because the briefing says so and cooperatively acts on it), not verified via credential. The whole value of the design over the current state is the move from identity-by-assertion to identity-by-control. See `IDENTITY-PILLAR-DESIGN.md` and `INSTANTIATION-AND-IDP.md` for the full design.
+
+- **IBX (Inbox Exchange)** — primary communication hub and message broker. Responsible for asynchronous message queueing, routing, and state management. IBX handles agent-to-agent message routing and is the critical interface for the human-in-the-loop approval gate. It is the substrate where the **PCT (Principal Control Token)** — the message-from-Principal-to-Singleton artifact — is routed and validated. PCT lives in IBX rather than expanding PCS scope: PCT is a message; IBX is the message system.
+
+- **PGE (Policy Guardrail Engine)** — deterministic, broad-spectrum policy engine that evaluates the *intent* of every message against the lab's established constraints. PGE acts as a **double guardrail**: it enforces policy on agent actions *before* messages reach IBX (catches non-compliant intent at submission, before downstream work is wasted), and it enforces policy on code executed *inside* DPG (catches non-compliant code at runtime, before it touches production state). Intent-side and execution-side compliance gaps are different failure classes; either gate alone misses one class. Vendor-mediated alternatives typically enforce at one point (vendor safety filter on the LLM input/output) and miss the execution-side surface entirely.
+
+- **CRB (Compute Resource Broker)** — hardware-aware scheduler. Dynamically maps compute workloads (neural network inference, heavy data processing, ClickHouse query execution) across the physical infrastructure (Mac Studio M3 Ultra unified memory; Threadripper 9975WX GPU lanes; EPYC replica node) to optimize parallelization and cost-efficient dispatch.
+
+- **PCS (Plugin Control System)** — closed-loop plugin governance with three operational layers:
+  - **PCS-Syntax** — declarative law: schemas, required fields, `trust_tier` metadata, security flags, capability declarations. Defines what an MCP server, skill, or runbook must look like.
+  - **PCS-Registry** — air-gapped artifact substrate: physical storage for plugin binaries, schema declarations, version history, and signing attestations. The single source of truth that agents query at dispatch time. Substrate is operator-selectable (local Git, OCI distribution-spec registry, dedicated ClickHouse dataset, or hybrid) per the Exit Test discipline.
+  - **PCS-Lifecycle** — promotion and enforcement gate: handles submission → Syntax validation → PGE compliance check → Judge approval → Registry ingest, plus the full software-asset-management cycle (versioning, deprecation, retirement, trust-tier mutation, rollback, audit trail).
+  
+  Crossing the PCS-Lifecycle gate is the **dev-to-production trust transition**. Plugins in source repos or on PyPI are dev artifacts; only after Lifecycle promotion into Registry are they "released" in the sovereign sense. This mirrors OCI / container-registry semantics. The wire protocol agents use to invoke plugins (MCP — Model Context Protocol) is an external standard PCS does not own; PCS sits above MCP and governs what plugins riding that protocol must look like. See [`PCS-REGISTRY-FOLD-IN.md`](PCS-REGISTRY-FOLD-IN.md) for the architectural decision record.
+
+- **Judge (Human Approval Gate)** — mandatory, human-in-the-loop approval interface intercepting "Judge-gated action-priority messages" flagged by IBX. The Judge retains final authority over critical actions. Operator approval is a first-class architectural element, not a side concern.
+
+### 3. The Compute Plane — Execution Layer
+
+The Compute Plane is where the autonomous workforce resides and where generated code is tested. It is structurally decoupled from governance to prevent the shared-bias corruption found in cloud-mediated systems.
+
+**Core components:**
+
+- **Workforce** — a bounded, named cluster of specialized autonomous AI agents (Watson, Bob, Patton, Einstein, Newton) performing distinct roles (training, infrastructure, failure-mode review, physics/architecture, sovereign-local astrophysics). The cluster includes both anchored personas (host-bound: Watson on M3, Bob on 9975WX) and singletons (non-substitutable role-bound: Patton for failure-mode review, Einstein for physics falsification, Newton for sovereign astro inference). The Singleton/Instance Asymmetry — that singletons cannot be load-balanced and bad input to them cascades into downstream wrong output — is a structural property that shapes the Control Plane's PCT discipline.
+
+- **DPG (Deterministic Proving Ground)** — secure, ephemeral, isolated sandboxing environment. All agent-generated code (Python, CUDA, Bash) is routed to DPG where it is compiled, tested for deterministic stability, and executed in a single-use container, with all output captured and returned to IBX. DPG **bridges stochastic reasoning and deterministic execution** — agents may reason probabilistically, but the code they emit is validated under deterministic conditions before it touches production state.
+
+### 4. The State Plane — Persistency Layer
+
+The State Plane is the memory of the mesh. It manages all knowledge retrieval and keeps an immutable record of every action. The State Plane's two pillars are append-mostly substrates that other planes write into and read from.
+
+**Core components:**
+
+- **AKB (Agent Knowledge Base)** — isolated, high-performance columnar / vector database substrate. Provides persistent, long-term contextual memory to the Workforce, tracking established constraints, past architectural decisions, current project specifications, and *invariant-class* dead-end content. AKB uses **role-projected retrieval** — each agent sees only chunks visible to its role(s), and the retrieval engine enforces a substrate-trap pre-filter that excludes `violates_invariant=true` chunks from non-historical queries (so dead-end content surfaces only when explicitly requested). The retrieval contract is bidirectional with the Workforce: agents query AKB; agents also propose chunk-level flags and promotions via curator-gated workflows.
+
+- **ACT (Agent Cognitive Telemetry)** — immutable, locally hosted audit ledger. Every reasoning span, token consumed, reasoning step, and compute cost is streamed out-of-band to high-performance columnar storage. ACT transforms opaque AI "thought processes" into queryable, persistent database rows for debugging, cost accounting, and regulatory compliance. The flow into ACT is unidirectional — Workforce and DPG emit telemetry; nothing flows back out except via curator review.
+
+### Substrate
+
+The whole stack rests on **Customer Infrastructure (Sovereign / Air-gapped)** — owned hardware, no cloud dependencies, no managed-service substrate. Customer hardware shape varies (Big Iron / Slim Enterprise / single-host fleet), but the architecture is the same in every case: every pillar runs locally, every credential lives in OS-resident stores, every byte of state stays inside the customer's trust boundary.
+
+## Design Thesis
+
+The the mesh architecture is a direct response to the operational, security, and IP vulnerabilities of **Vendor-Mediated Architecture (VMA)** — the cloud-based agent platforms currently converging on the "Agentic Mesh" buzzword. The mesh differentiates itself structurally on five drivers.
+
+### 1. Architecture is Sovereignty
+
+VMA models require customers to place absolute trust in the vendor's authorization policy, opaque orchestration, and managed databases — effectively surrendering control of their decision logic. The mesh rejects this dependency. It operates under the mandate that **sovereignty is not just on-premises deployment, but the sovereignty of architecture**. Every the mesh pillar is engineered to provide a private, local alternative to a VMA component:
+
+| VMA component (vendor-mediated) | The mesh pillar (sovereign) |
+|---|---|
+| Cloud IdP (Okta / Auth0 / AWS Cognito / Azure AD) | The mesh's IAM pillar (ARCA + Vault + Roster + Publish pipeline + pluggable IdP) — design-stage, briefs-only implementation |
+| Datadog / Honeycomb telemetry | ACT |
+| Pinecone / OpenAI Vector Store | AKB |
+| OpenAI / Anthropic tool registries | PCS |
+| Slack / Discord / vendor inboxes | IBX |
+| AWS Lambda / containerd ephemeral isolation | DPG |
+| AWS Batch / Slurm compute scheduling | CRB |
+| Anthropic safety filters / vendor RBAC | PGE |
+
+The eight-pillar shape is the orthogonal decomposition of architectural concerns that vendors otherwise mediate. The decomposition is **necessary AND sufficient**: drop one and the lab is fragile in a predictable way. Necessary-AND-sufficient decompositions are rare in software architecture, and the mesh hits both. The IAM pillar is foundational — every other pillar's authorization, isolation, audit, and approval guarantee is downstream of IAM and inherits its strength; the seven validated pillars currently rely on a brief-asserted identity that the IAM design replaces with credential-verified identity once built.
+
+### 2. Deterministic Proving Ground (the sandbox mandate)
+
+As agents move from read-only tasks to write-enabled code generation, the risk of unvalidated execution rises. Big Tech handles this probabilistically (vendor safety filters on the LLM input/output) or by obfuscating the execution layer in the cloud. The mesh enforces a **local, ephemeral isolation boundary** at DPG, bridging the gap between stochastic reasoning and deterministic execution. Code emitted by agents is compiled and tested in a single-use container before it can touch production state.
+
+### 3. The Dialectical Engine — Independence of Error Distributions
+
+Multi-agent systems only generate novel insight when agents reason **independently**. VMA models break this property because all agents share the same corporate safety filter and upstream training bias — their errors are correlated, and agreement between them carries less information than it appears to. **the mesh agents run on operator-controlled models with mathematically independent error distributions**, which is what permits genuine dialectical falsification rather than shared-blind-spot consensus.
+
+The value of independence is not just *catching errors* — it is **producing high-confidence architectural commitments through independent reasoning**. An architectural commitment that survives multiple independent derivations is invariant under the reasoning substrate. The same epistemic property as scientific reproducibility, applied to agent-mediated design.
+
+### 4. Hardware-Aware Compute Resource Broker
+
+Enterprises are realizing that throwing infinite cloud compute at problems is inefficient. The mesh's CRB understands the specific topology of the customer's hardware — knowing when to dispatch contexts to unified-memory hosts (Apple M-series, AMD EPYC), when to route tensor workloads to GPU lanes (RTX PRO 6000, NVIDIA H100), and when to schedule ClickHouse queries against multi-NVMe storage. The agents stay hardware-agnostic; CRB does the dispatch.
+
+### 5. The Exit Test — no vendor lock-in
+
+VMA models are designed for lock-in: leaving means rewriting. **the mesh enforces a per-pillar substitutability constraint**. The operator can replace any pillar (AKB ClickHouse backend with Qdrant or pgvector; IBX with Kafka or RabbitMQ; CRB convention-codified dispatch with a Nomad daemon) without architectural collapse. The Exit Test is a CLCA gate that catches *slow sovereignty erosion* — the feature that seemed harmless in isolation but created lock-in surface over six months of accumulated decisions. Sovereignty is testable by the operator's ability to sever ties without rewriting the architecture.
+
+## Validated Production Benchmarks
+
+The design principles of the mesh were not developed purely through theorizing; they were stress-tested by supporting high-heat, specialized physics and model-training workloads in the KI7MT Sovereign AI Lab. The validation is quantifiable, replayable, and documented in [`PRODUCTION-VALIDATION.md`](PRODUCTION-VALIDATION.md) (v1.0, Patton-signed-off):
+
+- **IONIS-AI model training (the mesh validation milestone)** — Orchestrated the ingestion and feature engineering of **30,902,535 rows** (~31 million) of amateur radio observation data to train the IONIS V20 model (203,573 parameters; the V16-physics replication baseline that served as the mesh-validation milestone). The current production model is V22-γ (207,157 parameters); V20 remains the reference point because its training run was the one the mesh orchestrated end-to-end as the first validation workload.
+- **ClickHouse Gold Layer** — Managed the underlying data orchestration for a Gold Layer containing **11.45 billion rows** of compressed propagation data (as of 2026-05-20). At the mesh-validation milestone (early 2026) this stood at 10.8 billion rows; the live ingest pipeline grows it continuously, and the validation framing was per-the-milestone, not per-current-state. Both numbers are checkable and citable.
+- **QSO-Graph active research** — the mesh is currently orchestrating the data extraction and multi-agent statistical analysis of **493,894 contest-log submissions** — defined as distinct `(operator-callsign, contest-name, contest-year)` tuples — drawn from 18 major HF contests over 2005–2025, supporting an active research paper and concept document on Cognitive Fatigue in Amateur Radio Contesting. Each submission represents a single continuous contest session and forms the unit of analysis for fatigue trajectory characterization.
+
+The lab is the canonical Slim Enterprise Org — resource-constrained, sovereignty-required, multi-project, single-operator orchestrating five agent roles. **Dogfooding is the strongest validation a platform can have**: The mesh built BY the lab FOR the lab has built-in feedback loops on every defect; the operators live with the friction they're asking outside customers to live with.
+
+## Conclusion — Architecting for Deterministic Execution
+
+The Fiducial Mesh provides the necessary backend plumbing to run private, autonomous agent workforces on bare metal without sacrificing control of intellectual property. The the mesh blueprint transforms agents-at-work from a high-risk probabilistic toy into a manageable, industrial-grade software primitive.
+
+By codifying sovereignty into the architecture itself — the mesh's IAM pillar (foundational; ARCA + Vault + Roster + Publish pipeline; design-stage, briefs-only implementation), Plugin Control System, Inbox Exchange, Agent Knowledge Base, Agent Cognitive Telemetry, Deterministic Proving Ground, Compute Resource Broker, Policy Guardrail Engine — the mesh answers the critical question facing regulated industries:
+
+> *How do we own the infrastructure, not just rent the inference?*
+
+The IAM pillar carries the load-bearing answer to the regulated-industries variant of that question — *how do we hold AI to the same standard of identity, authorization, and auditability we already hold our employees to?* — once it is built. Until then, that answer is a design commitment, not a deployed capability.
+
+## References
+
+- [`PILLAR-NAMES.md`](PILLAR-NAMES.md) — pillar bindings (names of record, v1.1)
+- [`MANIFESTO.md`](MANIFESTO.md) — design-driver capture (internal, v0.5)
+- [`PRODUCTION-VALIDATION.md`](PRODUCTION-VALIDATION.md) — production-validation record (v1.1, IAM pillar added as design-stage row)
+- [`DESIGN-PHILOSOPHY.md`](DESIGN-PHILOSOPHY.md) — IAM conceptual frame (provisional, briefs-only implementation)
+- [`IDENTITY-PILLAR-DESIGN.md`](IDENTITY-PILLAR-DESIGN.md) — IAM foundational design (provisional, briefs-only implementation)
+- [`INSTANTIATION-AND-IDP.md`](INSTANTIATION-AND-IDP.md) — IAM onboarding + login + IdP interface (provisional, briefs-only implementation)
+- [`PCS-ADOPTION-PLAN.md`](PCS-ADOPTION-PLAN.md) — PCS spec lineage
+- [`akb-awareness-layer.md`](akb-awareness-layer.md), [`akb-reasoning-independence.md`](akb-reasoning-independence.md), [`akb-lifecycle.md`](akb-lifecycle.md) — AKB three-spec gate
+- [`CONCURRENCY-AND-ARCHETYPES.md`](CONCURRENCY-AND-ARCHETYPES.md) — cross-cutting design: concurrency model (identity-vs-session), three agent archetypes (worker/reasoner/quorum-voter), confidence-aggregation pattern, label-oracle four hard rules. Design-stage, briefs-only implementation. INPUT to Increment-2 rulings, not a front-run.
+- [`MCP-SECURITY-FRAMEWORK.md`](MCP-SECURITY-FRAMEWORK.md) — PGE operational spec
+- `diagrams/mesh-architecture.png` — legacy 7-pillar three-plane decomposition visual
+- `diagrams/mesh_architecture_with_identity_and_arca.svg` — current 8-pillar visual with the IAM pillar and ARCA above the dotted line
+- `diagrams/som_connection_detail_runtime_flows.svg` — runtime data-flow diagram

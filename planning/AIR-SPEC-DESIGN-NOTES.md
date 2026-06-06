@@ -12,15 +12,15 @@ roles:
 author_id: patton
 references:
   - planning/AIR-001-closed-not-landed.md
-  - planning/SOM-PILLAR-NAMES.md
-  - planning/SOM-SPEC.md
+  - planning/PILLAR-NAMES.md
+  - planning/MESH-SPEC.md
 ---
 
 # AIR Spec — Design Notes & Severity-Model Research
 
 **What this is**: a durable design reference for when the **AIR pillar spec** is drafted.
 NOT a spec, NOT an incident report, NOT a ratified pillar. AIR-as-a-pillar requires Judge
-sign-off per SOM-CD1 (eight pillars) + SOM-PILLAR-NAMES discipline; this file is the
+sign-off per CD1 (eight pillars) + PILLAR-NAMES discipline; this file is the
 captured thinking + external research so that work doesn't start from a blank page or rely
 on session memory (which is the chronic failure mode AIR is partly meant to address).
 Captured 2026-06-05 from a design discussion with Judge.
@@ -60,12 +60,12 @@ service- or customer-impacting, regardless of cause.** This is the SRE/ITIL sens
   *impact*. More severe than a bug precisely because it is service/customer-impacting. The
   entry threshold (§4) is what separates the two.
 
-**Runtime self-instrumentation — the payoff (Judge, 2026-06-05).** With SOM deployed at a
-customer site, SOM uses its OWN features to root-cause and report its own incidents *before
+**Runtime self-instrumentation — the payoff (Judge, 2026-06-05).** With the mesh deployed at a
+customer site, the mesh uses its OWN features to root-cause and report its own incidents *before
 a human sees them*: a PCS workflow fails (§1.2) or its substrate dependency fails (§1.3) →
 the workflow emits an AIR → RC machinery runs through PCS flows → the report lands
-(internally for SOM-side CLCA, externally into the customer's JSM/ServiceNow via the §1.1
-seam) automatically. SOM becomes self-instrumenting for failure: it watches itself,
+(internally for mesh-side CLCA, externally into the customer's JSM/ServiceNow via the §1.1
+seam) automatically. The mesh becomes self-instrumenting for failure: it watches itself,
 diagnoses itself, files the report; the human arrives to an already-captured,
 already-triaged incident instead of a mystery. This is the AIR+AKB+PCS containment running
 at customer-runtime, not just in the lab.
@@ -85,12 +85,12 @@ not designed here.
 The symmetry is the architecture (capture now, design ABG later): **agents find and report
 both bugs AND incidents orders of magnitude faster than humans** — at machine speed,
 continuously, including the boring ones. Same contract-vs-substrate split (§1.1) on both
-sides — SOM owns the *discipline* (what a well-formed report is), the customer's existing
+sides — the mesh owns the *discipline* (what a well-formed report is), the customer's existing
 tool is the *seam*:
 - **Incident** → AIR → incident-response seam (JSM / ServiceNow / PagerDuty).
 - **Defect** → ABG/ABR → development seam (Jira Software / GitHub Issues / Linear / "whatever
   the bug system is"). An agent-emitted bug flows into the customer's bug tracker the same
-  way a SOM-emitted AIR flows into their incident tool — same emit-interface pattern (§1.2),
+  way a the mesh-emitted AIR flows into their incident tool — same emit-interface pattern (§1.2),
   same bring-your-own-tool seam.
 ABG design questions deferred to "later" (Judge): what a well-formed agent-emitted bug report
 is; dedup (so agents don't file N variants of one defect); and severity/priority on the
@@ -110,10 +110,10 @@ domains, as different as Atlassian's two products (§5):
    ("what failed and how do we stop it recurring").
 
 BUT — and this is the load-bearing decision — **a customer already runs these.** They have
-Jira, or ServiceNow, or GitHub Issues + PagerDuty, or Linear, or nothing. SOM cannot say
-"adopt my PM tool and my incident tool" — that is the exact lock-in SOM-MI-8 forbids. So
-work-management is **not a thing SOM provides; it is a substrate SOM consumes.** The
-resolution is the same contract-vs-product split SOM uses for every substrate — see §1.1.
+Jira, or ServiceNow, or GitHub Issues + PagerDuty, or Linear, or nothing. The mesh cannot say
+"adopt my PM tool and my incident tool" — that is the exact lock-in MI-8 forbids. So
+work-management is **not a thing the mesh provides; it is a substrate the mesh consumes.** The
+resolution is the same contract-vs-product split the mesh uses for every substrate — see §1.1.
 AIR is specifically the **reporting + corrective-action contract** of the incident domain
 (the analogue of a JSM post-incident review — one component, not the whole tool). It does
 NOT own detection, alerting, or response-routing, and it does NOT own the *storage/ticketing*
@@ -122,38 +122,38 @@ load-bearing core: the incident record *contract* + 5-whys + CLCA loop + track-t
 *discipline*. Needed *first* and *most* because the capture-and-correct loop bends the
 failure curve.
 
-## 1.1 The load-bearing decision — contract (SOM need) vs substrate (customer seam)
+## 1.1 The load-bearing decision — contract (the mesh need) vs substrate (customer seam)
 
-The question "is work-management a SOM need or a substrate seam?" is the **Exit Test / MI-8
+The question "is work-management a the mesh need or a substrate seam?" is the **Exit Test / MI-8
 question applied to work-management** — and the answer is the same as for every other
 substrate: **split the contract from the product.**
 
-- **The CONTRACT is SOM's (a genuine SOM need).** SOM defines what an incident record *is*:
+- **The CONTRACT is the mesh's (a genuine the mesh need).** The mesh defines what an incident record *is*:
   the AIR schema, severity taxonomy, the blameless discipline, the capture→CLCA→verified-
   closure loop, the close-on-landed-not-described criterion, the recurrence metrics. This is
-  genuinely SOM's contribution because **no off-the-shelf tool enforces the discipline** —
+  genuinely the mesh's contribution because **no off-the-shelf tool enforces the discipline** —
   nothing in Jira or JSM says "the preventive must be a landed PCS gate, verified in place,
   or the incident does not close." That rigor (the AIR+AKB+PCS containment against agentic
-  memory) is the novel part and it is SOM's.
+  memory) is the novel part and it is the mesh's.
 - **The STORAGE / TICKETING is a SEAM (bring-your-own-tool).** *Where* the incident record
   lives and how it is ticketed — Jira, JSM, ServiceNow, GitHub Issues, a Postgres table — is
-  the customer's substrate. SOM emits an AIR conforming to its contract; an adapter renders
+  the customer's substrate. The mesh emits an AIR conforming to its contract; an adapter renders
   it into whatever the customer runs. JSM shop → AIRs as JSM incidents; GitHub shop → labeled
   issues; sovereign air-gapped shop with nothing → the built-in reference implementation (a
   markdown file in a repo — which is exactly what AIR-001 *is* today).
 
-**The test for which-is-which (write this into the spec):** *does SOM's value live in the
+**The test for which-is-which (write this into the spec):** *does the mesh's value live in the
 discipline or in the storage?* For incidents, the value is overwhelmingly the discipline
 (blameless 5-whys, CLCA-with-verified-closure, recurrence tracking) — storage is commodity.
-So SOM owns the contract, seams the storage. Same pattern as IBX: the PCT contract is SOM's;
-ClickHouse-vs-Postgres is the seam. The incident *record* is SOM's; Jira-vs-JSM-vs-GitHub is
+So the mesh owns the contract, seams the storage. Same pattern as IBX: the PCT contract is the mesh's;
+ClickHouse-vs-Postgres is the seam. The incident *record* is the mesh's; Jira-vs-JSM-vs-GitHub is
 the seam.
 
 **The two domains are ASYMMETRIC — do not spec them as two equal pillars.**
-- **Incident management** has a *meaty* contract (the AIR discipline is novel and SOM-owned)
+- **Incident management** has a *meaty* contract (the AIR discipline is novel and the mesh-owned)
   over a thin seam (storage is commodity). → worth a real spec (AIR).
 - **Development / delivery management** is *almost entirely a seam* over a thin contract —
-  the discipline SOM cares about (PR review, two-person control, Exit-Test gates,
+  the discipline the mesh cares about (PR review, two-person control, Exit-Test gates,
   fold-tracking) is already encoded in CLAUDE.md + PCS workflows; the backlog/sprint tooling
   is pure commodity the customer already has. → mostly "conform to the customer's tool,
   enforce our gates via PCS," not a standalone pillar spec.
@@ -163,11 +163,11 @@ into the customer's existing PM/incident tools, with development-side discipline
 PCS-workflow enforcement over the customer's backlog tool — NOT two new equal pillars. And
 because these govern *how the team operates on the mesh* rather than carrying agent runtime
 traffic, they are **meta-pillars** — same category as MCC ("not a 9th pillar"), so they
-almost certainly sit OUTSIDE the SOM-CD1 eight-pillar count. Final shape is Judge's call.
+almost certainly sit OUTSIDE the CD1 eight-pillar count. Final shape is Judge's call.
 
 ## 1.2 AIR is NON-OPTIONAL — pillars emit AIRs programmatically (the PCS case, Judge 2026-06-05)
 
-The decisive argument that AIR is a hard SOM need, not a nice-to-have: **a pillar's own
+The decisive argument that AIR is a hard the mesh need, not a nice-to-have: **a pillar's own
 workflow must be able to raise an AIR when it fails.** Case-in-point (Judge): a PCS
 production workflow deploys an app/config and it goes sideways — deployment fails, config
 lands wrong, the app comes up broken. Something must happen beyond the workflow logging an
@@ -189,11 +189,11 @@ investigation). The auto-emitted AIR opens in a `detected` / `triage` state; a h
 completes the root-cause and CLCA.
 
 **Why this makes AIR non-optional AND fits the seam model (it doesn't break §1.1):**
-- The **trigger is SOM's** — a workflow step that emits an AIR on failure is mesh-internal
-  plumbing; it cannot be a customer's tool, because PCS is SOM's and the failure happens
-  inside SOM's runtime. SOM must be able to *raise* an incident from inside its own
-  workflows. Non-negotiable, SOM-owned.
-- The **record contract is SOM's** — the AIR schema the step emits.
+- The **trigger is the mesh's** — a workflow step that emits an AIR on failure is mesh-internal
+  plumbing; it cannot be a customer's tool, because PCS is the mesh's and the failure happens
+  inside the mesh's runtime. The mesh must be able to *raise* an incident from inside its own
+  workflows. Non-negotiable, the mesh-owned.
+- The **record contract is the mesh's** — the AIR schema the step emits.
 - The **storage is still a seam** — *where* the auto-generated AIR lands (JSM incident,
   GitHub issue, markdown file) is the customer's substrate per §1.1.
 
@@ -220,39 +220,39 @@ preventives (as new enforced steps). Bidirectional, and worth naming both direct
 Second machine-emitted case, structurally DISTINCT from §1.2 and the distinction drives the
 spec. Same setup — an agent running a PCS workflow — but the failure is on the **customer
 substrate behind a seam**: the DB is offline, identity/AD authentication failed, the domain
-controller is unreachable, a secrets store is down — some SOM substrate *dependency* fails.
+controller is unreachable, a secrets store is down — some the mesh substrate *dependency* fails.
 
-**Why this is different from §1.2:** in §1.2 SOM's own logic failed (the workflow, the config
-it generated) — one owner (SOM), corrective lands inside SOM. Here **SOM did not fail; SOM's
+**Why this is different from §1.2:** in §1.2 the mesh's own logic failed (the workflow, the config
+it generated) — one owner (the mesh), corrective lands inside the mesh. Here **the mesh did not fail; the mesh's
 dependency did.** That creates three properties §1.2 doesn't have:
 
 **(a) The blameless discipline is genuinely tested — and this is where it earns its keep.**
 The naive 5-whys on "DB offline" walks toward "the customer's database fell over," which
-sounds like fault *outside SOM* — "not our problem." The AIR discipline (root cause is always
+sounds like fault *outside the mesh* — "not our problem." The AIR discipline (root cause is always
 a missing *control*, never a fault) forces the right reframe: the customer's outage is the
-**trigger**, not the root cause. The SOM-side root cause is **"did SOM's seam degrade
-gracefully, or did SOM's response make it worse?"** — did the PCS workflow detect the dead
+**trigger**, not the root cause. The mesh-side root cause is **"did the mesh's seam degrade
+gracefully, or did the mesh's response make it worse?"** — did the PCS workflow detect the dead
 substrate and fail closed cleanly with a clear diagnostic, or did it hang / corrupt
 half-state / retry-storm the failing substrate / leave the deploy indeterminate? The AIR
-root-causes **SOM's response to the substrate failure**, not the substrate failure itself.
+root-causes **the mesh's response to the substrate failure**, not the substrate failure itself.
 
 **(b) Dual-disposition — two root causes, two owners, the AIR MUST split them.** A
 substrate-failure AIR has two findings with different owners:
 - **Customer-facing fact** (their disposition): "substrate X (your AD / your DB) was
-  unavailable HH:MM–HH:MM; SOM operations depending on it failed during that window." SOM
+  unavailable HH:MM–HH:MM; the mesh operations depending on it failed during that window." the mesh
   records it; the customer fixes their substrate.
-- **SOM-facing CLCA** (SOM's disposition): "the seam's behavior under substrate-unavailable
+- **the mesh-facing CLCA** (the mesh's disposition): "the seam's behavior under substrate-unavailable
   was wrong — e.g. it retry-stormed instead of backing off / didn't fail closed / left
   half-state. Preventive: circuit-breaker + clean fail-closed on the seam."
-Conflating them is the failure mode: either SOM blames the customer and fixes nothing on its
-side, or SOM takes blame for the customer's outage and over-engineers. The spec needs a
-**dual-disposition structure** for `substrate`-class AIRs (customer-fact vs SOM-CLCA, owned
+Conflating them is the failure mode: either the mesh blames the customer and fixes nothing on its
+side, or the mesh takes blame for the customer's outage and over-engineers. The spec needs a
+**dual-disposition structure** for `substrate`-class AIRs (customer-fact vs CLCA, owned
 separately) — §1.2's single-owner structure is insufficient here.
 
 **(c) This is MI-8's OPERATIONAL face — and it exposes a gap in the substrate contract as
-currently specced.** All the substrate-matrix work (SOM-MI-8, the conformance profiles, the
+currently specced.** All the substrate-matrix work (MI-8, the conformance profiles, the
 IBX CD7 capability framing) specs what a substrate must *provide when it is WORKING*. This
-failure class is about what SOM does when the substrate is **NOT** working — and that is not
+failure class is about what the mesh does when the substrate is **NOT** working — and that is not
 systematically specced. Pillar specs name seams + their working-contracts; most say "fail
 closed" in a failure-mode bullet, but there is **no systematic substrate-unavailable
 (degradation) contract per seam.** This AIR class is the thing that surfaces it: every
@@ -267,10 +267,10 @@ independently of AIR — the degradation contract is owed whether or not AIR exi
 just what makes its absence *visible* via recurring substrate AIRs.)
 
 **Net additions to the spec from this case:** an `incident_class: substrate` (§3);
-a dual-disposition record structure (customer-fact + SOM-CLCA, separately owned); and a
+a dual-disposition record structure (customer-fact + CLCA, separately owned); and a
 feedback requirement into MI-8 (per-seam degradation contract). The emit path is the same
 programmatic interface as §1.2 — the PCS workflow detects the substrate failure and emits —
-but the *triage* must classify it as substrate-side so the dual-disposition kicks in and SOM
+but the *triage* must classify it as substrate-side so the dual-disposition kicks in and the mesh
 doesn't either self-blame for a customer outage or hand-wave its own bad degradation behavior.
 
 ## 1.4 Third emit case — SECURITY findings are NEED-TO-KNOW (Judge 2026-06-05): SEC classifies, AIR routes restricted
@@ -347,11 +347,11 @@ needs a substrate the other observability pillars cannot be).
 **Customer-side security finding (the sharp sub-case in Judge's example).** An agent finds a
 security issue on the *customer's* system while doing work. Like §1.3 this is dual-
 disposition, but with a confidentiality twist: the finding is a customer-facing security
-FACT that routes to *their* security team, restricted; SOM's side is "the agent encountered
+FACT that routes to *their* security team, restricted; the mesh's side is "the agent encountered
 it and correctly *contained* it — did not broadcast, did not log it to a wide channel, did
 not widen the blast radius." Here the routing + access boundary matter more than the CLCA:
 an agent that found the issue but *reported it on the wrong channel* has itself caused a
-security incident, so "contained correctly" is part of the SOM-side disposition.
+security incident, so "contained correctly" is part of the mesh-side disposition.
 
 **Pillar-gap this surfaces: SEC / ASEC (Security) is a missing pillar.** Security today is
 SMEARED across pillars — PGE (enforcement: keyring, parameterized SQL, subprocess gating),
@@ -368,7 +368,7 @@ whose CLAUDE.md #1 line is "if we can't implement it safely, we don't implement 
 platform with no pillar that owns security is a real structural gap. ITDR being homeless in
 IBX-SPEC is the smoking gun. Candidate ninth runtime pillar (UNLIKE AIR/ABG/MCC, which are
 meta-layer) — SEC plausibly IS a runtime pillar because it carries live detection/response
-traffic. **This is a Judge-gated SOM-CD1 question** (does the count go to nine?); flagged
+traffic. **This is a Judge-gated CD1 question** (does the count go to nine?); flagged
 here because §1.4's security-incident classification needs an owner and SEC is it. Separate
 design note warranted when Judge wants it.
 
@@ -430,9 +430,9 @@ not *cause*, crosses the threshold. Candidate set (refine at spec time):
 - `service` — a pillar/substrate failing in operation (the "severe bug" case)
 - `substrate` — a customer substrate DEPENDENCY fails (DB offline, identity/AD down, domain
   controller unreachable, secrets store down). DISTINCT from `service`: the failure is the
-  customer's substrate, not SOM's logic. Carries the **dual-disposition** structure (§1.3):
-  customer-fact (their substrate, their fix) + SOM-CLCA (SOM's degradation behavior, SOM's
-  fix). Root-causes SOM's *response* to the substrate loss, never the customer's outage.
+  customer's substrate, not the mesh's logic. Carries the **dual-disposition** structure (§1.3):
+  customer-fact (their substrate, their fix) + CLCA (the mesh's degradation behavior, the mesh's
+  fix). Root-causes the mesh's *response* to the substrate loss, never the customer's outage.
 - `security` — breach or near-miss (e.g. credential exposure). **NEED-TO-KNOW audience
   (§1.4): routes restricted to the security team, never the default broadcast — the report
   must not widen the blast radius. SEC classifies; AIR routes restricted. Carries the
@@ -556,18 +556,18 @@ queryable fields / reports:
   emit interface, not just a document template.**
 - **Pillar shape — RESOLVED by Judge (2026-06-05): work-management is a SUBSTRATE SEAM, not a
   provided pillar (see §1.1).** Customers already run Jira/JSM/ServiceNow/GitHub/etc., so
-  SOM cannot provide PM/incident tooling — MI-8 forbids the lock-in. Split: the **contract**
-  (AIR schema + CLCA discipline + verified-closure) is SOM's; the **storage/ticketing** is a
+  the mesh cannot provide PM/incident tooling — MI-8 forbids the lock-in. Split: the **contract**
+  (AIR schema + CLCA discipline + verified-closure) is the mesh's; the **storage/ticketing** is a
   seam adapting to the customer's existing tool. The two domains are asymmetric — incident
-  management has a meaty SOM-owned contract (AIR) worth a real spec; development management is
+  management has a meaty the mesh-owned contract (AIR) worth a real spec; development management is
   almost entirely a seam with PCS-workflow-enforced gates. Likely shape: **one AIR
   contract-spec + work-management seams**, NOT two equal pillars. Spec-time questions that
   remain: (a) these are meta-pillars *about* running the mesh, so almost certainly OUTSIDE
-  the SOM-CD1 eight-pillar count (like MCC — "not a 9th pillar"); confirm; (b) names per
-  SOM-PILLAR-NAMES; (c) does AIR ship first as the load-bearing core with seams + the
+  the CD1 eight-pillar count (like MCC — "not a 9th pillar"); confirm; (b) names per
+  PILLAR-NAMES; (c) does AIR ship first as the load-bearing core with seams + the
   development side deferred? All Judge's call.
 - **The seam set to enumerate at spec time** (per the §1.1 split): the AIR contract must
-  define the adapter surface so a customer's tool can consume a SOM-conformant AIR — minimally
+  define the adapter surface so a customer's tool can consume a the mesh-conformant AIR — minimally
   JSM/ServiceNow (incident-native), GitHub Issues + label (the lab's current substrate), and
   the built-in markdown reference implementation (air-gapped default, = AIR-001 today). Same
   substrate-matrix discipline as the pillar specs: name the contract per seam, tested-profile
@@ -594,12 +594,12 @@ queryable fields / reports:
   classifies (marks need-to-know); AIR routes. Decide at spec time: the visibility field's
   value set (normal / restricted / customer-security-team), and the seam-adapter conformance
   requirement that a destination must enforce restricted audience.
-- **SEC / ASEC (Security) pillar gap (per §1.4) — Judge-gated SOM-CD1 question.** Security is
+- **SEC / ASEC (Security) pillar gap (per §1.4) — Judge-gated CD1 question.** Security is
   currently smeared across PGE/IAM/DPG with no pillar owning the *discipline* (threat model,
   posture, ITDR, security-incident classification, cross-pillar security invariants). SEC =
   the policy/decision layer to PGE's enforcement mechanism (LSM-module vs LSM-hooks). UNLIKE
   AIR/ABG/MCC (meta-layer), SEC is plausibly a true runtime pillar (carries live
-  detection/response). Owns the §1.4 security-incident classification. Does SOM-CD1 go to
+  detection/response). Owns the §1.4 security-incident classification. Does CD1 go to
   nine? Judge's call; warrants its own design note.
 - **Security-content exclusion invariant (per §1.4) — feeds back into MI-11 + AKB ingest,
   independent of AIR.** Security finding PAYLOADS never land in ACT or AKB — filtered BEFORE

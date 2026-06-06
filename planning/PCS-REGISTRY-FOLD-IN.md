@@ -17,9 +17,9 @@ author_id: watson
 violates_invariant: false
 invariant_class: ""
 references:
-  - planning/SOM-PILLAR-NAMES.md
-  - planning/SOM-PROBLEM-STATEMENT.md
-  - planning/SOM-TECHNICAL-OVERVIEW.md
+  - planning/PILLAR-NAMES.md
+  - planning/MANIFESTO.md
+  - planning/TECHNICAL-OVERVIEW.md
   - planning/PCS-ADOPTION-PLAN.md
 ---
 
@@ -191,9 +191,9 @@ This dual role creates the fastest-possible feedback loop in PCS lifecycle:
 | Plugin behavior regression (works but produces wrong outputs) | next consumer invocation surfaces it via observed wrong behavior | minutes-to-hours |
 | Trust-tier drift (plugin's effective trust no longer matches declared tier) | curator review cycle | days |
 
-A vendor-mediated alternative (Big-8 plugin store) decouples developers from consumers structurally: the developer ships, customers consume, feedback takes weeks-to-quarters via support tickets or bug-tracker noise. SOM's dual-role pattern means the developer feels the consumer's pain immediately. **The lab cannot ship a bad plugin without feeling the consequence within the same workday.** That's the structural argument for why dogfooding produces durable plugins.
+A vendor-mediated alternative (Big-8 plugin store) decouples developers from consumers structurally: the developer ships, customers consume, feedback takes weeks-to-quarters via support tickets or bug-tracker noise. The mesh's dual-role pattern means the developer feels the consumer's pain immediately. **The lab cannot ship a bad plugin without feeling the consequence within the same workday.** That's the structural argument for why dogfooding produces durable plugins.
 
-This is the build-for-self-first → product-for-others strategy from `SOM-PROBLEM-STATEMENT.md` § 6.6 operating at the artifact-class level — the lab is its own first customer for every plugin and MCP server, and the production-quality feedback loop is tighter than any vendor-mediated alternative can produce.
+This is the build-for-self-first → product-for-others strategy from `MANIFESTO.md` § 6.6 operating at the artifact-class level — the lab is its own first customer for every plugin and MCP server, and the production-quality feedback loop is tighter than any vendor-mediated alternative can produce.
 
 ## Open Forward Question — Runtime Plugin Distribution
 
@@ -204,7 +204,7 @@ The Anthropic Plugin Spec defines plugin bundles as directory structures. Agents
 | **A — Symlink / read-only mount** | Plugins live in PCS-Registry; agents have read-only symlinks (or filesystem mounts) pointing at the registry. Activating a plugin means resolving the symlink at agent session start. | Air-gap-friendly; fast (no copy step); aligned with Anthropic's apparent expected model (`.claude/plugins/` directory in agent local context); lower disk usage |
 | **B — Pull-on-activate** | Plugins live in PCS-Registry; agents pull a copy on activation, store locally. | Stronger isolation (multi-tenant friendly); more disk usage; explicit copy step makes per-agent customization easier; aligns better with classic distribution-registry semantics |
 
-**Default recommendation**: Pattern A for the lab's current single-tenant single-host shape; revisit when SOM deploys to multi-tenant customer infrastructure. The pattern is operator-selectable per deployment and does not require PCS-Syntax or PCS-Lifecycle changes.
+**Default recommendation**: Pattern A for the lab's current single-tenant single-host shape; revisit when the mesh deploys to multi-tenant customer infrastructure. The pattern is operator-selectable per deployment and does not require PCS-Syntax or PCS-Lifecycle changes.
 
 **Open**: confirm which pattern is already in use for `.claude/skills/` consumption in the lab today; the plugin pattern should align with the skill pattern to avoid two distribution disciplines.
 
@@ -262,17 +262,17 @@ Different artifact classes, different access patterns, different lifecycle disci
 
 Three documents need surgical updates. None require regeneration; all land in a coordinated follow-up commit.
 
-### `SOM-PILLAR-NAMES.md`
+### `PILLAR-NAMES.md`
 
 PCS scope cell revised from *"Lifecycle, registry sync, versioning, and schema compliance for plugins (MCP servers, skills, runbooks) consumed by the agent fleet"* to:
 
 > *"Three-layer plugin governance: PCS-Syntax declares plugin schemas and required fields; PCS-Registry stores plugin artifacts in air-gapped local storage as single source of truth; PCS-Lifecycle promotes plugins from submission through Syntax validation, PGE compliance, and Judge approval to Registry placement. Closed-loop governance — no plugin reaches Registry without passing all gates."*
 
-### `SOM-PROBLEM-STATEMENT.md` (Section 3 — Sovereignty vs. VMA)
+### `MANIFESTO.md` (Section 3 — Sovereignty vs. VMA)
 
 The PCS row in the VMA mapping table sharpens to name the specific vendor-mediated equivalents being replaced (OpenAI plugin store, Microsoft Copilot extension registry, Anthropic MCP catalog), and a new paragraph after the table articulates the sovereign-vs-vendor framing per Patton's revision text.
 
-### `SOM-TECHNICAL-OVERVIEW.md`
+### `TECHNICAL-OVERVIEW.md`
 
 PCS section in the Control Plane updated to describe the three-layer anatomy explicitly. The VMA mapping in Design Thesis Section 1 sharpened similarly.
 
@@ -292,7 +292,7 @@ Per Patton's framing of this fold-in as a CLCA cycle:
 | **Defect** | PCS scope was under-specified — schema layer without artifact storage layer left air-gap requirement unresolved |
 | **Root cause** | PCS v0.1 spec focused on declarative schema (governance discipline) without explicitly committing to registry storage; gap surfaced when Judge identified the sovereign/air-gapped Plugin/MCP Registry requirement from operational experience and asked the agent fleet to fold in lifecycle management for plugin artifacts |
 | **Corrective action** | PCS scope expanded to three-layer anatomy (Syntax + Registry + Lifecycle); `pcs-registry` repo elevated from supporting infrastructure to canonical pillar component |
-| **Verified by** | `SOM-PILLAR-NAMES.md` scope cell updated; `SOM-PROBLEM-STATEMENT.md` Section 3 PCS-vs-VMA mapping updated; `SOM-TECHNICAL-OVERVIEW.md` PCS section updated to reflect the three-layer anatomy; this ADR (`PCS-REGISTRY-FOLD-IN.md`) lands as the architectural decision record |
+| **Verified by** | `PILLAR-NAMES.md` scope cell updated; `MANIFESTO.md` Section 3 PCS-vs-VMA mapping updated; `TECHNICAL-OVERVIEW.md` PCS section updated to reflect the three-layer anatomy; this ADR (`PCS-REGISTRY-FOLD-IN.md`) lands as the architectural decision record |
 | **Prevention** | Sovereign-deployment requirements audit applied to remaining pillars (ACT, DPG, CRB) to surface analogous gaps before they appear in production. Each pillar gets the question: *"what does this look like in an air-gapped IL5/IL6 environment with zero external network surface?"* |
 
 ## Provenance — Operator-as-Architect with Agent Formalization
@@ -327,7 +327,7 @@ Judge surfaced that `pcs-control-plane` already exists as the Plugin Test and Va
 
 v1.2 corrections:
 - Layer 3 status field updated to reflect the two-sub-layer split: **Lifecycle Harness (✓ built — `pcs-control-plane`) + Lifecycle Daemon (⚠ pending — registry-side service that wraps the harness into the production trust-boundary flow with IBX/Judge integration)**
-- New section "Dogfooding — Lab as Both Developer and Consumer" added: names the structural property that the lab is both developer and consumer of PCS-governed artifacts, with concrete examples (Watson develops akb-mcp → Bob consumes; Bob develops plugins → Watson consumes), the feedback-loop time table, and the connection back to SOM-PROBLEM-STATEMENT.md § 6.6 build-for-self-first driver
+- New section "Dogfooding — Lab as Both Developer and Consumer" added: names the structural property that the lab is both developer and consumer of PCS-governed artifacts, with concrete examples (Watson develops akb-mcp → Bob consumes; Bob develops plugins → Watson consumes), the feedback-loop time table, and the connection back to MANIFESTO.md § 6.6 build-for-self-first driver
 
 The architectural commitment is unchanged at v1.2 — what changes is the accuracy of the "what's built / what's pending" framing and the explicit naming of the dual-role property that shapes how the lifecycle operates in practice.
 
@@ -352,9 +352,9 @@ The Provenance pattern repeats at the v1.1 sharpening: Patton (agent) surfaces t
 
 ## References
 
-- [`SOM-PILLAR-NAMES.md`](SOM-PILLAR-NAMES.md) — pillar bindings (names of record); PCS scope cell updated to reflect three-layer anatomy
-- [`SOM-PROBLEM-STATEMENT.md`](SOM-PROBLEM-STATEMENT.md) — Section 3 VMA mapping updated for PCS row
-- [`SOM-TECHNICAL-OVERVIEW.md`](SOM-TECHNICAL-OVERVIEW.md) — PCS section updated for three-layer anatomy
+- [`PILLAR-NAMES.md`](PILLAR-NAMES.md) — pillar bindings (names of record); PCS scope cell updated to reflect three-layer anatomy
+- [`MANIFESTO.md`](MANIFESTO.md) — Section 3 VMA mapping updated for PCS row
+- [`TECHNICAL-OVERVIEW.md`](TECHNICAL-OVERVIEW.md) — PCS section updated for three-layer anatomy
 - [`PCS-ADOPTION-PLAN.md`](PCS-ADOPTION-PLAN.md) — PCS repo lineage (pcs-spec, pcs-registry, pcs-control-plane, pcs-registry-demo)
 - `KI7MT/pcs-spec` — PCS-Syntax (existing, v0.2-draft)
 - `KI7MT/pcs-registry` — PCS-Registry (partial, shell exists; artifact hosting + dispatch endpoint pending)
