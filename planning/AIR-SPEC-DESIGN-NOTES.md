@@ -427,6 +427,15 @@ whole impact surface, so a service outage gets an AIR (not a bug ticket) because
 not *cause*, crosses the threshold. Candidate set (refine at spec time):
 
 - `workflow` — agentic / process failure (AIR-001: closed-not-landed)
+- `operating-environment` — cascade across multiple operating-environment surfaces (AIR-002:
+  day-of-stale-state). Distinguished from `workflow` because the failure mode is *the
+  environment's representation of reality diverging from reality*, surfaced across multiple
+  agents / configs / repos in one cascade rather than at a single process step. Sub-types
+  for fine-grained classification: `stale-state`, `missing-control`, `conformance-defect`,
+  `coverage-gap`, `identity-architecture`, `false-completion`, `narrative-vs-substrate` (per
+  `fiducial-mesh/air/reports/AIR-002-day-of-stale-state.md` § 1). When an AIR carries
+  `incident_class: operating-environment`, its frontmatter additionally carries a `subtype`
+  field naming the dominant sub-type for the cascade.
 - `service` — a pillar/substrate failing in operation (the "severe bug" case)
 - `substrate` — a customer substrate DEPENDENCY fails (DB offline, identity/AD down, domain
   controller unreachable, secrets store down). DISTINCT from `service`: the failure is the
@@ -691,7 +700,17 @@ AIR-001 and AIR-002 currently live in `fiducial-mesh/spec/planning/`. They migra
 
 The lab-repo SOT move for *briefs* (Judge-deferred) is a separate concern from the AIR repo creation — different artifact class, different storage seam.
 
-### 7.1.5 What this resolves and what remains open
+### 7.1.5 Cross-reference — AIRs as AKB corpus content
+
+The AIR + AKB + PCS containment loop articulated in § 1 ("AKB makes the lesson retrievable across sessions so it doesn't live in memory") is operationally wired as of 2026-06-07 via **`AKB-SPEC.md` addendum E (CD18)** + **`akb-migration-plan.md` § Phase A.1.4**.
+
+AIRs in `fiducial-mesh/air/reports/AIR-*.md` are ingested by AKB with `doc_type: air-report`, **`violates_invariant: false`** (operational lessons surface at decision points — distinct from `v-results` which carries `true`), and baseline `roles: [failure-mode, design-intent]` + pillar-specific roles per the AIR's `incident_class`. Tier-1-only (not Tier-0). Surfaced via the CD14 infra-decision hook triggers — an agent about to `git push` / `gh pr` / deploy fires AKB query → relevant AIR F-N sections surface as the lesson at the moment the action would otherwise repeat the prior failure.
+
+**Security-class AIRs are categorically excluded from AKB ingest** per § 1.4 (filter-before, not redact-after); the corresponding CLCA Issues still exist in `fiducial-mesh/air` (with `subtype:security` + restricted-audience handling), but the AIR content itself doesn't enter AKB or ACT. SEC pillar (when ratified per CD1) owns the restricted store for the payloads.
+
+This completes the contract → storage → retrieval seam triangle: contract here, storage at `fiducial-mesh/air`, retrieval through `AKB-SPEC.md` addendum E. The PCS side (preventives become enforced gates) lands when the PCS-Daemon spec covers the AIR-emit interface (§ 1.2).
+
+### 7.1.6 What this resolves and what remains open
 
 **Resolved by this section**: where AIRs live (the §7 open question), how CLCA actions are tracked (Issues with cross-repo close-via), how AIR disposition closes (when every linked Issue closes), the initial label taxonomy.
 
