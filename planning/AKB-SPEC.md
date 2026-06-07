@@ -253,6 +253,7 @@ These are deployment-side concerns governed by the Telemetry-sink seam.
 | **CD15** | **Conformance-enforced substrate-neutrality** — AKB's substitutability claim is defined as passing the multi-profile conformance run (CONF-CD1..11) against **≥ 2 products per seam** from the § Substrate Matrix supported set. A seam change that fails any tested profile does not merge. Instantiates mesh-level CD15 at the pillar layer; the references at § Substrate Matrix Conformance and § How this spec fits the mesh resolve here | mesh-level CD15 / CONF-CD framework |
 | **CD16** | **(New, 2026-06-07)** AKB chunk + embedding store is **PostgreSQL + pgvector**, on the same Postgres the mesh already runs (IBX, PCS). ClickHouse is **explicitly excluded** as an AKB substrate alternative. Principle: *keep off ClickHouse anything that doesn't need OLAP* — AKB's chunk store (tens of thousands of vectors, < 50M) is not an analytical workload and belongs on the shared OLTP substrate ("one system, one backup, one monitoring stack, one team that already knows the infra"). pgvector handles ~50M-class vector workloads at high recall well within OLTP envelope. Escalation alternates (when vector search becomes the *primary* workload): Qdrant > ~50–100M vectors; Milvus only at billion-vector / Kubernetes scale. The CH→PG migration of the existing `python/akb` build maps onto the live IBX pattern, **split by mutability** (per Bob, PR #54): **mutable content tables** — `chunks`, `documents` (re-embedded on source file edit, chunk_id stable) — `ReplacingMergeTree(version)` → `INSERT … ON CONFLICT (chunk_id) DO UPDATE` upsert (the dedup-on-version semantic preserved at the PG layer); **immutable audit tables** — `curation_events`, `queries` (append-only by spec) — `MergeTree` → plain append-only PG tables matching the live `ibx.status_event` shape exactly. Common: HNSW `vector_similarity` → pgvector `USING hnsw (embedding vector_cosine_ops)`; CH user grant → PG role scoped to `akb` schema. Low-risk because the append-only pattern is already built + tested in IBX | Judge 2026-06-07, resolving Bob's PR #53 substrate conflict; Bob refinement 2026-06-07 on PR #54 |
 | **CD17** | **(New, 2026-06-07)** AKB exposes an **HTTP API** (FastAPI, same pattern as MCC) alongside the MCP server and CLI. The HTTP layer is a thin wrapper over the same service module the CLI calls — no duplicate logic. OpenAPI spec is **generated and committed** to the repo at `fiducial-mesh/core/python/akb/openapi.json` per the export-and-commit pattern in `fiducial-mesh/core#9`. Docs wire against the committed file path, not the live URL. **Rationale**: MCC's AKB pane must be a thin client of the AKB API surface per the CLI-first/UI-second discipline (AC#4); shelling out to the CLI or reading `akb.chunks` directly via SQL would couple MCC to the storage schema and break the "MCC is a client, never privileged" boundary. The HTTP API also gives external clients (CI, customer monitoring, future GH App integrations) a typed interface that the MCP stdio surface cannot serve | Judge 2026-06-07 |
+| **CD18** | **(New, 2026-06-07)** AIRs authored to `fiducial-mesh/air/reports/AIR-*.md` are **first-class AKB corpus content** with `doc_type: air-report`, `violates_invariant: false` (operational lessons surface at decision points — distinct from `v-results` which carry `true`), and baseline `roles: [failure-mode, design-intent]` + pillar-specific roles per the AIR's `incident_class`. Tier-1-only (not Tier-0). Surfaced via the CD14 infra-decision hook triggers — agent about to `git push` / `gh pr` / deploy fires AKB query → AIR-002 F-2/F-3 surface as relevant lessons. Security-class AIRs (`incident_class: security` or `audience: restricted`) are **categorically excluded** from ingest per `AIR-SPEC-DESIGN-NOTES.md` § 1.4. **Rationale**: closes the AIR + AKB + PCS containment loop articulated in `AIR-SPEC-DESIGN-NOTES.md` § 1 — AIR captures, AKB retrieves, PCS enforces. See addendum E + `akb-migration-plan.md` § Phase A.1.4 | Judge 2026-06-07 |
 
 ## Open Questions
 
@@ -380,6 +381,33 @@ AKB exposes three surfaces over the same service module, in order of typical use
 **What stays out of the HTTP layer**: bootstrap (`akb bootstrap --apply`) and embedding-model swap are operator-only and stay in the CLI. These shouldn't be runnable from MCC or external clients — the pre-write gate + Judge `--apply` chain is fundamentally a human-in-the-loop operation.
 
 **Authentication / authorization**: HTTP API enforces caller identity via the IAM seam (pre-IAM uses a stub identity per CD5/CD13 / fail-open). Per-endpoint authorization plugs into the PGE policy framework when it lands. Until then, the HTTP API is bound to localhost or to the lab's internal network, never exposed publicly.
+
+### E. AIRs as AKB corpus content (per CD18)
+
+Agentic Incident Reports (AIRs) authored to `fiducial-mesh/air/reports/AIR-*.md` are **first-class AKB corpus content**. This is the operational realization of the AIR + AKB + PCS containment loop articulated in `AIR-SPEC-DESIGN-NOTES.md` § 1 — AIR captures the incident; AKB makes the lesson retrievable across sessions; PCS turns the preventive into an enforced gate.
+
+**Ingest rule** (per `akb-migration-plan.md` § Phase A.1.4):
+
+- `doc_type: air-report` (new bounded-enum value added to `akb-lifecycle.md` § doc_type Bounded Enumeration)
+- **`violates_invariant: false`** — the load-bearing call. AIRs are operational lessons to be **surfaced** at decision points, not filtered out by the substrate-trap pre-filter. Distinct from `v-results` (which carries `true` because V dead-end architectures should NOT surface as candidates). Marking AIRs `true` would defeat the containment loop.
+- **Baseline `roles`**: `[failure-mode, design-intent]`. Pillar-specific roles added per the AIR's affected pillars (e.g., AIR-002 spans AKB, IBX, MCC, IAM, PCS).
+- **Tier-1 only** — AIRs don't go into Tier-0 (too rich for the 1 KB bounded prior). They surface via Tier-1 gradient-gated retrieval.
+
+**Why AIRs surface at decision points (the CD14 connection)**:
+
+CD14 added infra-decision-side hook triggers — before `git push`, `gh pr create / review`, deploy commands, substrate config edits. These triggers fire AKB queries at exactly the moments operational lessons should land. AIR-002's F-2 ("send to deprecated backend during half-flipped cutover") and F-3 ("PAT scope drift across org rename") are the precise lessons an agent needs *before* pushing code that touches inbox MCP or running `gh pr` against a renamed org. The hook fires, the AKB query surfaces F-2 + F-3 chunks, the agent operates with the lesson present.
+
+**Security AIR exclusion**:
+
+AIRs with `incident_class: security` or `audience: restricted` are **categorically excluded** from AKB ingest (per `AIR-SPEC-DESIGN-NOTES.md` § 1.4). Security finding payloads never land in AKB or ACT — broadcast-by-design substrates are incompatible with need-to-know audiences. SEC pillar (when ratified per CD1) owns the restricted store for these. The ingest pipeline drops security-class AIRs and logs a curation event noting the exclusion.
+
+**Chunking + addressability**:
+
+Each F-N sub-section within an AIR chunks independently (header-based split at H3 boundaries inside § 3 of the AIR). A query about "PAT scope drift" surfaces AIR-002 § 3 § F-3, not the whole AIR. The per-chunk `header_path` carries `AIR-NNN > Section > F-N`.
+
+**Curation event on AIR merge**:
+
+When a new AIR merges to `fiducial-mesh/air/main`, a git-post-commit hook (or equivalent CI workflow) triggers re-ingest. The curation event is logged with `event_type='air_ingest'`, the AIR ID, the source commit, and the per-F-N chunk count.
 
 ## How this spec fits the mesh
 

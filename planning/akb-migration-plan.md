@@ -74,6 +74,7 @@ The ingest pipeline assigns metadata using these rules in priority order:
 | `papers/**.md` | **EXCLUDED** | n/a | n/a (research-style, not AKB-ingested) |
 | `ionis-devel/shared-context/skills/**/SKILL.md` | `runbook` | per-skill (see Skill Role Inference below) | `false` |
 | `.claude/skills/**/SKILL.md` | `runbook` | per-skill (see Skill Role Inference below) | `false` |
+| `fiducial-mesh/air/reports/AIR-*.md` | `air-report` (new doc_type per `akb-lifecycle.md` § doc_type Bounded Enumeration) | `failure-mode`, `design-intent` + pillar-specific roles per the AIR's `incident_class` / affected pillars | **`false`** (NOT `true`) — see Phase A.1.4 below |
 
 **Skill canonical path note** (per Bob's `50460657` bootstrap dry-run finding): the canonical skill source the ionis-devel corpus walk surfaces is `shared-context/skills/<name>/SKILL.md` — that is where the committed Source-of-Truth lives. `.claude/skills/<name>/SKILL.md` is the per-host install location (Claude Code lays skills out there at install time); it is supported by the same rule and routes through the same `SKILL_ROLE_MAP` so per-host development paths remain ingestible. **Both paths fire the same rule with the same role lookup.** Pre-fix, the ingest pipeline matched only `.claude/skills/`, leaving 14 corpus skills silently default-roled and invisible to role-projected retrieval; the fix landed in `KI7MT/akb` at `39d752d` and is the reason both rows appear in the table above.
 
@@ -165,6 +166,41 @@ For each document being ingested, the dry-run inspects the frontmatter `roles` a
 **Future extensions** (deferred but flagged):
 - Failure-class detection: documents in `planning/` paths with `violates_invariant=false` but title or frontmatter description suggests post-mortem content. Flag for manual classification at dry-run.
 - Stale-trajectory detection: `akb-review-trajectory.md`-class documents (methodology evidence) that age out of relevance. Defer to Phase D curation.
+
+### Phase A.1.4 — AIR-report ingest rules (`fiducial-mesh/air/reports/AIR-*.md`)
+
+Added 2026-06-07 per Judge directive. AIRs (Agentic Incident Reports) live in the dedicated `fiducial-mesh/air` repository (per `AIR-SPEC-DESIGN-NOTES.md` § 7.1) and are ingested into AKB so the lessons each AIR captures become **retrievable across sessions** rather than living in agent memory. This closes the AIR + AKB + PCS containment loop articulated in `AIR-SPEC-DESIGN-NOTES.md` § 1.
+
+**The load-bearing rule: `violates_invariant: false`**
+
+AIRs document operational lessons that should be **surfaced** at decision points, not filtered out by the substrate-trap pre-filter (per `akb-awareness-layer.md` § Tier 1 Query Flow / Einstein round 5). This is **distinct from `v-results`**:
+
+| Doc class | `violates_invariant` | Why |
+|---|---|---|
+| `v-results` | `true` | Dead-end architectures (V25-α…V28). The pre-filter excludes them from non-historical queries so a Watson query for "SFI sidecar architecture" doesn't surface V25-α as a candidate solution. |
+| `air-report` | **`false`** | Operational lessons. The whole point is to **surface** AIR-002's F-3 (PAT scope drift) when an agent's hook-trigger fires before `git push` or `gh pr`. Marking `true` would defeat the AIR + AKB containment. |
+
+The `invariant_class` field stays empty for `air-report` chunks. The AIR ID + failure-ID (F-N) are addressable via the per-chunk `header_path` (e.g., `AIR-002 > Section 3 > F-3. PAT scope drift across org rename`), not via the substrate-trap-pre-filter metadata.
+
+**Role assignment per AIR**:
+
+- **Baseline roles** (always present): `failure-mode`, `design-intent`
+- **Pillar-specific roles** added per the AIR's affected pillars / `incident_class`:
+  - AIR with `incident_class: workflow` (AIR-001) → no additional pillar role; baseline only
+  - AIR with `incident_class: operating-environment` (AIR-002) → adds roles for the affected pillars (e.g., AKB, IBX, MCC, IAM, PCS — whichever the F-N failures span)
+  - AIR with `incident_class: substrate` → adds `infrastructure`
+  - AIR with `incident_class: security` → carries `audience: restricted` per `AIR-SPEC-DESIGN-NOTES.md` § 1.4; **does not flow into general AKB at all** — security findings stay out of ACT and AKB by structural exclusion (§ 1.4 of the design notes); only metadata (class, time, severity) may exist in SEC's restricted plane
+- Inference at ingest time: the AIR's frontmatter `incident_class` + the F-N sub-section's stated affected pillar (when named) drive role assignment
+
+**Chunking**: each F-N sub-section within an AIR chunks independently (header-based split at H3 boundaries inside § 3). A query about "PAT scope drift" surfaces AIR-002 § 3 § F-3, not the whole AIR. The per-chunk `header_path` carries the AIR ID → section → F-N hierarchy.
+
+**Tier-1 surface mechanism (per AKB-SPEC CD14)**: AIR chunks surface via Tier-1 query when the hook triggers fire at decision points — code-author-side (`Edit`, `Write`, `git commit`, MCP plugin invoke) AND infra-decision-side (`git push`, `gh pr create` / `gh pr review`, deploy commands, substrate config edits). An agent about to push code that touches inbox MCP fires an AKB query → AIR-002 F-2 + F-8 surface as relevant context. This is the operational realization of "AKB makes the lesson retrievable across sessions so it doesn't live in memory" (AIR-SPEC-DESIGN-NOTES § 1).
+
+**Tier-0 exclusion**: AIRs do NOT go into Tier-0 (the bounded ~1 KB session-start prior). Tier-0 is reserved for the V16 laws, eight dead ends, security non-negotiables, current phase, layer reminder. AIRs are too rich for Tier-0; they belong in Tier-1 (gradient-gated retrieval at decision points).
+
+**Curation event on AIR merge**: when a new AIR merges to `fiducial-mesh/air/main`, a git-post-commit hook (or equivalent) triggers re-ingest into AKB. The curation event is logged with `event_type='air_ingest'`, the AIR ID, the source commit, and the per-F-N chunk count.
+
+**`incident_class: security` exclusion** (critical): security-class AIRs route to a restricted destination per AIR-SPEC-DESIGN-NOTES § 1.4. They are **categorically excluded from AKB ingest** — security finding payloads never land in AKB (or ACT) because broadcast-by-design substrates are incompatible with need-to-know audiences. The ingest pipeline drops AIRs with `incident_class: security` or `audience: restricted` and logs a curation event noting the exclusion. SEC pillar (when ratified per CD1) owns the restricted store for these.
 
 ### Phase A.2 — Cross-Role Chunk Budget
 
