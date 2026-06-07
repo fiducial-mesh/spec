@@ -129,6 +129,7 @@ This spec answers Bob's 10 lifecycle questions and codifies Patton's promotion d
 | `runbook` | `**/RUNBOOK.md`, `*-runbook.md` | Operational procedures |
 | `shared-context` | `shared-context/**.md` | Cross-agent reference material |
 | `inbox-derived` | Inbox messages promoted to AKB (e.g., Patton verdicts, Bob/Watson coordination outputs) | Manual ingest only |
+| `air-report` | Agentic Incident Reports — failure post-mortems with CLCA actions | Sourced from `fiducial-mesh/air/reports/AIR-*.md` per `akb-migration-plan.md` § Phase A.1. **`violates_invariant: false`** (operational lessons to be **surfaced** at decision points, not filtered out by the substrate-trap pre-filter — distinct from `v-results` which carries `true`). Tier-1 hook triggers per AKB-SPEC CD14 surface AIR chunks at decision points (before `git push`, `gh pr`, deploy commands, substrate config edits). Closes the AIR + AKB + PCS containment loop articulated in `AIR-SPEC-DESIGN-NOTES.md` § 1. |
 
 **No `etc.`** Adding `paper`, `data-doc`, `interview`, etc. requires a curation event documenting why the new type is needed and what queries it serves.
 
