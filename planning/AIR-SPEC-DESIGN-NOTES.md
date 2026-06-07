@@ -546,8 +546,8 @@ queryable fields / reports:
   flag (the Vault-token case was a near-miss — captured how?).
 - SEV scale depth (3 vs 5 levels) for a lab of this size.
 - Whether to adopt the Impact×Urgency priority matrix now or document it as a growth path.
-- AIR numbering / ID scheme (AIR-001, AIR-002, …) and where AIRs live (planning/ vs a
-  dedicated AIR directory once there are several).
+- ~~AIR numbering / ID scheme (AIR-001, AIR-002, …) and where AIRs live (planning/ vs a
+  dedicated AIR directory once there are several).~~ **RESOLVED 2026-06-07 (Judge directive) — see §7.1.**
 - How AIR links to PCS (the preventive-as-enforced-workflow) and AKB (the lesson-as-
   retrievable-knowledge) — the cross-pillar seams that make the containment real. **Note the
   PCS↔AIR link is BIDIRECTIONAL (see §1.2): PCS *fires* AIRs (a deploy/config workflow that
@@ -611,8 +611,101 @@ queryable fields / reports:
   an AKB-ingest invariant; decide exactly what metadata is safe for which plane (shape-only;
   highest-sensitivity classes may suppress even existence-at-a-path).
 
+## 7.1 Resolved operational decisions (2026-06-07, Judge directive)
+
+The "where AIRs live" question in §7 was resolved 2026-06-07 after AIR-002 landed and demonstrated that AIRs are structurally cross-repo (today's AIR-002 cross-references mesh-spec failures, IONIS ML failures, workspace-tier infra failures, and the inbox cutover). Forcing AIRs to live in any one project repo creates an artificial home; the cross-class corpus the paper consolidates from requires a neutral seam. The resolution operationalizes the §1.1 contract-vs-storage split for the *internal* (the mesh-owned) side of the seam: the lab's reference AIR storage is a dedicated repository, and CLCA tracking uses that repository's native Issue tracker.
+
+### 7.1.1 Dedicated repository — `github.com/fiducial-mesh/air`
+
+AIRs are authored to **`fiducial-mesh/air`** (private at first, flips public per the per-module visibility-flip discipline). This is the **reference implementation of the §1.1 storage seam** — the markdown-in-a-repo destination that the AIR contract specifies as the air-gapped default for any mesh deployment. Customer deployments may seam the same AIR record contract into JSM / ServiceNow / GitHub Issues per §1.1; the lab uses its own reference implementation.
+
+The dedicated repository was chosen over keeping AIRs in `fiducial-mesh/spec/planning/` for three reasons:
+
+1. **AIRs are structurally cross-repo.** An incident's failure surface frequently spans multiple repos (AIR-002 spans mesh-spec, core, IONIS, workspace-tier, inbox infra). Forcing the record into any single project repo orphans it on repo migrations + creates a misleading "ownership" attachment.
+2. **Storage seam separation.** Per §1.1, the AIR *contract* is the mesh's; the *storage* is a seam. Keeping the lab's reference storage in a dedicated repository makes that boundary structurally visible — `fiducial-mesh/spec/` holds the AIR *contract* (this file + future AIR-SPEC.md when it lands); `fiducial-mesh/air/` holds the *instances* + tracking. Two repositories with two different concerns is honest.
+3. **Native CLCA tracking.** GitHub Issues in a dedicated repo become the natural CLCA tracker (§7.1.2). Living in `spec/planning/` would mean either issues mint against the spec repo (polluting its issue queue with CLCA-tracking issues) or no native issue-tracker at all (which is the AIR-001 root cause).
+
+**Repository layout** (the reference shape — Bob's lane to create + maintain):
+
+```
+fiducial-mesh/air/
+├── README.md                         # workflow, statuses, conventions
+├── LICENSE                           # GPLv3 when public; private until visibility flip
+├── reports/
+│   ├── AIR-001-closed-not-landed.md  # migrated from fiducial-mesh/spec/planning/
+│   ├── AIR-002-day-of-stale-state.md # migrated from fiducial-mesh/spec/planning/
+│   └── ...
+├── templates/
+│   └── AIR-TEMPLATE.md               # extracted common structure from AIR-001/002
+└── .github/
+    ├── ISSUE_TEMPLATE/
+    │   └── clca-action.yml           # form-style CLCA tracker
+    └── labels.yml                    # bulk-mint label set (see §7.1.3)
+```
+
+`AIR-SPEC-DESIGN-NOTES.md` (this file) and the future `AIR-SPEC.md` stay in `fiducial-mesh/spec/planning/` — the contract is spec-class; the instances + tracking are not.
+
+### 7.1.2 CLCA tracking via Issues — tracked to conclusion
+
+Every CLCA action from an AIR's § 5 disposition table becomes an Issue in `fiducial-mesh/air`. The Issue is the unit of CLCA tracking; the AIR's `disposition` field closes only when every linked CLCA Issue closes.
+
+**Issue conventions:**
+
+- **Title**: `[AIR-NNN F-N] <short action description>` — both the AIR and the failure-within-AIR are encoded in the title for easy filtering
+- **Body** (form-driven via `clca-action.yml`): AIR ID • Failure ID (F-N) • Sub-type (per the operating-environment meta-class taxonomy in AIR-002 §1) • Lane (fleet-ops / AKB / PCS / MCC / IAM / spec) • Pillar tag (when applicable) • Action description • Verification criteria (how do we know it landed) • Evidence (filled in as the work lands)
+- **Labels**: one `air-NNN` label per AIR (for filtering by-incident), plus `clca`, `subtype:<value>`, `lane:<value>`, `pillar:<value>`, `status:queued|in-progress|done|reverted` (see §7.1.3 for the full set)
+
+**Cross-repo closure** is the load-bearing mechanic. CLCA work happens in *other* repositories (a PR in `fiducial-mesh/core` lands a code change, a PR in `fiducial-mesh/spec` adds a CD, a PR in `ki7mt/fleet-ops` deploys a control). The fix-PR closes the AIR Issue via the standard GitHub cross-repo close-via-keyword pattern:
+
+```
+Closes fiducial-mesh/air#42
+```
+
+In the PR body. The Issue closes when the fix-PR merges. The AIR's § 5 row's Evidence column references the closed Issue and the merging PR by URL. Disposition closure is automated from the Issue-closure state: when every `air-NNN`-labeled Issue is closed, the AIR's `disposition` flips `open → resolved` (mechanism TBD — could be a workflow on the AIR repo that updates the AIR file's frontmatter, or a CI check that verifies the disposition field is consistent with the Issue closure state).
+
+**Per-AIR Issue minting timing**: Issues are minted from the AIR's § 5 table **after** the AIR merges to `fiducial-mesh/air`, not before. This avoids orphaned Issues when an AIR draft is amended during review. Minting is mechanical — one Issue per row in § 5 that isn't `Done (repo-tracked)` at AIR-merge time. (Rows already `Done (repo-tracked)` close immediately at mint time; rows `Done (workspace-root file)` or `Done (user-local memory)` open with a state reflecting their non-repo-resolvable evidence and a tracking comment explaining the lab-repo SOT move dependency.)
+
+### 7.1.3 Label set (initial — refine with operating data)
+
+The `labels.yml` set on the AIR repo:
+
+| Label class | Values | Purpose |
+|---|---|---|
+| **AIR ID** | `air-001`, `air-002`, `air-NNN` (one per AIR) | Filter Issues by which AIR they trace to |
+| **Type** | `clca` | Identifies an Issue as a CLCA action (vs. a meta-discussion Issue) |
+| **Sub-type** | `subtype:stale-state`, `subtype:missing-control`, `subtype:conformance-defect`, `subtype:coverage-gap`, `subtype:identity-architecture`, `subtype:false-completion`, `subtype:narrative-vs-substrate`, `subtype:substrate` (per §3 incident-class taxonomy + AIR-002 §1 sub-types) | Filter by failure mode; supports recurrence-metrics queries (§6) |
+| **Lane** | `lane:fleet-ops`, `lane:akb`, `lane:pcs`, `lane:mcc`, `lane:iam`, `lane:spec`, `lane:act`, `lane:crb`, `lane:dpg`, `lane:pge` | Who owns the corrective work |
+| **Pillar** | `pillar:akb`, `pillar:ibx`, `pillar:iam`, `pillar:pcs`, `pillar:act`, `pillar:mcc`, `pillar:crb`, `pillar:dpg`, `pillar:pge` | Optional — when the CLCA is pillar-scoped (vs. cross-cutting) |
+| **Status** | `status:queued`, `status:in-progress`, `status:done`, `status:reverted` | Beyond GitHub's open/closed — `reverted` captures CLCA actions that landed and were later rolled back (recurrence signal) |
+| **Severity** | `sev:1`, `sev:2`, `sev:3` (extend if AIR adopts SEV4/SEV5 per §5) | Carries the AIR's severity onto its CLCA Issues for prioritization |
+
+### 7.1.4 Migration of existing AIRs
+
+AIR-001 and AIR-002 currently live in `fiducial-mesh/spec/planning/`. They migrate to `fiducial-mesh/air/reports/` as part of repo creation:
+
+1. `fiducial-mesh/air` repo created (Bob's lane)
+2. Migration PR in `fiducial-mesh/air`: add AIR-001 + AIR-002 under `reports/`
+3. Migration PR in `fiducial-mesh/spec`: replace the two files in `planning/` with stub-redirects pointing at the new location (or delete with a clear commit message — Judge picks)
+4. Cross-references updated: this file's frontmatter `references:` block; any other reference to `planning/AIR-NNN-*.md` in the spec corpus
+5. CLCA Issues minted from AIR-002 § 5 in `fiducial-mesh/air`
+
+The lab-repo SOT move for *briefs* (Judge-deferred) is a separate concern from the AIR repo creation — different artifact class, different storage seam.
+
+### 7.1.5 What this resolves and what remains open
+
+**Resolved by this section**: where AIRs live (the §7 open question), how CLCA actions are tracked (Issues with cross-repo close-via), how AIR disposition closes (when every linked Issue closes), the initial label taxonomy.
+
+**Still open at AIR-SPEC time** (these were §7 open questions and stay open until the AIR spec proper drafts):
+- Exact `incident_class` set + near-miss handling
+- SEV scale depth
+- Whether to adopt Impact × Urgency priority matrix now or as a growth path
+- Whether AIR-SPEC enforces the AIR-002 §1 sub-type taxonomy as a required frontmatter field
+- The AIR `disposition` field's automated close mechanism (workflow vs CI check vs manual)
+- SEC pillar gap (§1.4) — Judge-gated CD1 question
+- Substrate degradation contract (§1.3) — feeds back into MI-8 independent of AIR
+
 ## 8. Worked example
 
-`planning/AIR-001-closed-not-landed.md` is a faithful instance of the §2 structure
-(incident_class: workflow, severity: high) — the spec can reference it as the canonical
-example of the capture → 5-whys → CLCA → tracked-closure shape.
+`fiducial-mesh/air/reports/AIR-001-closed-not-landed.md` (post-migration; originally at `fiducial-mesh/spec/planning/AIR-001-closed-not-landed.md`) is a faithful instance of the §2 structure (incident_class: workflow, severity: high) — the spec can reference it as the canonical example of the capture → 5-whys → CLCA → tracked-closure shape.
+
+`fiducial-mesh/air/reports/AIR-002-day-of-stale-state.md` (post-migration; originally at `fiducial-mesh/spec/planning/AIR-002-day-of-stale-state.md`) is the cascade variant — a single operating day producing ten distinct failures across multiple sub-types, with explicit per-failure CLCA actions, cross-class corpus references, and paper-consolidation sections. AIR-002 is also the worked example for the §7.1 operational decisions (its § 5 CLCA table will mint the first batch of Issues against `fiducial-mesh/air` post-migration).
