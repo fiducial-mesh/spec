@@ -673,8 +673,8 @@ The `labels.yml` set on the AIR repo:
 |---|---|---|
 | **AIR ID** | `air-001`, `air-002`, `air-NNN` (one per AIR) | Filter Issues by which AIR they trace to |
 | **Type** | `clca` | Identifies an Issue as a CLCA action (vs. a meta-discussion Issue) |
-| **Sub-type** | `subtype:stale-state`, `subtype:missing-control`, `subtype:conformance-defect`, `subtype:coverage-gap`, `subtype:identity-architecture`, `subtype:false-completion`, `subtype:narrative-vs-substrate`, `subtype:substrate` (per §3 incident-class taxonomy + AIR-002 §1 sub-types) | Filter by failure mode; supports recurrence-metrics queries (§6) |
-| **Lane** | `lane:fleet-ops`, `lane:akb`, `lane:pcs`, `lane:mcc`, `lane:iam`, `lane:spec`, `lane:act`, `lane:crb`, `lane:dpg`, `lane:pge` | Who owns the corrective work |
+| **Sub-type** | `subtype:stale-state`, `subtype:missing-control`, `subtype:conformance-defect`, `subtype:coverage-gap`, `subtype:identity-architecture`, `subtype:false-completion`, `subtype:narrative-vs-substrate`, `subtype:substrate`, `subtype:security` (per §3 incident-class taxonomy + AIR-002 §1 sub-types; `subtype:security` per §1.4 need-to-know audience) | Filter by failure mode; supports recurrence-metrics queries (§6) |
+| **Lane** | `lane:fleet-ops`, `lane:akb`, `lane:pcs`, `lane:mcc`, `lane:iam`, `lane:spec`, `lane:act`, `lane:crb`, `lane:dpg`, `lane:pge`, `lane:shared` (cross-cutting CLCA actions where multiple lanes share ownership — e.g., AIR-002 F-3+F-7 converge on a fleet-ops/IAM joint fix) | Who owns the corrective work |
 | **Pillar** | `pillar:akb`, `pillar:ibx`, `pillar:iam`, `pillar:pcs`, `pillar:act`, `pillar:mcc`, `pillar:crb`, `pillar:dpg`, `pillar:pge` | Optional — when the CLCA is pillar-scoped (vs. cross-cutting) |
 | **Status** | `status:queued`, `status:in-progress`, `status:done`, `status:reverted` | Beyond GitHub's open/closed — `reverted` captures CLCA actions that landed and were later rolled back (recurrence signal) |
 | **Severity** | `sev:1`, `sev:2`, `sev:3` (extend if AIR adopts SEV4/SEV5 per §5) | Carries the AIR's severity onto its CLCA Issues for prioritization |
