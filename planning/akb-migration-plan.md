@@ -2,10 +2,10 @@
 title: "AKB Migration Plan — Existing Corpus → Ingested KB"
 doc_type: planning-active
 status: draft
-version: v0.2
+version: v0.3
 authors:
   - watson
-date: "2026-06-02"
+date: "2026-06-07"
 roles:
   - design-intent
   - infrastructure
@@ -26,7 +26,7 @@ references:
 
 **Scope**: How the existing ~442 markdown files across the workspace get ingested into AKB during Phase-1 build, without requiring manual conversion of every file.
 
-**Status**: Draft v0.2 — folds six Phase-1 gaps surfaced during Bob's bootstrap dry-run + PR-#60 frontmatter sweep. Updates landed: (1) skill canonical path is `shared-context/skills/`, with `.claude/skills/` retained as per-host install fallback (per Bob `50460657`); (2) Patton's per-document cap-unit ruling resolves former Open Question 2; (3) new Phase A.1.2 frontmatter authoring discipline section codifies the default-narrow contract surfaced by the SOM-4 over-broad-tagging lesson (per `c6773933`); (4) Phase A.1 path-rule table updated to mirror code at `39d752d` including templates-excluded and tier0 dedicated rule; live-ingest pre-write gate landed separately in `akb-lifecycle.md` v0.4; Tier-0 generator contract landed in `akb-awareness-layer.md` v0.4. Bob's implementation pre-dates this fold-in but already matches; this version is the spec catching up to the code.
+**Status**: Draft v0.3 — reconciles the 2026-06-06 org-folder workspace reorg (per memory `workspace-layout-org-folders`) + folds Bob's 9975 friction data (inbox `5be7666a`). Changes: (1) Phase A.1 path-rule table re-keyed from the dead `ionis-devel/...` prefix onto explicit `<owner>/<repo>/...` org-folder paths; (2) old `som-pcs-registry/`, `som-pcs-control-plane/`, `spec/spec/` rows dropped — superseded by `fiducial-mesh/spec/planning/` and the per-pillar `*-SPEC.md` rule; (3) Phase C corpus walk made explicitly multi-root across the four org-folders (corpus is no longer under a single `ionis-devel/` tree); (4) new Phase A.1.5 — operational-runbook scope addition (`fiducial-mesh/devel/apps/*/ansible/README.md`-class deploy runbooks), per Bob's design-input #1 grounded in AIR-002's "deploy ≠ merge" friction; (5) three new Open Questions surfaced by the org-folder split (canonical home for AGENT-FRICTION-CATALOG, lab-vs-IONIS shared-context duplicates, stale `ionis-ai/ionis-devel/planning/akb-migration-plan.md` cleanup); (6) hook-trigger extension (Bob design-input #2 — `git push` / `gh pr` / deploy) cross-referenced; lands in `akb-awareness-layer.md` v0.5 (separate PR — out of scope here since hook triggers are query-time, not ingest-path inference). v0.2 changelog retained: skill canonical path is `shared-context/skills/`, with `.claude/skills/` retained as per-host install fallback (per Bob `50460657`); Patton's per-document cap-unit ruling resolves former Open Question 2; Phase A.1.2 frontmatter authoring discipline codifies the default-narrow contract surfaced by the SOM-4 over-broad-tagging lesson (per `c6773933`); Phase A.1 path-rule table updated to mirror code at `39d752d` including templates-excluded and tier0 dedicated rule; live-ingest pre-write gate landed separately in `akb-lifecycle.md` v0.4; Tier-0 generator contract landed in `akb-awareness-layer.md` v0.4.
 
 ## Purpose
 
@@ -48,35 +48,80 @@ The ingest pipeline assigns metadata using these rules in priority order:
 
 ### Phase A.1 — Path-Based Inference Rules
 
+Paths are keyed by `<owner>/<repo>/...` matching the org-folder workspace layout (per memory `workspace-layout-org-folders`, established 2026-06-06). The corpus walk is multi-root — see § Phase C for the canonical root list.
+
+**Lab master + lab-level operational content** (`ki7mt/ki7mt-ai-lab-devel/`):
+
 | Path Pattern | `doc_type` | Default `roles` | `violates_invariant` |
 |---|---|---|---|
-| `ionis-devel/CLAUDE.md` | `spec` | all roles (cross-role) | `false` |
-| `ionis-devel/planning/akb-*.md` | `spec` | `design-intent`, `infrastructure` | `false` |
-| `ionis-devel/planning/PHASE-*.md` | `planning-active` | `design-intent`, `physics` | `false` |
-| `ionis-devel/planning/AGENT-FRICTION-CATALOG.md` | `friction` | `infrastructure`, `failure-mode` | per-entry (see Phase B) |
-| `ionis-devel/planning/MCP-SECURITY-FRAMEWORK.md` | `spec` | all roles | `false` |
-| `ionis-devel/planning/ARCHITECTURAL-METHODOLOGY.md` | `spec` | `design-intent`, `physics` | `false` |
-| `ionis-devel/planning/MASTER-ARCHITECTURE.md` | `spec` | `design-intent`, `physics` | `false` |
-| `ionis-devel/planning/tier0/akb-tier0-content.md` | `shared-context` | all roles (intentional cross-role atomic facts; see `akb-awareness-layer.md` § Tier 0 Generator Implementation Contract) | `false` |
-| `ionis-devel/planning/templates/**` | `planning-draft` | none — **EXCLUDED** (template scaffolding, not content; covers `akb-document-template.md` and any future template) | `false` |
-| `ionis-devel/planning/*.md` (other) | `planning-active` | `design-intent` | `false` |
-| `ionis-devel/planning/notes/**.md` | `planning-draft` | none (excluded from default ingest) | `false` |
-| `ionis-devel/archive/planning/V*-RESULTS.md` | `v-results` | `failure-mode`, `design-intent` | **`true`** with appropriate `invariant_class` |
-| `ionis-devel/archive/planning/*.md` (other) | `archive` | matches what doc described | per-content |
-| `ionis-devel/shared-context/MODEL-VERSION-HISTORY.md` | `shared-context` | `design-intent`, `physics`, `failure-mode` | `false` |
-| `ionis-devel/shared-context/architecture-philosophy.md` | `shared-context` | all roles (cross-role) | `false` |
-| `ionis-devel/shared-context/domain-wisdom.md` | `shared-context` | `physics`, `astrophysics` | `false` |
-| `ionis-devel/shared-context/TRAINING-SOPS.md` | `runbook` | `design-intent`, `infrastructure` | `false` |
-| `ionis-devel/resources/*.md` | `shared-context` | `design-intent` | `false` |
-| `spec/spec/**.md` | `spec` | `design-intent`, `infrastructure` | `false` |
-| `som-pcs-registry/**.md` | `spec` | `design-intent`, `infrastructure` | `false` |
-| `som-pcs-control-plane/**.md` | `spec` | `design-intent`, `infrastructure` | `false` |
-| `papers/**.md` | **EXCLUDED** | n/a | n/a (research-style, not AKB-ingested) |
-| `ionis-devel/shared-context/skills/**/SKILL.md` | `runbook` | per-skill (see Skill Role Inference below) | `false` |
-| `.claude/skills/**/SKILL.md` | `runbook` | per-skill (see Skill Role Inference below) | `false` |
-| `fiducial-mesh/air/reports/AIR-*.md` | `air-report` (new doc_type per `akb-lifecycle.md` § doc_type Bounded Enumeration) | `failure-mode`, `design-intent` + pillar-specific roles per the AIR's `incident_class` / affected pillars | **`false`** (NOT `true`) — see Phase A.1.4 below |
+| `ki7mt/ki7mt-ai-lab-devel/CLAUDE.md` | `spec` | all roles (cross-role; see § A.1.3 allowlist) | `false` |
+| `ki7mt/ki7mt-ai-lab-devel/SOVEREIGN-STACK.md` | `shared-context` | `design-intent`, `infrastructure` | `false` |
+| `ki7mt/ki7mt-ai-lab-devel/skills/**/SKILL.md` | `runbook` | per-skill (see Skill Role Inference below) | `false` |
+| `ki7mt/ki7mt-ai-lab-devel/shared-context/**.md` | `shared-context` | `design-intent` (default; per-doc override via frontmatter) | `false` |
+| `ki7mt/ki7mt-ai-lab-devel/planning/**.md` | `runbook` | `infrastructure` | `false` |
+| `ki7mt/ki7mt-ai-lab-devel/V20-*.md`, `IONIS-THESIS.md`, `README.md` | `shared-context` | `design-intent`, `physics` | `false` |
 
-**Skill canonical path note** (per Bob's `50460657` bootstrap dry-run finding): the canonical skill source the ionis-devel corpus walk surfaces is `shared-context/skills/<name>/SKILL.md` — that is where the committed Source-of-Truth lives. `.claude/skills/<name>/SKILL.md` is the per-host install location (Claude Code lays skills out there at install time); it is supported by the same rule and routes through the same `SKILL_ROLE_MAP` so per-host development paths remain ingestible. **Both paths fire the same rule with the same role lookup.** Pre-fix, the ingest pipeline matched only `.claude/skills/`, leaving 14 corpus skills silently default-roled and invisible to role-projected retrieval; the fix landed in `KI7MT/akb` at `39d752d` and is the reason both rows appear in the table above.
+**Fiducial Mesh framework specs** (`fiducial-mesh/spec/`):
+
+| Path Pattern | `doc_type` | Default `roles` | `violates_invariant` |
+|---|---|---|---|
+| `fiducial-mesh/spec/planning/akb-*.md` | `spec` | `design-intent`, `infrastructure` | `false` |
+| `fiducial-mesh/spec/planning/AKB-SPEC.md`, `IBX-SPEC.md`, `IAM-CORE-SPEC.md`, `ACT-SPEC.md`, `PCS-*.md`, `CRB-SPEC.md`, `DPG-SPEC.md`, `PGE-SPEC.md`, `MCC-SPEC.md`, `MESH-SPEC.md` (pillar specs) | `spec` | `design-intent`, `infrastructure` | `false` |
+| `fiducial-mesh/spec/planning/AIR-SPEC-*.md`, `AIR-001-*.md`, `AIR-002-*.md` (AIR spec/discussion docs, **NOT** the AIR reports themselves) | `spec` | `design-intent`, `failure-mode` | `false` |
+| `fiducial-mesh/spec/planning/MANIFESTO.md`, `DESIGN-PHILOSOPHY.md`, `ENGINEERING-STANDARDS.md`, `OWNERSHIP-MATRIX.md`, `REPO-SHAPE-DECISIONS.md`, `CONFORMANCE.md`, `DELIVERY-PACKAGING.md`, `CONCURRENCY-AND-ARCHETYPES.md`, `IDENTITY-PILLAR-DESIGN.md`, `INSTANTIATION-AND-IDP.md`, `IAM-INCREMENT-2.md`, `IAM-STARTER-ROLES-TABLE.md`, `PCS-ADOPTION-PLAN.md`, `PCS-REGISTRY-FOLD-IN.md` | `spec` | `design-intent`, `infrastructure` | `false` |
+| `fiducial-mesh/spec/planning/pcs/**.md` | `spec` | `design-intent`, `infrastructure` | `false` |
+| `fiducial-mesh/spec/planning/tier0/akb-tier0-content.md` | `shared-context` | all roles (intentional cross-role atomic facts; see `akb-awareness-layer.md` § Tier 0 Generator Implementation Contract) | `false` |
+| `fiducial-mesh/spec/planning/templates/**` | `planning-draft` | none — **EXCLUDED** (template scaffolding, not content; covers `akb-document-template.md` + any future template) | `false` |
+| `fiducial-mesh/spec/planning/AGENT-FRICTION-CATALOG.md` | `friction` | `infrastructure`, `failure-mode` | per-entry (see Phase B); **canonical home — see Open Question 6** | per-entry |
+
+**AIR incident reports** (`fiducial-mesh/air/reports/`):
+
+| Path Pattern | `doc_type` | Default `roles` | `violates_invariant` |
+|---|---|---|---|
+| `fiducial-mesh/air/reports/AIR-*.md` | `air-report` (per `akb-lifecycle.md` § doc_type Bounded Enumeration) | `failure-mode`, `design-intent` + pillar-specific roles per the AIR's `incident_class` / affected pillars | **`false`** (NOT `true`) — see Phase A.1.4 below |
+
+**Mesh deploy + ops runbooks** (`fiducial-mesh/devel/`) — added in v0.3 per Phase A.1.5:
+
+| Path Pattern | `doc_type` | Default `roles` | `violates_invariant` |
+|---|---|---|---|
+| `fiducial-mesh/devel/apps/*/ansible/README.md` | `runbook` | `infrastructure` | `false` |
+| `fiducial-mesh/devel/apps/*/ansible/**.md` (other ops notes) | `runbook` | `infrastructure` | `false` |
+
+**IONIS model planning + archive** (`ionis-ai/ionis-devel/`):
+
+| Path Pattern | `doc_type` | Default `roles` | `violates_invariant` |
+|---|---|---|---|
+| `ionis-ai/ionis-devel/planning/PHASE-*.md` | `planning-active` | `design-intent`, `physics` | `false` |
+| `ionis-ai/ionis-devel/planning/MCP-SECURITY-FRAMEWORK.md` | `spec` | all roles (cross-role; see § A.1.3 allowlist) | `false` |
+| `ionis-ai/ionis-devel/planning/ARCHITECTURAL-METHODOLOGY.md` | `spec` | `design-intent`, `physics` | `false` |
+| `ionis-ai/ionis-devel/planning/MASTER-ARCHITECTURE.md` | `spec` | `design-intent`, `physics` | `false` |
+| `ionis-ai/ionis-devel/planning/*.md` (other) | `planning-active` | `design-intent` | `false` |
+| `ionis-ai/ionis-devel/planning/notes/**.md` | `planning-draft` | none (excluded from default ingest) | `false` |
+| `ionis-ai/ionis-devel/archive/planning/V*-RESULTS.md` | `v-results` | `failure-mode`, `design-intent` | **`true`** with appropriate `invariant_class` |
+| `ionis-ai/ionis-devel/archive/planning/*.md` (other) | `archive` | matches what doc described | per-content |
+| `ionis-ai/ionis-devel/shared-context/MODEL-VERSION-HISTORY.md` | `shared-context` | `design-intent`, `physics`, `failure-mode` | `false` |
+| `ionis-ai/ionis-devel/shared-context/architecture-philosophy.md` | `shared-context` | all roles (cross-role; see § A.1.3 allowlist); **see Open Question 7** | `false` |
+| `ionis-ai/ionis-devel/shared-context/domain-wisdom.md` | `shared-context` | `physics`, `astrophysics`; **see Open Question 7** | `false` |
+| `ionis-ai/ionis-devel/shared-context/TRAINING-SOPS.md` | `runbook` | `design-intent`, `infrastructure` | `false` |
+| `ionis-ai/ionis-devel/resources/*.md` | `shared-context` | `design-intent` | `false` |
+
+**Skills (per-host install fallback)**:
+
+| Path Pattern | `doc_type` | Default `roles` | `violates_invariant` |
+|---|---|---|---|
+| `.claude/skills/**/SKILL.md` (any host) | `runbook` | per-skill (see Skill Role Inference below) | `false` |
+
+**Excluded paths** (not ingested by default):
+
+| Path Pattern | Rule |
+|---|---|
+| `papers/**.md` (any repo) | **EXCLUDED** — research-style, not AKB-ingested |
+| `**/.git/**` | **EXCLUDED** — git internals |
+| `**/node_modules/**`, `**/.venv/**`, `**/__pycache__/**` | **EXCLUDED** — build/runtime artifacts |
+| `**/temp/**`, `**/notes/**` (workspace-root scratch dirs) | **EXCLUDED** — transient |
+| `qso-graph/**` | **DEFERRED** — per-MCP READMEs + planning not in scope for bootstrap v1; revisit when MCP doc surface stabilizes |
+
+**Skill canonical path note** (per Bob's `50460657` bootstrap dry-run finding): the canonical skill source the lab-devel corpus walk surfaces is `ki7mt/ki7mt-ai-lab-devel/skills/<name>/SKILL.md` (relocated from the previous `ionis-devel/shared-context/skills/` path by the 2026-06-06 reorg — content moved with the rest of the lab corpus). `.claude/skills/<name>/SKILL.md` is the per-host install location (Claude Code lays skills out there at install time); it is supported by the same rule and routes through the same `SKILL_ROLE_MAP` so per-host development paths remain ingestible. **Both paths fire the same rule with the same role lookup.** Pre-fix, the ingest pipeline matched only `.claude/skills/`, leaving 14 corpus skills silently default-roled and invisible to role-projected retrieval; the fix landed in `KI7MT/akb` at `39d752d`.
 
 ### Phase A.1.1 — Skill Role Inference (refined per `akb-cross-role-audit.md`)
 
@@ -104,7 +149,7 @@ Initial inference rule assigned `all roles` to every `.claude/skills/**/SKILL.md
 
 ### Phase A.1.2 — Frontmatter Authoring Discipline (new section, v0.2)
 
-**Surfaced by the SOM-4 over-broad-tagging issue (PR #60, 2026-06-02):** four Fiducial Mesh mesh-architecture canonical docs were carrying inherited all-five-roles frontmatter (`design-intent + infrastructure + failure-mode + physics + astrophysics`), over-tagging them on the role axis. Mesh-arch docs are not propagation physics — physics and astrophysics agents should not be retrieving Fiducial Mesh pillar names as relevant context to ionospheric or astro queries. Patton ruled `c6773933` to fix the source of truth pre-bootstrap rather than maintain a curation-layer correction.
+**Surfaced by the SOM-4 over-broad-tagging issue (PR #60, 2026-06-02):** four Fiducial Mesh mesh-architecture canonical docs (now at `fiducial-mesh/spec/planning/`) were carrying inherited all-five-roles frontmatter (`design-intent + infrastructure + failure-mode + physics + astrophysics`), over-tagging them on the role axis. Mesh-arch docs are not propagation physics — physics and astrophysics agents should not be retrieving Fiducial Mesh pillar names as relevant context to ionospheric or astro queries. Patton ruled `c6773933` to fix the source of truth pre-bootstrap rather than maintain a curation-layer correction.
 
 **The Frontmatter Authoring Contract** (binding for all docs ingested into AKB):
 
@@ -127,30 +172,29 @@ Initial inference rule assigned `all roles` to every `.claude/skills/**/SKILL.md
 
 For each document being ingested, the dry-run inspects the frontmatter `roles` array against the document's `doc_type` and source path. The check identifies **suspected over-broad-role assignments** — documents carrying physics or astrophysics roles whose `doc_type` + path combination does not match the expected physics/astrophysics-domain pattern.
 
-**Expected physics-domain patterns** (the allowlist that does NOT trigger the flag):
-- `shared-context/domain-wisdom.md` (Newton's domain content)
-- `shared-context/MODEL-VERSION-HISTORY.md` (model lineage, physics-grounded)
-- `planning/ARCHITECTURAL-METHODOLOGY.md` (physics-design)
-- `planning/MASTER-ARCHITECTURE.md` (physics-design)
-- `planning/PHASE-*.md` (physics workstream)
-- `archive/planning/V*-RESULTS.md` (V-version post-mortems; `failure-mode` + `design-intent` legitimately, often `physics` too)
-- `planning/tier0/akb-tier0-content.md` (intentional cross-role, includes physics atomic facts)
-- `CLAUDE.md` (universal project source-of-truth; intentional all-5 by inference design — added per issue #79, Judge triage 2026-06-02)
-- `shared-context/skills/solar-brief/SKILL.md` (space-weather briefing — primary surface IS the physics; added per issue #79)
-- `shared-context/skills/wspr-brief/SKILL.md` (WSPR propagation measurement briefing — primary surface IS the physics; added per issue #79)
+**Expected physics-domain patterns** (the allowlist that does NOT trigger the flag) — paths org-folder-qualified as of v0.3:
+- `ionis-ai/ionis-devel/shared-context/domain-wisdom.md` (Newton's domain content)
+- `ionis-ai/ionis-devel/shared-context/MODEL-VERSION-HISTORY.md` (model lineage, physics-grounded)
+- `ionis-ai/ionis-devel/planning/ARCHITECTURAL-METHODOLOGY.md` (physics-design)
+- `ionis-ai/ionis-devel/planning/MASTER-ARCHITECTURE.md` (physics-design)
+- `ionis-ai/ionis-devel/planning/PHASE-*.md` (physics workstream)
+- `ionis-ai/ionis-devel/archive/planning/V*-RESULTS.md` (V-version post-mortems; `failure-mode` + `design-intent` legitimately, often `physics` too)
+- `fiducial-mesh/spec/planning/tier0/akb-tier0-content.md` (intentional cross-role, includes physics atomic facts)
+- `ki7mt/ki7mt-ai-lab-devel/CLAUDE.md` (universal project source-of-truth; intentional all-5 by inference design — added per issue #79, Judge triage 2026-06-02)
+- `ki7mt/ki7mt-ai-lab-devel/skills/solar-brief/SKILL.md` (space-weather briefing — primary surface IS the physics; added per issue #79)
+- `ki7mt/ki7mt-ai-lab-devel/skills/wspr-brief/SKILL.md` (WSPR propagation measurement briefing — primary surface IS the physics; added per issue #79)
 - Documents whose `description` field in frontmatter explicitly contains physics/propagation/ionospheric terminology
 
 **Expected astrophysics-domain patterns** (the allowlist that does NOT trigger the astrophysics flag):
-- `shared-context/domain-wisdom.md` (Newton's primary content)
-- Skill `newton/SKILL.md` (Newton's health check)
-- `planning/tier0/akb-tier0-content.md`
-- `CLAUDE.md` (universal project source-of-truth; intentional all-5 by inference design — added per issue #79)
+- `ionis-ai/ionis-devel/shared-context/domain-wisdom.md` (Newton's primary content)
+- `ki7mt/ki7mt-ai-lab-devel/skills/newton/SKILL.md` (Newton's health check)
+- `fiducial-mesh/spec/planning/tier0/akb-tier0-content.md`
+- `ki7mt/ki7mt-ai-lab-devel/CLAUDE.md` (universal project source-of-truth; intentional all-5 by inference design — added per issue #79)
 
-**Anything else carrying `physics` or `astrophysics`** is **flagged as a suspected over-broad-role assignment** and surfaces in the dry-run report. Examples that would have been caught pre-PR-#60:
-- `planning/PILLAR-NAMES.md` carrying physics + astrophysics → flag (mesh-arch doc, not physics)
-- `planning/PRODUCTION-VALIDATION.md` carrying physics + astrophysics → flag
-- `planning/MANIFESTO.md` carrying physics + astrophysics → flag
-- `planning/TECHNICAL-OVERVIEW.md` carrying physics + astrophysics → flag
+**Anything else carrying `physics` or `astrophysics`** is **flagged as a suspected over-broad-role assignment** and surfaces in the dry-run report. Examples that would have been caught pre-PR-#60 (paths since rehomed to `fiducial-mesh/spec/planning/`):
+- `fiducial-mesh/spec/planning/PILLAR-NAMES.md`-class docs carrying physics + astrophysics → flag (mesh-arch doc, not physics)
+- `fiducial-mesh/spec/planning/MANIFESTO.md` carrying physics + astrophysics → flag
+- Any other `fiducial-mesh/spec/planning/*.md` mesh-architecture doc carrying physics + astrophysics → flag (these are pillar/framework specs, not propagation physics)
 
 **Resolution discipline** (per Patton's `c6773933` ruling on source-vs-projection):
 - Each flagged document must be either (a) corrected at the source-frontmatter level via PR before the bootstrap proceeds, or (b) explicitly added to the expected-patterns allowlist with justification in the bootstrap-event log.
@@ -202,6 +246,16 @@ The `invariant_class` field stays empty for `air-report` chunks. The AIR ID + fa
 
 **`incident_class: security` exclusion** (critical): security-class AIRs route to a restricted destination per AIR-SPEC-DESIGN-NOTES § 1.4. They are **categorically excluded from AKB ingest** — security finding payloads never land in AKB (or ACT) because broadcast-by-design substrates are incompatible with need-to-know audiences. The ingest pipeline drops AIRs with `incident_class: security` or `audience: restricted` and logs a curation event noting the exclusion. SEC pillar (when ratified per CD1) owns the restricted store for these.
 
+### Phase A.1.5 — Operational-Runbook Corpus Scope (new in v0.3)
+
+**Surfaced by AIR-002 "Day of Stale State" (`fiducial-mesh/air/reports/AIR-002-day-of-stale-state.md`) + Bob's 9975 friction data (inbox `5be7666a`, 2026-06-07):** the v0.2 corpus walk centered on edit/commit/physics-class content. The decision points that cost hours during AIR-002's cascade — `git push`, `gh pr create`, "deploy ≠ merge" — were operational/infrastructure decisions whose authoritative knowledge lives in deploy runbooks (e.g., the IBX Ansible playbooks' `README.md`), not in the planning corpus. With v0.2 path rules, those runbooks would have been silently excluded; AIR-002's F-7 ("agent decision-point hooks didn't fire on the right verbs") and F-3 ("PAT scope drift across org rename") both have their resolutions sitting in those runbooks.
+
+**The fold-in**: deploy/ops runbooks under `fiducial-mesh/devel/apps/*/ansible/**.md` are in scope for the corpus walk and ingest as `doc_type: runbook` with `roles: [infrastructure]`. The path table § Mesh deploy + ops runbooks codifies this. The vehicle (`runbook` doc_type, the `friction` doc_type + `AGENT-FRICTION-CATALOG.md` as the catalog of resolved + open friction) already existed in v0.2; v0.3 adds the path rules that route the actual artifacts into it.
+
+**Coupled — but separate PR**: the *trigger* side of this loop — extending Tier-1 hook triggers from edit/commit/physics-only to also include `git push`, `gh pr create`, `gh pr review`, deploy commands — is a query-time concern, not an ingest-path-rule concern. It lands in `akb-awareness-layer.md` v0.5 as a sibling PR. The two halves only close the AIR-002 containment loop together: A.1.5 makes the runbook *retrievable*; the awareness-layer trigger extension makes the *retrieval fire* at the moment the agent needs it. See Open Question 8 below.
+
+**What this does NOT promise**: the path rule covers `ansible/**.md` for `fiducial-mesh/devel/apps/*` paths. Per-app subdirectory runbooks (deploy notes, troubleshooting docs, gh-token conventions) that live elsewhere in the mesh-devel tree are not auto-included by this rule — they get explicit per-path additions when they materialize, or per-doc frontmatter override. The intent is to plug the deploy-runbook hole AIR-002 exposed, not to over-broaden into "every .md under fiducial-mesh/devel/".
+
 ### Phase A.2 — Cross-Role Chunk Budget
 
 The cross-role chunk hard cap is **50 total** (per `akb-reasoning-independence.md`). Sources of cross-role chunks from path-based inference:
@@ -237,14 +291,36 @@ All new operational documents (after Phase-1 ships) use the AKB template per `ak
 
 After Phase A inference rules are implemented in the ingest pipeline:
 
-1. **Bootstrap event logged** in `akb.curation_events` with `event_type='bootstrap'`, batch_id, source-corpus git-commit hash, timestamp
-2. **Full corpus walk** across canonical doc directories (per `akb-lifecycle.md` § Ingest Model)
+1. **Bootstrap event logged** in `akb.curation_events` with `event_type='bootstrap'`, batch_id, **per-root source-corpus git-commit hashes** (one per canonical root — multi-root corpus, see § C.1 below), timestamp
+2. **Multi-root corpus walk** across the canonical roots listed in § C.1 (the v0.2 "full corpus walk under one tree" model is dead — see Phase Reorg Note)
 3. **Chunk + embed** each file using BGE-large-en-v1.5 on 9975 GPU
-4. **Insert into `akb.chunks`** with inferred metadata
-5. **Sample validation** — Watson or Bob spot-checks ~20 chunks across the corpus to verify metadata assignment is reasonable
+4. **Insert into `akb.chunks`** with inferred metadata; per-chunk `repo` field tracks the originating org-folder repo for downstream filtering
+5. **Sample validation** — Watson or Bob spot-checks ~20 chunks across the corpus (at least 3 per canonical root) to verify metadata assignment is reasonable
 6. **Bootstrap-v1 marked complete** in `akb.curation_events`
 
 Expected runtime: ~20-30 minutes for full corpus on 9975 RTX PRO 6000. Idempotent (re-runnable if anything goes wrong; chunk_ids are deterministic per `akb-lifecycle.md`).
+
+### C.1 — Canonical Roots (multi-root corpus walk)
+
+Bootstrap walks **all** of the following roots (paths are workspace-root-relative; each host resolves them from its `$WORKSPACE_ROOT` per memory `workspace-layout-org-folders`):
+
+| Root | What it contributes |
+|---|---|
+| `ki7mt/ki7mt-ai-lab-devel/` | Lab master CLAUDE.md, sovereign-stack docs, lab skills, lab-level planning (packaging, venv, workspace consistency) |
+| `fiducial-mesh/spec/` | Fiducial Mesh framework specs (pillar specs, AKB design family, AIR spec/discussion docs, design philosophy + ownership matrix, tier-0 content, templates [excluded], AGENT-FRICTION-CATALOG canonical copy) |
+| `fiducial-mesh/air/` | AIR incident reports (`reports/AIR-*.md`) |
+| `fiducial-mesh/devel/` | Mesh deploy + ops runbooks (`apps/*/ansible/**.md`) — new in v0.3 per § A.1.5 |
+| `ionis-ai/ionis-devel/` | IONIS model planning (PHASE-*, architectural methodology, master architecture, MCP security framework, V*-RESULTS archive, model version history, training SOPs, domain wisdom, training-side architecture philosophy, resources) |
+
+**Excluded roots** (do not walk):
+- `qso-graph/**` — per-MCP READMEs + planning, deferred until MCP doc surface stabilizes (table § Excluded paths)
+- `ki7mt/research-papers/**` and any `papers/**` — research-style, not AKB-ingested (existing exclusion)
+- Workspace-root scratch (`temp/`, `notes/`)
+- Any `.git/`, `.venv/`, `node_modules/`, `__pycache__/`
+
+**Per-root git-commit hash capture**: the bootstrap event records `{root: git_commit_sha}` for each canonical root so re-ingest deltas are computable per repo. A corpus state where only `fiducial-mesh/spec/` advanced re-walks only that root on incremental ingest (Phase E steady state).
+
+**Phase Reorg Note**: prior to the 2026-06-06 org-folder workspace reorg, the corpus walk assumed a single `ionis-devel/` root with ~442 markdown files. After the reorg, the corpus is fragmented across the four canonical roots above (lab content split out of `ionis-devel` into `ki7mt/ki7mt-ai-lab-devel`; mesh framework specs split into `fiducial-mesh/spec`; AIR reports into `fiducial-mesh/air`; IONIS model content remains in `ionis-ai/ionis-devel`). The total markdown count is comparable to the pre-reorg ~442; the fragmentation is the change Phase C now accounts for. Single-root walk logic ingested at most one root and silently dropped the rest — the change is structural, not just a path prefix update.
 
 ## Phase D — Post-Bootstrap Curation Pass
 
@@ -311,6 +387,9 @@ After Phase D, the corpus is initialized in AKB. From this point:
 3. **V*-RESULTS `invariant_class` assignment**: can this be auto-extracted from filename pattern (e.g., `V27-RESULTS.md` → `invariant_class=V27-PIL`), or does it require manual mapping? Recommend automatic from filename for VNN-RESULTS files; manual for archive entries with non-standard naming.
 4. **Patton's first-batch capacity**: Phase D.1 may surface 50-200 failure-class chunks needing review. Can Patton review that volume in 1-2 sessions, or do we batch differently?
 5. **Existing trajectory artifacts (`akb-review-trajectory.md`)**: should the review trajectory itself be ingested? It's methodology evidence, not lifecycle content. Recommend yes, with `doc_type=shared-context`, `roles=design-intent, failure-mode`, `violates_invariant=false`.
+6. **AGENT-FRICTION-CATALOG canonical home** (new in v0.3, Judge): the org-folder reorg leaves two copies — `fiducial-mesh/spec/planning/AGENT-FRICTION-CATALOG.md` (newer, mesh-wide friction including IBX/AKB/PCS) and `ionis-ai/ionis-devel/planning/AGENT-FRICTION-CATALOG.md` (older, IONIS-model-and-MCP-era friction; still references the retired `KI7MT/som-pcs-spec` URLs). v0.3 path table tentatively names the `fiducial-mesh/spec/` copy as canonical (newer + mesh-wide scope), pending Judge ruling. Recommend: declare `fiducial-mesh/spec/planning/AGENT-FRICTION-CATALOG.md` canonical, retire the `ionis-ai/ionis-devel/` copy with a redirect note. Alternative: keep both as scope-disjoint (mesh-wide vs IONIS-specific) with distinct names. If unresolved by bootstrap time, the dry-run inherits the v0.3 tentative ruling.
+7. **lab-vs-IONIS `shared-context` duplicates** (new in v0.3, Judge): `architecture-philosophy.md` and `domain-wisdom.md` exist in both `ki7mt/ki7mt-ai-lab-devel/shared-context/` (lab-level copy from the reorg split) and `ionis-ai/ionis-devel/shared-context/` (IONIS-side copy, has IONIS-specific paragraphs the lab copy doesn't). Ingesting both produces duplicate chunks with different `chunk_id` (different `repo` field). Three resolution shapes: (a) declare one canonical, retire the other; (b) keep both — they're scope-disjoint enough to justify separate entries; (c) flag at dry-run via a duplicate-content detector and force per-doc Judge ruling. v0.3 path table currently lists only the `ionis-ai/ionis-devel/` versions for `architecture-philosophy` + `domain-wisdom` (older split, still primary surface). Pending Judge ruling.
+8. **Hook-trigger extension cross-reference** (new in v0.3, Bob design-input #2): Bob proposed extending Tier-1 hook triggers to include `git push`, `gh pr create`, `gh pr review`, and deploy commands (grounded in AIR-002's F-7 "agent decision-point hooks didn't fire on the right verbs"). The trigger spec lives in `akb-awareness-layer.md` § Tier-1 Injection Mechanism, not here. This OQ tracks the cross-reference; the actual fold lands in `akb-awareness-layer.md` v0.5 as a sibling PR after this one merges. Without that fold, A.1.5's runbook corpus addition is *retrievable but not retrieved* — the loop closes only when both halves land.
 
 ## Failure Modes To Watch
 
@@ -323,15 +402,15 @@ After Phase D, the corpus is initialized in AKB. From this point:
 ## Dependencies
 
 - AKB Phase-1 build operational (per `akb-awareness-layer.md`, `akb-reasoning-independence.md`, `akb-lifecycle.md`)
-- ClickHouse `akb.*` schema deployed
+- PostgreSQL + pgvector `akb.*` schema deployed (per AKB-SPEC CD16; v0.2 said ClickHouse — superseded by Judge ruling 2026-06-07)
 - Ingest pipeline implementing Phase A inference rules
 - BGE-large-en-v1.5 embedding service on 9975
 - `akb-mcp` server registered in agent MCP configs
-- Tier 0 promotion mechanism (Bar B) functional via inbox-ui
+- Tier 0 promotion mechanism (Bar B) functional via MCC (the Judge approval-window control plane on iam-1; supersedes the retired inbox-ui per memory `fiducial-mesh-mcc-built-2026-06-06`)
 
 ## Success Criteria
 
-- **Bootstrap completes** without errors; `akb.curation_events` records `bootstrap-v1` with chunk count and corpus git-commit hash
+- **Bootstrap completes** without errors; `akb.curation_events` records `bootstrap-v1` with chunk count and **per-root corpus git-commit hashes** (one per canonical root per § C.1)
 - **Inference accuracy ≥ 85%** measured by sample validation across ~20 random chunks
 - **Cross-role chunk count ≤ 50** at bootstrap completion
 - **All V*-RESULTS chunks flagged `violates_invariant=true`** with correct `invariant_class`
@@ -341,9 +420,12 @@ After Phase D, the corpus is initialized in AKB. From this point:
 
 ## References
 
-- `planning/akb-awareness-layer.md` — Tier 0 + Tier 1 architecture
+- `planning/akb-awareness-layer.md` — Tier 0 + Tier 1 architecture (paths relative to this repo: `fiducial-mesh/spec/`)
 - `planning/akb-reasoning-independence.md` — role projection, cross-role cap
 - `planning/akb-lifecycle.md` — ingest model, promotion discipline, decay signals
 - `planning/akb-review-trajectory.md` — five-round design review methodology
+- `planning/AKB-SPEC.md` — formal AKB pillar spec (the contract this migration plan operationalizes)
 - `planning/templates/akb-document-template.md` — canonical template
-- `.claude/skills/akb-doc/SKILL.md` — invocation skill for new doc creation
+- `planning/REPO-SHAPE-DECISIONS.md` — fiducial-mesh-org repo shape diagnostic referenced from the path table rationale
+- `ki7mt/ki7mt-ai-lab-devel/skills/akb-doc/SKILL.md` — invocation skill for new doc creation (lab-level skill, relocated by the 2026-06-06 reorg from the old `ionis-devel/shared-context/skills/` location); `.claude/skills/akb-doc/SKILL.md` is the per-host install fallback
+- `fiducial-mesh/air/reports/AIR-002-day-of-stale-state.md` — F-7 hook-trigger-gap finding that grounds Phase A.1.5 + Open Question 8
