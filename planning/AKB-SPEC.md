@@ -154,7 +154,7 @@ Per MI-8 + § Tested Substrate Profiles in `MESH-SPEC.md`, this pillar's substra
 
 | Seam | Contract | Sovereign reference (version floor) | Supported alternatives (version floor) |
 |------|----------|-------------------------------------|----------------------------------------|
-| **Chunk + embedding store** | Vector similarity search + filtered SQL on metadata; ANSI SQL + JSONB-equivalent + vector type with cosine distance | PostgreSQL 15 + pgvector 0.5 | ClickHouse 23.8 with vector extensions; OpenSearch 2.x; Qdrant 1.7; Weaviate 1.22 |
+| **Chunk + embedding store** | Vector similarity search + filtered SQL on metadata; ANSI SQL + JSONB-equivalent + vector type with cosine distance + HNSW indexing | PostgreSQL 15 + pgvector 0.5 | Qdrant 1.7 (Apache-2.0, single-binary Rust, Prometheus-native, strong metadata filtering — escalation alternate when vector search becomes the *primary* workload, i.e. > ~50–100M vectors); Milvus 2.x (only at billion-vector / Kubernetes scale) |
 | **Embedding service** | Text → fixed-dimension vector via local API or HTTP; deterministic for the same model+content | BAAI/bge-large-en-v1.5 (1024-dim, local GPU) | voyage-3-large; text-embedding-3-large; nomic-embed-text-v1.5 |
 | **Corpus source** | Git-tracked markdown across the lab's org-folder repos | GitHub (multi-org: `ionis-ai/*`, `fiducial-mesh/*`, `ki7mt/*`, `qso-graph/*`) | GitLab; self-hosted Gitea; mirrored git on TrueNAS |
 | **Tier-0 snapshot store** | Atomic file replacement with versioned chain + content hash provenance | Local POSIX filesystem with `os.replace` | Object store with versioning (S3-API compatible) |
@@ -169,31 +169,35 @@ Per MI-8 + § Tested Substrate Profiles in `MESH-SPEC.md`, this pillar's substra
 
 Per MI-11, AKB emits OTLP traces, OTLP metrics, and JSON-structured logs to stderr. The sink is selected by the customer via `OTEL_EXPORTER_OTLP_ENDPOINT`; the mesh does not name the backend.
 
+**Implementation context (per Bob, 2026-06-07)**: AKB is the **first MI-11 telemetry implementation** in the built mesh. The other built pillars (IBX, MCC) shipped before the MI-11 telemetry contract landed and carry **zero OpenTelemetry instrumentation today**. The retrofit of IBX + MCC to the telemetry contract is queued for the ACT era. AKB's emission therefore exercises the MI-11 contract from clean ground — no pattern to be "consistent with" except the spec itself.
+
+Naming convention follows the fleet pattern already in `CRB-SPEC`, `DPG-SPEC`, `ACT-SPEC`, `PCS-DAEMON-SPEC`: `mesh.akb.<operation>` for spans, `mesh.akb.<metric>` for metrics. The retired `som.*` prefix is not used.
+
 ### Spans
 
 | Operation | Span name | Required attributes (beyond identity, session, service.*) |
 |-----------|-----------|-----------------------------------------------------------|
-| Tier-1 query against `akb.chunks` | `som.akb.query` | `role`, `task_type`, `is_historical`, `returned_count`, `top_k_relevance` |
-| Tier-0 snapshot build | `som.akb.tier0_snapshot` | `source_commit`, `byte_size`, `fact_count` |
-| Single-document ingest (chunk + embed) | `som.akb.ingest_document` | `source_file`, `doc_type`, `chunk_count`, `embedding_model_version` |
-| Bootstrap event (full corpus walk) | `som.akb.bootstrap` | `event_type`, `batch_id`, `source_corpus_commits`, `chunk_count` |
-| Promotion event (any bar) | `som.akb.promote` | `bar`, `chunk_id`, `from_tier`, `to_tier`, `approver_identity` |
-| Curation event (role/tier/invariant change) | `som.akb.curate` | `event_type`, `chunk_id`, `field_changed`, `before`, `after` |
-| Hook-triggered query | `som.akb.hook_query` | `hook_kind` (edit/commit/push/pr/deploy), `triggering_tool`, `query_terms` |
+| Tier-1 query against `akb.chunks` | `mesh.akb.query` | `role`, `task_type`, `is_historical`, `returned_count`, `top_k_relevance` |
+| Tier-0 snapshot build | `mesh.akb.tier0_snapshot` | `source_commit`, `byte_size`, `fact_count` |
+| Single-document ingest (chunk + embed) | `mesh.akb.ingest_document` | `source_file`, `doc_type`, `chunk_count`, `embedding_model_version` |
+| Bootstrap event (full corpus walk) | `mesh.akb.bootstrap` | `event_type`, `batch_id`, `source_corpus_commits`, `chunk_count` |
+| Promotion event (any bar) | `mesh.akb.promote` | `bar`, `chunk_id`, `from_tier`, `to_tier`, `approver_identity` |
+| Curation event (role/tier/invariant change) | `mesh.akb.curate` | `event_type`, `chunk_id`, `field_changed`, `before`, `after` |
+| Hook-triggered query | `mesh.akb.hook_query` | `hook_kind` (edit/commit/push/pr/deploy), `triggering_tool`, `query_terms` |
 
 ### Metrics
 
 | Metric name | Type | Unit | Meaning |
 |-------------|------|------|---------|
-| `som.akb.query_latency_ms` | histogram | ms | End-to-end Tier-1 query latency (pre-filter + vector + rerank) |
-| `som.akb.queries_total` | counter | events | Tier-1 queries fired, labels: agent, role, task_type, hook_kind |
-| `som.akb.chunks_total` | gauge | rows | Live chunk count in `akb.chunks` (excludes deprecated) |
-| `som.akb.cross_role_documents` | gauge | docs | Current cross-role document count (against 50-document cap) |
-| `som.akb.tier0_bytes` | gauge | bytes | Current Tier-0 snapshot size (against 1024-byte cap) |
-| `som.akb.promotion_queue_depth` | gauge | candidates | `akb.promotion_candidates` count, labels: bar, status |
-| `som.akb.injection_bytes_per_session` | histogram | bytes | Bytes injected per session (Tier 0 + cumulative Tier 1) |
-| `som.akb.zero_query_chunks` | gauge | rows | Chunks unretrieved in last 90 days (decay-signal feed) |
-| `som.akb.conflicts_open` | gauge | rows | Open conflicts in `akb.conflicts` |
+| `mesh.akb.query_latency_ms` | histogram | ms | End-to-end Tier-1 query latency (pre-filter + vector + rerank) |
+| `mesh.akb.queries_total` | counter | events | Tier-1 queries fired, labels: agent, role, task_type, hook_kind |
+| `mesh.akb.chunks_total` | gauge | rows | Live chunk count in `akb.chunks` (excludes deprecated) |
+| `mesh.akb.cross_role_documents` | gauge | docs | Current cross-role document count (against 50-document cap) |
+| `mesh.akb.tier0_bytes` | gauge | bytes | Current Tier-0 snapshot size (against 1024-byte cap) |
+| `mesh.akb.promotion_queue_depth` | gauge | candidates | `akb.promotion_candidates` count, labels: bar, status |
+| `mesh.akb.injection_bytes_per_session` | histogram | bytes | Bytes injected per session (Tier 0 + cumulative Tier 1) |
+| `mesh.akb.zero_query_chunks` | gauge | rows | Chunks unretrieved in last 90 days (decay-signal feed) |
+| `mesh.akb.conflicts_open` | gauge | rows | Open conflicts in `akb.conflicts` |
 
 ### Log events
 
@@ -243,9 +247,11 @@ These are deployment-side concerns governed by the Telemetry-sink seam.
 | **CD9** | Tier-0 source-edits are Bar-B-gated; deployed snapshots only from merged-`main` source. Local builds via `akb-tier0 build` are explicitly NOT deployable | awareness-layer §Tier 0 Generator Implementation Contract |
 | **CD10** | Frontmatter authoring contract: default narrowly on roles; all-5-roles requires explicit justification subject to the per-document cap | migration-plan §A.1.2 |
 | **CD11** | Inherited-over-tagging detection hook at bootstrap dry-run blocks until each flagged document is source-corrected or added to the expected-pattern allowlist with justification | migration-plan §A.1.3; Patton ruling `c6773933` |
-| **CD12** | Source-state drift detection is git-based only in MVP. Non-git drift (ClickHouse schemas, MCP versions, live infra) is explicitly excluded and tracked as a follow-up requirement, not papered over | lifecycle §Source-State Drift Scope |
+| **CD12** | Source-state drift detection is git-based only in MVP. Non-git drift (PostgreSQL schemas, MCP server versions, deployed infrastructure config) is explicitly excluded and tracked as a follow-up requirement, not papered over | lifecycle §Source-State Drift Scope |
 | **CD13** | Fail-open on AKB unavailability: hooks return empty results, never error. Agents handle empty / down identically. Status field on results so agents don't trust empty as "no relevant knowledge exists" | awareness-layer §Failure Modes; Patton T-6 |
 | **CD14** | **(New, 2026-06-07)** Tier-1 hook trigger domains include both code-author-side (edit, commit, plugin invoke) *and* infra-decision-side (git push, gh pr create / review, deploy commands, substrate config edits). Today's cutover-trap pain class lives in the infra-decision-side; firing the AKB hook before the irreversible step is the design lever that catches it | Bob 2026-06-07 |
+| **CD15** | **Conformance-enforced substrate-neutrality** — AKB's substitutability claim is defined as passing the multi-profile conformance run (CONF-CD1..11) against **≥ 2 products per seam** from the § Substrate Matrix supported set. A seam change that fails any tested profile does not merge. Instantiates mesh-level CD15 at the pillar layer; the references at § Substrate Matrix Conformance and § How this spec fits the mesh resolve here | mesh-level CD15 / CONF-CD framework |
+| **CD16** | **(New, 2026-06-07)** AKB chunk + embedding store is **PostgreSQL + pgvector**, on the same Postgres the mesh already runs (IBX, PCS). ClickHouse is **explicitly excluded** as an AKB substrate alternative. Principle: *keep off ClickHouse anything that doesn't need OLAP* — AKB's chunk store (tens of thousands of vectors, < 50M) is not an analytical workload and belongs on the shared OLTP substrate ("one system, one backup, one monitoring stack, one team that already knows the infra"). pgvector handles ~50M-class vector workloads at high recall well within OLTP envelope. Escalation alternates (when vector search becomes the *primary* workload): Qdrant > ~50–100M vectors; Milvus only at billion-vector / Kubernetes scale. The CH→PG migration of the existing `python/akb` build maps onto the live IBX pattern, **split by mutability** (per Bob, PR #54): **mutable content tables** — `chunks`, `documents` (re-embedded on source file edit, chunk_id stable) — `ReplacingMergeTree(version)` → `INSERT … ON CONFLICT (chunk_id) DO UPDATE` upsert (the dedup-on-version semantic preserved at the PG layer); **immutable audit tables** — `curation_events`, `queries` (append-only by spec) — `MergeTree` → plain append-only PG tables matching the live `ibx.status_event` shape exactly. Common: HNSW `vector_similarity` → pgvector `USING hnsw (embedding vector_cosine_ops)`; CH user grant → PG role scoped to `akb` schema. Low-risk because the append-only pattern is already built + tested in IBX | Judge 2026-06-07, resolving Bob's PR #53 substrate conflict; Bob refinement 2026-06-07 on PR #54 |
 
 ## Open Questions
 
