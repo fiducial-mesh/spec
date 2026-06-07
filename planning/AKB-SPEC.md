@@ -252,6 +252,7 @@ These are deployment-side concerns governed by the Telemetry-sink seam.
 | **CD14** | **(New, 2026-06-07)** Tier-1 hook trigger domains include both code-author-side (edit, commit, plugin invoke) *and* infra-decision-side (git push, gh pr create / review, deploy commands, substrate config edits). Today's cutover-trap pain class lives in the infra-decision-side; firing the AKB hook before the irreversible step is the design lever that catches it | Bob 2026-06-07 |
 | **CD15** | **Conformance-enforced substrate-neutrality** — AKB's substitutability claim is defined as passing the multi-profile conformance run (CONF-CD1..11) against **≥ 2 products per seam** from the § Substrate Matrix supported set. A seam change that fails any tested profile does not merge. Instantiates mesh-level CD15 at the pillar layer; the references at § Substrate Matrix Conformance and § How this spec fits the mesh resolve here | mesh-level CD15 / CONF-CD framework |
 | **CD16** | **(New, 2026-06-07)** AKB chunk + embedding store is **PostgreSQL + pgvector**, on the same Postgres the mesh already runs (IBX, PCS). ClickHouse is **explicitly excluded** as an AKB substrate alternative. Principle: *keep off ClickHouse anything that doesn't need OLAP* — AKB's chunk store (tens of thousands of vectors, < 50M) is not an analytical workload and belongs on the shared OLTP substrate ("one system, one backup, one monitoring stack, one team that already knows the infra"). pgvector handles ~50M-class vector workloads at high recall well within OLTP envelope. Escalation alternates (when vector search becomes the *primary* workload): Qdrant > ~50–100M vectors; Milvus only at billion-vector / Kubernetes scale. The CH→PG migration of the existing `python/akb` build maps onto the live IBX pattern, **split by mutability** (per Bob, PR #54): **mutable content tables** — `chunks`, `documents` (re-embedded on source file edit, chunk_id stable) — `ReplacingMergeTree(version)` → `INSERT … ON CONFLICT (chunk_id) DO UPDATE` upsert (the dedup-on-version semantic preserved at the PG layer); **immutable audit tables** — `curation_events`, `queries` (append-only by spec) — `MergeTree` → plain append-only PG tables matching the live `ibx.status_event` shape exactly. Common: HNSW `vector_similarity` → pgvector `USING hnsw (embedding vector_cosine_ops)`; CH user grant → PG role scoped to `akb` schema. Low-risk because the append-only pattern is already built + tested in IBX | Judge 2026-06-07, resolving Bob's PR #53 substrate conflict; Bob refinement 2026-06-07 on PR #54 |
+| **CD17** | **(New, 2026-06-07)** AKB exposes an **HTTP API** (FastAPI, same pattern as MCC) alongside the MCP server and CLI. The HTTP layer is a thin wrapper over the same service module the CLI calls — no duplicate logic. OpenAPI spec is **generated and committed** to the repo at `fiducial-mesh/core/python/akb/openapi.json` per the export-and-commit pattern in `fiducial-mesh/core#9`. Docs wire against the committed file path, not the live URL. **Rationale**: MCC's AKB pane must be a thin client of the AKB API surface per the CLI-first/UI-second discipline (AC#4); shelling out to the CLI or reading `akb.chunks` directly via SQL would couple MCC to the storage schema and break the "MCC is a client, never privileged" boundary. The HTTP API also gives external clients (CI, customer monitoring, future GH App integrations) a typed interface that the MCP stdio surface cannot serve | Judge 2026-06-07 |
 
 ## Open Questions
 
@@ -345,6 +346,40 @@ This is the operational fix to today's cutover-trap pain. The brief-drift proble
 ### C. Bootstrap event versioning + replay
 
 Every bootstrap is a versioned event (`bootstrap-v1`, `-v2`, …) in `akb.curation_events` with `event_type='bootstrap'`, `batch_id`, source-corpus git-commit hashes (one per org folder walked), and chunk count. Embedding-model swaps, schema migrations, and large backfills bump the bootstrap version. Replay from audit log is possible by re-running the chain with `--from-event=<id>`.
+
+### D. HTTP API + OpenAPI export (per CD17)
+
+AKB exposes three surfaces over the same service module, in order of typical use:
+
+1. **MCP server (`akb-mcp`)** — agent-facing, stdio transport. The primary surface for agent reasoning (`akb_query`, `akb_promote`, etc.). This is the only surface today.
+2. **CLI (`akb …`)** — human + script-facing, terminal transport. Per AC#4, every management function ships on the CLI. The canonical headless test surface.
+3. **HTTP API (FastAPI)** — MCC + external-client-facing, network transport. Same pattern as MCC. Thin wrapper over the service module; no logic the CLI doesn't have.
+
+**MCC integration**: MCC's AKB pane renders via the HTTP API (status, chunk-counts, queue-depth, Tier-0 byte-utilization, recent curation events, promotion-candidate queue, conflict registry). MCC is a *client* of this API, never a privileged path that bypasses it.
+
+**OpenAPI export-and-commit** (per `fiducial-mesh/core#9`, mirroring the MCC pattern): the FastAPI app generates OpenAPI on build; a CI step exports the JSON and commits it to `fiducial-mesh/core/python/akb/openapi.json`. Documentation wires against the **committed file path**, not the live URL (so docs don't break when the service is down or the host moves). The OpenAPI artifact is the contract; the live endpoint is the implementation.
+
+**HTTP endpoint surface (initial sketch — finalized at build)**:
+
+| Method + path | Maps to | Notes |
+|---|---|---|
+| `GET /v1/health` | service liveness | no auth |
+| `GET /v1/version` | `get_version_info` | matches MCP `get_version_info` |
+| `GET /v1/status` | aggregate counters | chunks_total, cross_role_documents, tier0_bytes, promotion_queue_depth — same metrics as the § Telemetry Contract `som.akb.*` gauges |
+| `POST /v1/query` | `akb_query(role, terms, …)` | mirror of MCP tool; for non-MCP clients |
+| `GET /v1/chunks/{id}` | read single chunk | for MCC chunk-detail view |
+| `GET /v1/chunks` | paged list with filters | MCC chunk browser |
+| `GET /v1/promotion-candidates` | paged queue | MCC promotion-review pane |
+| `POST /v1/promote` | `akb_promote` (Bar A/B/C/physics-c) | identity-gated per AC#1 + PGE policy |
+| `POST /v1/curate` | curation event | identity-gated |
+| `GET /v1/curation-events` | paged audit | MI-1 audit replay surface |
+| `GET /v1/conflicts` | paged conflict registry | |
+| `POST /v1/tier0/build` | rebuild snapshot | identity-gated; Bar B gate is at the source-edit layer (per CD9) |
+| `GET /v1/tier0/snapshot` | latest snapshot metadata | byte size, source commit, fact count |
+
+**What stays out of the HTTP layer**: bootstrap (`akb bootstrap --apply`) and embedding-model swap are operator-only and stay in the CLI. These shouldn't be runnable from MCC or external clients — the pre-write gate + Judge `--apply` chain is fundamentally a human-in-the-loop operation.
+
+**Authentication / authorization**: HTTP API enforces caller identity via the IAM seam (pre-IAM uses a stub identity per CD5/CD13 / fail-open). Per-endpoint authorization plugs into the PGE policy framework when it lands. Until then, the HTTP API is bound to localhost or to the lab's internal network, never exposed publicly.
 
 ## How this spec fits the mesh
 
