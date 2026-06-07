@@ -2,10 +2,10 @@
 title: "Pillar-Spec Template — Required Sections + Acceptance Criteria"
 doc_type: spec
 status: validated
-version: v1.0
+version: v1.1
 authors:
   - watson
-date: "2026-06-04"
+date: "2026-06-07"
 roles:
   - design-intent
   - infrastructure
@@ -21,7 +21,7 @@ references:
 
 **Scope**: Defines the canonical section structure and acceptance criteria every per-pillar the mesh spec must satisfy. Per-pillar specs (IBX, IAM-CORE, ACT, PCS-DAEMON, DPG, CRB, PGE) are the **manifests** that instantiate the mesh-level **contracts** in `MESH-SPEC.md` (MI-8 Substrate Substitutability, MI-11 Telemetry Contract, § Tested Substrate Profiles, CD15 conformance enforcement). This template is the contract every pillar spec builds to.
 
-**Status**: **Validated v1.0** — resolves issues #6 (Substrate Matrix + Telemetry Contract sections + three non-negotiables) and #24 (CLI-first/UI-second + audit emission extension). The template is the load-bearing artifact that the 7 v1.1 pillar refreshes (#10–#16) build to.
+**Status**: **Validated v1.1** — v1.1 adds the sixth Acceptance Criterion (RHEL-compatible build/runtime substrate) + Substrate Matrix row for Build-substrate + Runtime-substrate seams. Closes a latent gap: every pillar inherits the RHEL-family substrate rule from `DELIVERY-PACKAGING.md § OS dual-tier` (v0.1 commits substrate-substitutability *across the RHEL-compatible family only* — UBI / Rocky 9.7+ / Alma 9.7+ / RHEL 9.7+; non-RHEL bases are explicitly out of v0.1 scope), but pre-v1.1 the template didn't surface that rule — pillar authors could (and did, in IBX's reference CI workflows) drift to `ubuntu-latest`. v1.1 closes that drift class at the spec layer; Bob's lane is the corresponding CI-pipeline fix. v1.0 retained: resolves issues #6 (Substrate Matrix + Telemetry Contract sections + three non-negotiables) and #24 (CLI-first/UI-second + audit emission extension). The template remains the load-bearing artifact that the 7 v1.1 pillar refreshes (#10–#16) build to.
 
 ## Why this exists
 
@@ -83,6 +83,8 @@ Per MI-8 + § Tested Substrate Profiles, this pillar's substrate substitutabilit
 
 | Seam | Contract | Sovereign reference (version floor) | Supported alternatives (version floor) |
 |------|----------|-------------------------------------|----------------------------------------|
+| **Build / CI runner** | RHEL-compatible OS family per `DELIVERY-PACKAGING.md § OS dual-tier` | **Rocky 9.7+** | Alma 9.7+, RHEL 9.7+, UBI 9.7+ |
+| **Runtime container base** | RHEL-compatible OS family per `DELIVERY-PACKAGING.md § OS dual-tier` | **UBI 9.7+** | Rocky 9.7+, Alma 9.7+, RHEL 9.7+ |
 | <seam role> | <minimal contract, e.g. "ANSI SQL + ENUM + JSONB"> | <product family + version> | <product family + version>, … |
 | <seam role> | <contract> | <ref> | <alt>, <alt> |
 
@@ -96,6 +98,7 @@ Per MI-8 + § Tested Substrate Profiles, this pillar's substrate substitutabilit
 - **Role + version floor, never vendor-named.** Write *"OLTP RDBMS with ANSI SQL + ENUM"* not *"PostgreSQL 17"*. The sovereign reference column names the product; the contract column names the role.
 - **List only seams this pillar depends on**, not the full mesh-wide matrix. The mesh-wide matrix lives in `MESH-SPEC.md § Tested Substrate Profiles`; this pillar's section is the subset that applies.
 - **Telemetry sink is a seam if the pillar emits telemetry.** Per MI-11, every pillar emits OTLP → so every pillar's matrix includes a Telemetry-sink row (OTLP-on-the-wire contract).
+- **Build/CI runner and Runtime container base are mandatory rows for every pillar** (added v1.1). Both are RHEL-compatible-family-only per `DELIVERY-PACKAGING.md § OS dual-tier` v0.1 scope — see Acceptance Criterion 6 below. `ubuntu-latest`, Debian, SUSE, Alpine bases are out of scope unless the pillar declares an explicit cross-distro-test CD with named justification. Pillars that publish container images to a registry (most do) also include a row for the publish-target registry, naming it role-only.
 
 ## Telemetry Contract
 
@@ -156,9 +159,9 @@ These are **deployment-side concerns** governed by the Telemetry-sink seam (per 
 - **Required attributes inherited from MI-11 are not repeated per-span.** List them once in the § Required attributes block; per-span tables only list *additional* pillar-specific attributes.
 - **Distinction from MI-1 (audit) is explicit when applicable.** If the pillar emits both audit events (MI-1) and observability telemetry (MI-11), name which signals belong to which class. MI-1 is the durable accountability record; MI-11 is the operational + cost-attribution surface.
 
-## Acceptance Criteria — five non-negotiables
+## Acceptance Criteria — six non-negotiables
 
-A pillar spec is not validated until all five hold. Equal weight to security; a pillar lacking any is **not finished**.
+A pillar spec is not validated until all six hold. Equal weight to security; a pillar lacking any is **not finished**. (v1.1: sixth criterion added — RHEL-compatible build/runtime substrate.)
 
 ### 1. Secure
 
@@ -207,12 +210,27 @@ The pillar emits accountability events for every operation that affects state.
 
 Either path: **accountability events are a build standard**, not optional instrumentation. Author of the per-pillar spec checks the current state of `KI7MT/specs#22` at write time and uses whichever path is current.
 
+### 6. RHEL-compatible build/runtime substrate
+
+Every pillar's CI runners, build containers, runtime container base images, and install hosts **must be from the RHEL-compatible OS family** per `DELIVERY-PACKAGING.md § OS dual-tier`. The v0.1 supported set is **Rocky 9.7+, Alma 9.7+, RHEL 9.7+, and UBI 9.7+** (binary-compatible family; same RPM, same SELinux, same FIPS-mode provider). Non-RHEL bases (Ubuntu, Debian, SUSE, Alpine) are **out of v0.1 scope** — `ubuntu-latest`, the GitHub Actions default, is **not acceptable** as the runner / container base / install host for any pillar's reference CI or shipped artifacts.
+
+**Why this is a non-negotiable** (equal weight to security): the mesh ships to RHEL-and-derivatives only in v0.1. CI that builds and tests on Ubuntu silently exercises a different glibc, a different package manager, a different SELinux story, and (critically) a different FIPS-mode crypto provider than what customers actually run. The mesh's audit-substrate / FIPS-clean claims (per `ENGINEERING-STANDARDS.md` ES-CD13, `DELIVERY-PACKAGING.md` DP-CD6) are not credibly verifiable from an Ubuntu CI run. Per MI-8 substrate-substitutability scope (`DELIVERY-PACKAGING.md § Scope of base-OS substitutability`), the mesh commits to substitutability **across** RHEL-compatible bases — not across all Linux. Building on a base the mesh does not commit to substitutability for is itself the substrate-drift class this spec exists to prevent.
+
+**The explicit exception**: a pillar may declare a `*-CD<n>` (Closed Decision in the pillar's own spec body) that names a **cross-distro compatibility test job** as a deliberate scope extension — e.g. *"CRB-CD7: a nightly Debian-12 build runs as a non-blocking cross-distro signal so we catch glibc-family-only drift early; the v0.1 deliverable remains Rocky/UBI-only."* The cross-distro job is **additive, not substitutive** — it does not replace the RHEL-family build, and the RHEL-family build's verdict is what gates merge. A pillar without that CD has no cross-distro coverage and that's the default state. A pillar that has only an Ubuntu CI build (no RHEL-family build) violates this criterion regardless of any CD.
+
+**How CI realizes this** (the Bob-lane implementation discipline this spec is the source of):
+- **Self-hosted runner on a Rocky 9.7+ lab host** is the highest-fidelity option. Only safe while the repo is private (public repos with self-hosted runners are a fork-PR RCE risk per `CLAUDE.md § Fiducial Mesh — Open Source & Credit`).
+- **GitHub-hosted runner with a Rocky/UBI 9.7+ container** (`container: rockylinux:9.7` or `container: registry.access.redhat.com/ubi9/ubi:9.7`) is the public-repo-safe shape — the runner host is GitHub's Ubuntu, but the job executes inside the RHEL-family container so the build/test environment matches the deployment substrate. This is the right default for any repo flipped public per the public-flip gates.
+- **No `runs-on: ubuntu-latest` without a `container:` clause** is the mechanical CI-side check. A pillar's CI YAML with bare `ubuntu-latest` is a v1.1 non-conformance regardless of whether tests pass.
+
+This non-negotiable is the spec-side complement to Bob's CI-pipeline-code lane. Watson owns the criterion; Bob owns the YAML.
+
 ## How to use this template
 
 1. Copy the section structure (not the literal section bodies) into the new pillar spec.
-2. Fill the Substrate Matrix table with this pillar's seams + supported substrates (role + version floor, never vendor-named).
+2. Fill the Substrate Matrix table with this pillar's seams + supported substrates (role + version floor, never vendor-named). **Build / CI runner + Runtime container base rows are mandatory** (v1.1) — every pillar emits these.
 3. Fill the Telemetry Contract tables with this pillar's spans, metrics, and log events (`som.<pillar-id>.<operation>` naming).
-4. Confirm all five Acceptance Criteria are addressed in the spec body (each gets at minimum a CD or an explicit conformance statement).
+4. Confirm all **six** Acceptance Criteria are addressed in the spec body (each gets at minimum a CD or an explicit conformance statement). Criterion 6 (RHEL-family substrate) is satisfied by default if no contradictory CD is present; pillar authors do NOT need to write a CD declaring conformance, only to avoid drift.
 5. Confirm AKB-conformant frontmatter (`doc_type: spec`, `roles: [design-intent, infrastructure]`, etc.).
 6. Open a PR; Patton reviews GH-native; Judge merges.
 
@@ -230,6 +248,7 @@ Either path: **accountability events are a build standard**, not optional instru
 - [x] CLI-first/UI-second non-negotiable added with build-order guidance and MCC-is-client framing (#24)
 - [x] Audit emission non-negotiable added with both Path A and Path B branches naming #22 as the gate (#24)
 - [x] AKB frontmatter convention captured for downstream pillar authors
+- [x] **(v1.1)** RHEL-compatible build/runtime substrate added as the sixth non-negotiable; Substrate Matrix gains mandatory Build / CI runner + Runtime container base rows; `ubuntu-latest` named explicitly as the drift class this criterion exists to prevent
 
 ## References
 

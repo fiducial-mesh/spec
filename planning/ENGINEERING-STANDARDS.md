@@ -195,6 +195,40 @@ AKB single-repo) — a different shape because of a different seam-coupling prof
 (PCS plugins) and connector authors (Layer-2 SDK consumers) use **separate** repos per the Layer-2
 SDK pluggability model (below) — the monorepo is the *core services*, not the extension surface.
 
+**ES-CD17 — RHEL-compatible build/CI/runtime substrate (cross-cutting; language-neutral).** CI
+runners, build containers, runtime container base images, and install hosts MUST be from the
+RHEL-compatible OS family (Rocky 9.7+ / Alma 9.7+ / RHEL 9.7+ / UBI 9.7+) per
+`DELIVERY-PACKAGING.md § OS dual-tier` v0.1 scope. **`ubuntu-latest` is not acceptable** as a
+runner, container base, or install host for any pillar's reference CI or shipped artifacts —
+ubuntu-latest CI silently exercises a different glibc, package manager, SELinux story, and
+FIPS-mode crypto provider than what customers actually run, so the FIPS-hygiene gate (ES-CD13)
+and license-audit gate (ES-CD12) verdicts are not credibly transferable from such a build.
+
+This rule is **canonically owned by `PILLAR-SPEC-TEMPLATE.md` Acceptance Criterion 6** (v1.1) —
+that's where pillar authors meet it during spec writing. ES-CD17 restates the rule on the
+build-side because CI-pipeline-code-side enforcement (matrix base image, runner selection, YAML
+gate) is a build-discipline concern and belongs in this document's surface even though the rule
+itself is cross-cutting. **Despite this document's C#/.NET title, ES-CD17 is language-neutral**
+— it applies equally to the Python-default pillar implementations the Fiducial Mesh stack reset
+(2026-06-06) made canonical. See ES-OQ5 below for the pending rebrand.
+
+The explicit exception (cross-distro signal jobs) lives in PILLAR-SPEC-TEMPLATE Criterion 6 — a
+pillar may declare an additive non-blocking cross-distro CD; the RHEL-family build is the gating
+verdict regardless.
+
+**CI-shape options** (Bob-lane implementation choices, both ES-CD17-conformant):
+- **Self-hosted runner on a Rocky 9.7+ lab host** — highest fidelity; safe only while the repo
+  is private (public-repo + self-hosted = fork-PR RCE per `CLAUDE.md § Fiducial Mesh — Open
+  Source & Credit`).
+- **GitHub-hosted runner + Rocky/UBI 9.7+ container** (`container: rockylinux:9.7` or
+  `container: registry.access.redhat.com/ubi9/ubi:9.7`) — public-repo-safe default. The job
+  executes inside the RHEL-family container so the build/test environment matches the deployment
+  substrate.
+
+**The mechanical CI-side check**: `runs-on: ubuntu-latest` without a `container:` clause is a
+v1.1 non-conformance regardless of whether tests pass. Adding a lint/audit step that fails the
+build on bare `ubuntu-latest` is the suggested gate shape; lives in Bob's CI-pipeline lane.
+
 ## SDK tooling — two layers
 
 **Layer 1 — the dev toolchain we BUILD the mesh with (interface-independent; can start early).**
@@ -274,6 +308,20 @@ both the RC-testing decision and the Layer-2 SDK.
 - **ES-OQ2**: pin exact analyzer + test-lib versions and re-verify all SPDX strings at promotion
   (the FA-flip risk is live).
 - **ES-OQ3** ✅ **RESOLVED**: this spec lives in `KI7MT/specs/planning/` (the framework source of truth).
+- **ES-OQ5**: this document's title + framing is C#/.NET-flavored, but the Fiducial Mesh stack
+  reset (2026-06-06 per `CLAUDE.md § Framework & Build Direction`) reversed the C# direction in
+  favor of Python-default + Go for hot daemons. Cross-cutting rules in this doc (ES-CD12
+  license-audit, ES-CD13 FIPS-hygiene, ES-CD14 security baseline, ES-CD15 CI gate composition,
+  ES-CD17 RHEL-substrate) apply equally to Python pillars and are correct as written; the
+  language-specific rules (ES-CD1–CD11 .NET toolchain) are now reference-only for
+  parked/historical C# work (Mesh.Ibx / Mesh.Iam, per memory `fiducial-mesh-stack-reset`).
+  The doc needs a rebrand pass — title to "Engineering Standards — Cross-Cutting Build Discipline";
+  C#-specific sections moved to a `engineering-standards-csharp-reference.md` annex; Python-side
+  rules added as the new primary surface (uv workspace, ruff/mypy/pytest gates, Python's
+  equivalent of ES-CD10's NASA verification ladder). Out of scope for v0.1; tracked here so a
+  reader of the C#-titled doc finds the cross-cutting rules they came for (ES-CD17 in
+  particular).
+
 - **ES-OQ4**: the **OTel→ACT envelope mapping** (per ES-CD7) needs specification — which C# OTel
   signals map to which ACT event-types, which payload fields carry over, what's lost in translation —
   slated post-Aspire-ServiceDefaults adoption. Weakly couples to VP-1 (this is C#-side egress, not
