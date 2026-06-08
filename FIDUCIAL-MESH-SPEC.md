@@ -1167,5 +1167,203 @@ implementation" — mechanically true at the PCS layer.
 
 ---
 
-*Part 4 (Operations) fill-in complete. Part 5 (Appendices) lands as
-the next commit.*
+# Part 5 — Appendices
+
+Reference material. Tables and lookup, not narrative.
+
+## Appendix A — Glossary
+
+| Term | Meaning |
+|------|---------|
+| **AIR** | After-Incident Report — blameless post-mortem stored in AKB |
+| **ARCA** | Agentic Root CA — offline issuance authority for agent identity (IAM pillar component) |
+| **BOM** | Bill of Materials — a versioned signed registry artifact pinning a coherent plugin set (Maven term) |
+| **CLCA** | Closed Loop Corrective Action — Ford 8D discipline; identify defect → action plan → fix → verify |
+| **Cardinal rule** | A PCS plugin is a strict superset of an Anthropic Claude Code AND OpenAI Codex plugin |
+| **DAC** | Direct Attached Connection — point-to-point 10 Gbps interconnect used in the KI7MT lab |
+| **Default manifest** | The known-good baseline catalog every fresh Mesh starts with; a BOM |
+| **Dogfood** | The KI7MT lab being tenant #1 in its own Mesh; we use what we ship |
+| **Free target** | A surface (Copilot CLI / Coding Agent) that consumes the PCS common core without additional codegen |
+| **Mesh-internal namespace** | One of the five `fiducial-mesh-*` namespaces (deployment / configuration / operations / administration / diagnostics) |
+| **PCT** | Principal Control Token — the nine-field IBX message-from-Principal-to-Singleton artifact |
+| **Plugin** | The portable bundle (cross-vendor common core + PCS extensions); unit of distribution |
+| **Plugin-loadout** | The set of plugins loaded into an agent session; determines the agent's role |
+| **Role-loadout** | Synonym for plugin-loadout (the role-as-toolset framing) |
+| **Tenant namespace** | A namespace owned by a tenant (e.g. `qso-graph`, `ionis-ai`, `<customer-X>`) |
+| **Tested variation** | A non-default BOM the mesh maintainers have validated (e.g. `default-mesh-bom-oracle`) |
+| **VMA** | Vendor-Mediated Architecture — the cloud-agent-platform shape Fiducial Mesh exists to replace |
+| **Workflow** | A composed, parameterized, version-controlled operation; unit of operation |
+
+## Appendix B — Language map
+
+Canonical per-pillar language assignment. Python is the default;
+non-Python deviations are argued explicitly. C# is purged from the
+canon.
+
+| Layer / pillar | Language | Notes |
+|----------------|----------|-------|
+| IBX | Python | Default |
+| AKB | Python | Default |
+| ACT — Detect Layer | Python | Default |
+| ACT — Record Layer | Python | (was C# per old CD2; flipped) |
+| IAM | Python | Default; watch for argued deviation in PKI / AD area |
+| PGE | Python | Default |
+| CRB | **Go** | Sanctioned — hot concurrent broker |
+| DPG (driver) | **Go** | Sanctioned — driver layer for OCI / containerd integration |
+| DPG (sandbox runtime) | adopted microVM (Podman floor → gVisor → Kata ceiling) | Adopted, not built |
+| MCC-TUI | (Claude Code / Codex) | Not built by mesh; mesh ships PCS plugins for it |
+| MCC-UI | **JS/TS SPA** | Browser context is the argued deviation |
+| MCC backend | Python | Default |
+| Mesh-CLI / installer | **Go** static binary OR Claude Code + PCS plugins | "Mesh-CLI is a configuration, not a product" |
+| All MCP servers | Python | `<service>-mcp` PyPI suffix |
+| Workflows + plugins | Python (skills are `SKILL.md`; agents are markdown+YAML or TOML) | Cross-vendor common core |
+
+## Appendix C — Conformance criteria
+
+Per `planning/PILLAR-SPEC-TEMPLATE.md` v1.1, every pillar spec
+satisfies six non-negotiables. PCS plugins inherit the analogous
+discipline through the tiered validation harness (§2.7).
+
+**Pillar-spec acceptance criteria (six non-negotiables):**
+
+1. **Secure** — credential handling, no injection surface, HTTPS-only,
+   parameterized SQL, input validation, rate limiting
+2. **Instrumented-by-default** — OTLP traces + metrics per the
+   pillar's telemetry contract
+3. **JSON logs** — structured JSON to stderr with required keys
+   (`timestamp`, `level`, `message`, `service.name`, `service.version`,
+   `trace_id`, `span_id`, `identity`, `session`)
+4. **CLI-first, UI-second** — every management function runnable on
+   CLI/API before any UI exists; MCC is a thin client of the CLI/API
+5. **Audit emission** — accountability events for every state-affecting
+   operation (per IAM / ACT contract)
+6. **RHEL-compatible build / runtime substrate** — Rocky 9.7+ / Alma
+   9.7+ / RHEL 9.7+ / UBI 9.7+ only in v0.1; no `ubuntu-latest`
+
+**PCS plugin validation harness (tiered, per §2.7):**
+
+| Tier | Check | Gate or badge |
+|------|-------|---------------|
+| 0 | Validates as Claude Code AND Codex plugin (vendor-delegated) | HARD GATE |
+| 1 | PCS Core (`.pcs/` valid, signature chain, BOM refs) | HARD GATE |
+| 2 | Cross-vendor portability | Badge |
+| 3 | Workflow conformance | Badge |
+| 4 | Operational (security scan, signature freshness, smoke test) | Badge |
+
+## Appendix D — Namespace inventory
+
+**Mesh-internal namespaces** (five — function-split, lifecycle stage):
+
+| Namespace | Role-loadout |
+|-----------|--------------|
+| `fiducial-mesh-deployment` | installer |
+| `fiducial-mesh-configuration` | configurator |
+| `fiducial-mesh-operations` | operator |
+| `fiducial-mesh-administration` | administrator |
+| `fiducial-mesh-diagnostics` | diagnostician |
+
+**Lab tenant namespaces** (KI7MT dogfood):
+
+| Namespace | Scope |
+|-----------|-------|
+| `ki7mt-lab-fm-dev` | Fiducial Mesh development workflows |
+| `ki7mt-lab-ionis` | IONIS-AI workflows |
+| `ki7mt-lab-qsograph` | QSO-Graph MCP fleet workflows |
+| `ki7mt-lab-substrate` | Lab substrate operations |
+| `ki7mt-lab-research` | Research / paper workflows |
+
+**Public tenant namespaces** (us-as-tenant; OSS):
+
+| Namespace | Scope |
+|-----------|-------|
+| `ionis-ai` | IONIS-AI tooling |
+| `qso-graph` | QSO-Graph MCP fleet (13 servers today) |
+
+**Customer tenant namespaces**: `<customer-X>` per onboarded
+deployment. Prefix reservation enforced by the customer's mesh
+registry, DNS-backed at onboarding.
+
+## Appendix E — PCS plugin manifest reference
+
+The cardinal-rule extension shape (per §2.4):
+
+```
+<namespace>-<plugin-name>/
+├── .claude-plugin/plugin.json    ← Anthropic-owned, verbatim
+├── .codex-plugin/plugin.json     ← OpenAI-owned, verbatim
+├── .pcs/
+│   ├── plugin.pcs.json           ← PCS extension manifest
+│   ├── signatures/
+│   └── conformance/
+├── workflows/
+│   └── <name>.workflow.yaml
+├── skills/<name>/SKILL.md        ← open Agent Skills standard
+├── hooks/hooks.json
+├── .mcp.json
+├── agents/<name>.md              ← Claude Code variant
+├── agents/<name>.toml            ← Codex variant
+├── runbooks/
+└── README.md
+```
+
+**Cross-vendor common core** (works on both vendors without extra
+codegen): vendor manifest(s), `skills/`, `hooks/hooks.json`,
+`.mcp.json`, `agents/` (with both `.md` and `.toml`).
+
+**Vendor-only components** (flagged with capability metadata; omitted
+gracefully when projecting to the other vendor):
+- Claude Code: LSP, monitors, themes, output-styles, `bin/`,
+  `settings.json` schema, semver dependency resolution
+- Codex: `.app.json` (ChatGPT app / connector)
+
+**Free targets** (consume the common core via the open Agent Skills
+standard, no additional codegen):
+- Copilot CLI — reads `.claude/skills/` for interop
+- Copilot Coding Agent — reads `.github/skills/` + `.mcp.json`
+
+## Appendix F — Cross-pillar binding matrix
+
+How PCS workflow execution touches each pillar:
+
+| Workflow moment | Pillars engaged |
+|-----------------|----------------|
+| Operator triggers a workflow via agent | IBX (request lands), IAM (who's asking, what's authorized) |
+| Workflow execution begins | DPG (sandbox provisioned), IAM (run-as identity bound) |
+| Workflow consults a runbook / skill | AKB (read context, lessons learned), PGE (allowed?) |
+| Workflow emits events | ACT (telemetry captured), IBX (cross-agent coordination msgs) |
+| Workflow completes | ACT (final state), AKB (outcomes stored), IBX (notify dependent agents) |
+| Incident occurs during execution | ACT → AIR drafted → AKB → CLCA → new workflow version → registry |
+| Workflow version evolves | IAM (publish auth), PGE (policy gates), registry update |
+| Operator reviews the whole story | MCC (UI surfaces all of it) |
+| Workload placement | CRB (hardware-aware dispatch) |
+
+## Appendix G — Working notes (provenance)
+
+Design dialogue, AIR reports, draft material that produced this spec
+remain in:
+
+- `fiducial-mesh/spec/planning/` — the working drafts and design notes
+  in the spec repo (kept for provenance; not part of the canon)
+- `fiducial-mesh/devel/spec-drafts/` — the devel repo's spec-drafts
+  area (when populated)
+
+Notable design-trajectory documents:
+
+| Document | What it captured |
+|----------|------------------|
+| `planning/MANIFESTO.md` | Design drivers from operational practice |
+| `planning/DESIGN-PHILOSOPHY.md` | The capability/constraint duality |
+| `planning/TECHNICAL-OVERVIEW.md` | External-facing architecture summary |
+| `planning/IDENTITY-PILLAR-DESIGN.md` | IAM foundational design |
+| `planning/CONCURRENCY-AND-ARCHETYPES.md` | Worker/reasoner/quorum archetypes |
+| `planning/PCS-PLATFORM-REDESIGN-NOTES.md` | The 2026-06-08 PCS redesign conclusions doc |
+| `planning/LANGUAGE-POLICY-AND-CANON-CLEANUP-2026-06-08.md` | The consolidated language-policy + C#-purge + categorization plan |
+| Per-pillar specs (`IBX-SPEC.md`, `IAM-CORE-SPEC.md`, `ACT-SPEC.md`, `PGE-SPEC.md`, `CRB-SPEC.md`, `DPG-SPEC.md`, `AKB-SPEC.md`, `MCC-SPEC.md`) | Full pillar detail; this consolidated spec folds the load-bearing material in |
+
+---
+
+*End of Fiducial Mesh Specification v0.1.*
+
+Working notes preserved in `planning/` for provenance. The canonical
+spec is this single document. As pillars evolve, this spec is updated
+in place — same single-doc shape, versioned in git.
