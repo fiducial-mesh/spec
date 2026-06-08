@@ -785,6 +785,26 @@ The default panel for routine AIRs (once the local-LLM fleet stabilizes per `ki7
 - **Stage 4 open-field**: Daina (cross-fleet from 9975, no priming history on M3-side draft) OR Einstein OR any reviewer that hasn't been primed by prior stages
 - **Stage 5 synthesizer**: NOT the drafter. Default: Watson if Bob drafted, Bob if Watson drafted, Judge for high-severity or cross-agent-failure AIRs
 
+### 9.5.1 Tiered escalation — routine vs. consensus-bust vs. heavy-architecture
+
+**Operator directive 2026-06-08** (after the first non-AIR application of the protocol on `fiducial-mesh/devel#12`): the panel composition is **tiered by trigger condition**, not flat. Routine work runs on the cheap sovereign-LLM panel. Escalation tiers add specialist agents only when their specific value is needed, which keeps the cost economics sustainable across high call volume.
+
+| Tier | Composition | Trigger | Cost profile |
+|---|---|---|---|
+| **Tier 1 — Routine** | Watson (draft) + Melody (Stage 3 primed) + Daina (Stage 4 open-field) + operator (Stage 5 synthesis) | Default for every PR review, every routine decision, every Stage-1 AIR draft | **Near-zero at the margin** — sovereign local LLMs on already-paid-for hardware; runnable on every call without budget concern |
+| **Tier 2 — Consensus bust** | Tier 1 + **Patton** | Tier 1 produced genuine divergence the Stage-5 synthesizer cannot resolve (i.e., Venn intersection is empty or the dissent vote is splitting on a load-bearing claim), OR a Tier-1 finding would change the decision class (review verdict → AIR-class incident, recommendation → blocked recommendation, etc.) | Cloud Opus per call — paid, but rare. Reserved for the cases where the cheap panel structurally cannot synthesize |
+| **Tier 3 — Heavy architecture** | Tier 1 (or 2) + **Einstein** | The question is **design-class, not review-class** — substrate assumption being questioned, new pillar / new mesh-level invariant being proposed, layer boundary in dispute, physics/constraint analysis required, MI-N rewrite candidate | Gemini per call — paid, and rarer still. Reserved for decisions that materially shape the mesh's contract |
+
+**Three rules govern the escalation**:
+
+1. **Don't pre-emptively escalate.** Tier 2/3 fires *only* when Tier 1 produces a signal that warrants it. Defaulting to Tier 3 on every call defeats the cost discipline AND under-uses the cheap panel's capacity — most decisions genuinely do not need a physics-class architectural reviewer.
+2. **The trigger condition is OBSERVABLE, not gut feel.** Tier 1 → Tier 2 fires on empty-intersection or splitting-dissent in the Stage-5 synthesis. Tier 2 → Tier 3 fires when Patton's adjudication surfaces a design-class question (not a failure-mode question). The operator is the trigger arbiter; agents propose, the operator decides whether to escalate.
+3. **Escalation is additive, not substitutive.** Tier 2 *adds* Patton to the Tier-1 panel's outputs (his read is anchored in what the routine panel produced + his independent analysis). Tier 3 *adds* Einstein on top of that. The earlier-tier evidence stays in the record; the higher-tier reviewer reads it as input, not as something to replace.
+
+**The escalation IS the cost discipline.** Tier 1 makes the methodology runnable on every PR (free at the margin). Tier 2 makes the methodology runnable on every consensus-busting case (paid, but rare). Tier 3 makes the methodology runnable on every design-class decision (paid, even rarer). Without the tiering, the methodology either burns cloud Opus on every routine PR (financially unsustainable) or relies on agent self-restraint to know when to skip steps (procedurally undisciplined). The tiering provides both the discipline and the affordability.
+
+**Empirical validation**: the PR #12 review session (2026-06-08) ran cleanly on Tier 1 — Watson + Melody + Daina + operator. No consensus bust occurred (3/5 elements converged at 3/3; the protocol's load-bearing claims were not in dispute). No design-class question arose. Tier 2/3 were not fired. The Tier-1 panel surfaced 3 real fold-on-this-touch findings + 1 false-positive that became a CLCA guardrail entry. Total compute: ~50 seconds across both reviewers; total cost: near-zero. The empirical case for the tiering: it works, it's cheap, and it leaves the specialist tiers available for when they actually matter.
+
 ### 9.6 Worked example — AIR-003 as the first protocol-validated AIR
 
 The AIR-003 session (2026-06-07) was the first AIR to retroactively run the multi-framed convergence protocol:
