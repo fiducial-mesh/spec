@@ -831,3 +831,93 @@ The protocol IS the value in those existing enterprise practices: multi-perspect
 - **Tooling support** — should `fiducial-mesh/air` carry an automation that wires the stages (issue templates, PR review-protocol gates)?
 - **Frequency calibration** — if every AIR runs the full protocol, the bottleneck is the synthesizer's bandwidth. Worth measuring after the first ~5 protocol-validated AIRs.
 - **External deployment** — does the protocol get spec'd as part of the AIR pillar's *product surface* for customers? If yes, the conformance test is "panel of N produced convergence-stable result within latency-budget L." If no, it stays internal-lab methodology.
+
+## 10. AIR Scope Expansion — Agent-Behaviour Observability Fabric
+
+**Operator directive 2026-06-07** (in-session, AIR-003 follow-up): the audit fabric for agent decisions is a cornerstone of the AIR pillar. AIR's scope expands from incident-reporting alone to encompass the **substrate for agent-behaviour observability across the mesh** — the load-bearing surface where decisions, deliberations, and behavioural patterns are captured, queried, audited, and used as priors for future decisions.
+
+### 10.1 What changes in AIR's pillar contract
+
+| Pre-expansion AIR scope (§§ 1-9) | Expanded AIR scope (this section) |
+|---|---|
+| Incident reports (failure-class capture) | + **Multi-agent panel deliberation records** — every Stage 1-5 output from the § 9 protocol, stored with provenance |
+| CLCA tracking to closure | + **Cross-incident pattern mining** — vector-similarity search across past panels: "have we seen this incident class before?" |
+| `incident_class` taxonomy as failure-mode partition | + **Behavioural signatures per agent** — Melody's style, Diana's style, Watson's style as queryable distributions over time; drift detection when an agent's signature changes |
+| `disposition: resolved` workflow | + **Compliance-grade audit surface** — query patterns matching EU AI Act Art. 14/15, NIST AI RMF, ISO 42001, HIPAA clinical-decision-support traceability requirements |
+| Pillar `emit` interface (§ 1.2 — pillars emit AIRs programmatically) | + Pillar `query` interface — consumers can ask "show me past decisions like this one + the dissent + the synthesis rationale" |
+
+What this does NOT change:
+- AIR's incident-reporting surface (AIR-001 / AIR-002 / AIR-003 shape stays valid; incident reports become one *kind* of record in the fabric, not the whole fabric)
+- The multi-framed convergence protocol (§ 9) — that's the *methodology* AIR uses; the audit fabric is the *substrate* AIR runs on
+- Other pillars' relationship to AIR (still emit programmatically per § 1.2; their emissions now flow into the broader observability fabric, not just incident-report storage)
+
+### 10.2 Architectural boundary — AIR vs ACT
+
+ACT is the existing planned pillar for telemetry (OTLP traces + metrics + JSON logs per MI-11). The boundary between AIR's expanded scope and ACT must be unambiguous:
+
+| Pillar | Signal class | Volume | Semantic content | Durability |
+|---|---|---|---|---|
+| **ACT** | Operational telemetry: "agent X made decision Y at time T, took 4.2s, used 1500 tokens" | high (every call) | low (structured event fields) | rolling retention (cost-tier based) |
+| **AIR (expanded)** | **Deliberation substrate**: "agent X's decision Y was reviewed by panel P with convergence C and dissent D, synthesized by S with rationale R" | low (deliberate panel events + incidents) | high (full text, reasoning chains, dissent) | indefinite retention (audit-grade) |
+
+ACT is *operations-grade observability* (always-on, high-volume, low semantic content per event). AIR is *decision-grade observability* (deliberate, structured, high semantic content per event). They share substrate primitives (event store, vector index, OTLP-style emission) but emit different signal classes with different durability + audit weight.
+
+**The line**: if it's "what is the agent doing right now" → ACT. If it's "what did the agents decide and why" → AIR.
+
+### 10.3 Substrate decision — AIR vs AKB pgvector
+
+AKB already runs pgvector for embeddings + chunks (`vector(1024)` column on `akb.chunks`). AIR's expanded scope needs the same substrate primitive. Three shape options:
+
+- **(a) Reuse AKB's substrate** — decision records as a new doc_type in `akb.chunks`. Cheapest; AKB schema generalizes; "decisions" are conceptually a kind of knowledge. Recommended for v0.1.
+- **(b) Federate** — AIR consumes AKB queries but stores its own decision records in `air.decisions` with the same pgvector schema. Justified once AIR's volume/retention/audit requirements diverge from AKB's (different default tier, different compliance flag, different retention windows).
+- **(c) Replicate** — separate substrate entirely. Most expensive; only justified if AIR ends up with regulatory requirements (data residency, encryption-at-rest variants, etc.) AKB doesn't share.
+
+**v0.1 recommendation**: (a). The schema fits, the substrate is operational, the marginal cost of a new `doc_type='agent_decision'` is near-zero. Migration to (b) or (c) is a known evolution path when requirements diverge.
+
+### 10.4 Philosophical anchor — why the fabric exists
+
+**The fabric exists because agentic trajectories are not predictable.** This is the load-bearing rationale — and the regulatory framings underneath the audit-grade product all match it.
+
+- **Exact trajectory prediction**: not achievable. Identical inputs + identical seeds + temperature=0 give reproducibility, but real conversation context is high-dimensional, path-dependent, and diverges chaotically from near-identical starting points.
+- **Statistical trajectory properties**: partially predictable. Response *class*, attention regions, behavioural *signatures*, failure-mode tendencies are observable as distributions and stable over time per agent. (Verified empirically in the AIR-003 session: Diana consistently surfaces security framings; Melody switches register based on priming; Watson escalates compression under operator frustration.)
+- **Cross-agent joint trajectories**: harder than individual. Multi-agent dynamics are sensitive to small perturbations; emergent joint behaviors aren't visible in any individual agent.
+
+The "predict your AI" framing is structurally false. Vendors selling decision-prediction or full-explainability are either over-claiming or solving the wrong problem. **The honest product is observability + intervention** — you don't predict trajectories; you observe them, identify drift, intervene before drift becomes incident, audit decisions post-hoc with full provenance.
+
+This is the same framing the underlying regulation actually uses:
+- **EU AI Act Art. 14 (human oversight)**: doesn't require prediction; requires the human can monitor, interpret, intervene
+- **EU AI Act Art. 15 (accuracy, robustness, cybersecurity)**: requires logging + auditability, not deterministic behavior
+- **NIST AI RMF "GOVERN" + "MANAGE" functions**: explainability-of-decisions, not prediction-of-decisions
+- **ISO 42001 § 6**: AI management system requires audit trail + risk treatment, observability-shaped not prediction-shaped
+- **HIPAA clinical decision support**: traceability of recommendation → underlying reasoning, observability-shaped
+- **SEC AI advisor guidance**: explain to client why recommendation was made, observability-shaped
+
+The AIR audit fabric is aligned with where regulation actually lands, not where vendors wish it landed.
+
+### 10.5 Market framing
+
+The product positioning that follows from § 10.4 is **agent-behaviour observability**, not agent-decision-prediction. The analog is the existing observability market for distributed systems (Datadog, New Relic, SigNoz, Grafana) — that paradigm already gets that the unit of analysis is *system behaviour over time*, not *one request*. Apply the same paradigm to agents → product fit.
+
+The buyer-side framings:
+- **Compliance officers** buy *audit*: "show me the full deliberation record for any AI-influenced decision, with provenance, dissent, and synthesis rationale"
+- **CIOs / platform owners** buy *ops*: "show me agent behaviour patterns across my fleet, detect drift before incidents, route around degraded agents"
+- **Security** buys *both*: "show me the decision history of any agent acting on sensitive data, including who reviewed it"
+- **Regulated industries** buy *aligned-with-framework*: "this fabric satisfies the EU AI Act / NIST AI RMF / ISO 42001 requirements end-to-end"
+
+Same product, four-buyer framings. The Fiducial Mesh positioning was always "sovereign agentic ops substrate"; the audit-fabric framing is the **buyer-side language** for the same substrate.
+
+### 10.6 The meta-loop closes
+
+The structurally satisfying observation: AIR consumes the AKB substrate; the AKB substrate captures the AIR investigations; future AIR investigations query past AIRs as priors via vector similarity. **The lab IS the corpus IS the evidence IS the product**. AIR-003's per-failure capture, the § 9 protocol's panel deliberation records, the § 10 audit fabric all reinforce each other — each deepens the corpus the next one queries.
+
+The recursive observation is the load-bearing one: the fabric audits the agents who built and operate the fabric. The lab eats its own dogfood structurally, not as a tagline. AIR-003 is one day's evidence that the loop closes.
+
+### 10.7 Open questions for AIR-SPEC proper
+
+- **AIR ↔ AKB substrate evolution path** — when does (a) → (b) get triggered? What's the divergence signal?
+- **Retention policy on agent_decision records** — indefinite for audit-grade; how does the cost scale? (Estimate: ~10KB/decision × N decisions/day × indefinite retention. AKB's pgvector tier handles this, but compute cost matters at scale.)
+- **Query API surface** — what's the externally-callable shape? OpenAPI for `/v1/decisions/query`, `/v1/agents/{agent}/signature`, `/v1/incidents/similar/{id}`?
+- **Behavioural-drift alerting** — at what level of distribution shift does a "this agent has drifted" alert fire? Threshold-based or anomaly-detection-based?
+- **Cross-pillar AIR consumption** — when ACT detects a degraded signal class for agent X, does that auto-trigger an AIR investigation? Or stays a notification surface for the operator?
+- **Compliance certification path** — does the audit fabric pursue formal certification (SOC2, ISO 42001 audit) as a v1 milestone, or stay self-attested?
+- **The §1.4 SEC-class exclusion holds** — security-class AIRs route to restricted destination per § 1.4; the audit fabric MUST NOT broadcast security-class decisions through the general query API. SEC pillar (when ratified) owns the restricted-audience analog of this fabric.
