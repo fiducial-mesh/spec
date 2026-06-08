@@ -376,4 +376,355 @@ respectively. They are not part of the canon; this single spec is.
 
 ---
 
-*Part 1 fill-in complete. Parts 2–5 land as subsequent commits.*
+# Part 2 — PCS (Platform Control System)
+
+## 2.1 What PCS is
+
+**PCS is the action layer of the mesh.** Other pillars supply *what
+the mesh can do*; PCS supplies *how it does it*. Without PCS, the
+pillars are independent services; with PCS, they compose into a
+platform a customer can run.
+
+**Control flows outward: PCS → pillars.** PCS reaches into each pillar
+via its published interface (skills, MCP, hooks) and orchestrates from
+outside, like Terraform/Ansible. Pillars do NOT plug into PCS; they
+stay zero-coupled and standalone-installable. `pip install <pillar>`
+works correctly with no PCS present. The mesh is one OSS baseline plus
+N customer workflows, not N customer forks.
+
+## 2.2 Plugin-loadout = agent role
+
+> **The loaded plugin set is what makes a session agent-as-{installer,
+> administrator, operator, diagnostician}.** Same harness, same LLM,
+> different loadout → different role.
+
+Five mesh-internal namespaces map to five composable role-loadouts:
+
+| Namespace | Loadout makes the agent a … |
+|-----------|----------------------------|
+| `fiducial-mesh-deployment` | installer |
+| `fiducial-mesh-configuration` | configurator |
+| `fiducial-mesh-operations` | operator |
+| `fiducial-mesh-administration` | administrator |
+| `fiducial-mesh-diagnostics` | diagnostician |
+
+Loadouts compose. Tenant namespaces (`qso-graph`, `ionis-ai`,
+`<customer-X>`) work the same way — a tenant loadout makes the agent
+capable of operating that tenant's tooling.
+
+**Agents are employees; the role is the toolset granted.** Capability
+lives in the plugin; authority lives in the identity. The plugin says
+what can be done; IAM says who can do it. Loading the deployment plugin
+doesn't grant deployment authority — it equips an authorized agent with
+the deployment toolset.
+
+## 2.3 The cardinal rule
+
+> **A PCS plugin is a strict superset of an Anthropic Claude Code
+> plugin AND an OpenAI Codex plugin. Every PCS plugin MUST validate as
+> a valid plugin under both vendor specs before any PCS-specific
+> governance is applied.**
+
+Every downstream value-prop (portability, vendor-marketplace
+projection, "operator picks their IDE", "manager on Desktop") chains
+back to this gate. Without it, those claims are empty.
+
+This works because agents have a grain. Their native vocabulary is MCP
+and the plugin frameworks. Speak to them in that vocabulary, no
+translation layer, everything downstream follows.
+
+**Free targets:** Copilot CLI (GA'd Feb 2026) and Copilot Coding Agent
+both consume the same `skills/`, `hooks/`, `.mcp.json` shape via the
+open Agent Skills standard (`agentskills.io/specification`); Copilot
+CLI even reads `.claude/skills/` directly. A PCS plugin targeting
+Claude Code + Codex gets these for free.
+
+**Out of scope:** VS Code Chat participants (separate extension
+manifest) and the Copilot Extensions API (remote HTTP-service +
+GitHub App backend). Different artifact models, deliberately not
+targeted.
+
+## 2.4 Plugin shape and addressing
+
+Containment runs top-down: **Namespace ⊃ Plugin ⊃ Workflow**. Plugin
+is the unit of distribution; workflow is the unit of operation;
+components (skills, hooks, MCPs, agents, runbooks) are units of
+capability that workflows compose.
+
+**On-disk layout** — PCS extends the vendor common core without
+modifying it:
+
+```
+fiducial-mesh-deployment-vault-management/
+├── .claude-plugin/plugin.json    ← Anthropic-owned, verbatim
+├── .codex-plugin/plugin.json     ← OpenAI-owned, verbatim
+├── .pcs/                         ← PCS extension territory
+│   └── plugin.pcs.json           ← provenance, signature, BOM refs
+├── workflows/                    ← PCS extension (not vendor-claimed)
+├── skills/<name>/SKILL.md        ← open Agent Skills standard
+├── hooks/hooks.json              ← vendor-defined
+├── .mcp.json                     ← vendor-defined
+├── agents/<name>.{md,toml}       ← dual-emit Claude+Codex
+└── README.md
+```
+
+Plugin validates as a Claude Code AND Codex plugin out of the box.
+Vendor tooling sees a normal plugin; PCS tooling sees plugin + PCS
+metadata.
+
+**Coordinate format** — Maven-style hierarchical:
+
+```
+<namespace>:<artifact>:<version>
+fiducial-mesh-deployment:vault-bootstrap:1.4.2
+qso-graph:spotter:2.1.0
+```
+
+Forward-domain kebab-case, NuGet-style prefix reservation enforced by
+the registry, DNS-backed at tenant onboarding. Vendor marketplace
+projection flattens to fit vendor flat-namespace constraints
+(`fiducial-mesh-deployment-vault-bootstrap`).
+
+**Granularity:** many small focused workflows per plugin, not
+mega-workflows. A vault-management plugin ships `vault-install`,
+`vault-unseal`, `vault-rotate-cert`, `vault-pki-bootstrap` — pick the
+one you need.
+
+## 2.5 Plugin portability across surfaces
+
+The plugin author writes once; the PCS toolchain projects per-surface:
+
+| Surface | Install behavior | Scope |
+|---------|------------------|-------|
+| Claude Code (CLI) | Full plugin install | Primary |
+| Codex (CLI) | Dual-emit Codex manifest, full install | Primary |
+| Claude Desktop | Extract MCP servers, write `claude_desktop_config.json` | Projected (MCP slice) |
+| Claude Web (claude.ai) | Register MCPs via Anthropic MCP integration | Projected (MCP slice) |
+| Copilot CLI | Same plugin files consumed directly | Free via Agent Skills |
+| Copilot Coding Agent | `.github/skills/` + `.mcp.json` | Free via Agent Skills |
+| VS Code Chat participants | Separate `package.json` codegen | Out of scope |
+| Copilot Extensions API | Remote HTTP service + GitHub App | Out of scope |
+
+Non-dev users (managers on Desktop, analysts on Web) get the same
+workflows as CLI users — they consume the MCP slice. Enterprises can't
+mandate one IDE; PCS spans all of them with one source artifact.
+
+## 2.6 Workflows — anatomy, lifecycle, pinning
+
+A workflow is a composed, parameterized, version-controlled operation
+— the unit a customer or user asks for.
+
+Workflow declares parameters (env, identity, version pins), lifecycle
+phases (pre-check → execute → post-validate), component pins (exact
+versions of skills/hooks/MCPs/agents), dependencies, and provenance
+(AIR/CLCA references when applicable).
+
+**Authoring:** user says "for project X, I need a workflow for managing
+nginx"; agent composes the workflow manifest, declares parameters,
+pins components; validation harness gates entry to the registry;
+registry catalogs and signs; workflow is available.
+
+**Pinning is mandatory.** Every workflow version is immutable.
+Reproducibility is non-negotiable.
+
+**Lifecycle states.** A workflow version moves through explicit
+states, each transition a signed event in the audit log:
+
+```
+Draft → Validating → Validated → Published → Deprecated → Withdrawn → Archived → Purged
+              ↓ (fail)                                ↑ (emergency from any active state)
+            Failed → back to Draft
+```
+
+| State | Resolvable by consumers? |
+|-------|--------------------------|
+| Draft / Validating / Failed / Validated | No |
+| Published | Yes |
+| Deprecated | Yes (with warning) |
+| Superseded *(relation, not state)* | Yes (with migration hint) |
+| Withdrawn | Yes (legacy resolution only) |
+| Archived | Yes (explicit pinning only) |
+| Purged | No (bytes deleted; audit-log entry remains) |
+
+**RHEL cadence.** A workflow Deprecated within a BOM release lifetime
+is Withdrawn at the next major BOM version. Same pattern as RHEL 9 →
+RHEL 10: "deprecated in 9 is gone or replaced in 10." Customers pinned
+to the older BOM keep resolving the workflow; the new BOM doesn't
+include it. BOM versions are the cleanup boundary.
+
+**Audit trail is permanent.** Even Purged workflows leave a signed
+footprint — who created, validated, published, deprecated, withdrew,
+purged, and when. Bytes can go; history stays.
+
+## 2.7 Validation harness — tiered
+
+Tier 0 is the hard gate; everything above is value-add.
+
+| Tier | Checks | Gate or badge? |
+|------|--------|----------------|
+| 0 — Vendor base | Validates as Claude Code AND Codex plugin (delegated to vendor tooling) | **HARD GATE** |
+| 1 — PCS Core | `.pcs/` valid, signature chain, declared workflows + BOM refs | **HARD GATE** |
+| 2 — Cross-vendor portability | Both manifests emit cleanly; component variants present | Badge |
+| 3 — Workflow conformance | Parameter contracts, lifecycle valid, refs resolve | Badge |
+| 4 — Operational | Security scan, signature freshness, runtime smoke | Badge |
+
+Delegating Tier 0 to vendor tooling means PCS gets vendor spec updates
+for free; no reimplementation. The harness earns the trust once;
+every conforming artifact inherits it.
+
+## 2.8 The registry, marketplaces, BOMs
+
+**Mesh-internal, not public.** Each Mesh runs its own PCS registry.
+PCS does not operate a Maven-Central-for-the-world. Trust model is
+bounded per-instance — every publisher is a known onboarded identity.
+Cross-mesh namespace collisions don't exist (registries don't
+federate).
+
+**Catalog model — Maven Central pattern.** Single hierarchical
+catalog (namespace : artifact : version) backing multiple flat
+marketplace projections.
+
+**Prefix reservation — NuGet pattern, DNS-backed.** Mesh maintainers
+reserve `fiducial-mesh-*`; tenants reserve their prefix at
+onboarding. Anyone publishing under a reserved prefix without the
+matching key → validation rejects. Identity proves DNS control via
+ACME / Sigstore patterns over the mesh's Vault PKI.
+
+**Provenance.** Every artifact carries a signed attestation chain
+anchored to Vault PKI. Verification is local; never a callback. A
+per-mesh signed append-only log gives tamper-evidence within the mesh
+(Go `sum.golang.org` pattern, scoped to one mesh).
+
+**Marketplace projections.** One registry projects multiple endpoints:
+
+| Projection | Serves |
+|------------|--------|
+| `fiducial-mesh-deployment@marketplace` | just the deployment namespace |
+| `fiducial-mesh@marketplace` | umbrella over all five `fiducial-mesh-*` |
+| `<tenant>@marketplace` | tenant slice only |
+
+Operator runs `claude plugin marketplace add fiducial-mesh@marketplace`
+and gets the full operator loadout.
+
+**Default manifest + tested variations — BOMs.** The OSS deliverable
+is a known-good baseline catalog, not a free-for-all. Three concentric
+levels:
+
+| Level | Tested by | Stability |
+|-------|-----------|-----------|
+| Default manifest | Mesh maintainers, exhaustively | Rock-solid |
+| Tested variations (e.g. Mesh-with-Oracle) | Mesh maintainers, with test plans | Supported |
+| Customer-specific workflows | Customer | On the customer |
+
+BOMs are versioned signed artifacts that pin a coherent plugin set:
+
+```
+fiducial-mesh:default-mesh-bom:2026.06
+fiducial-mesh:default-mesh-bom-oracle:2026.06   # variation
+```
+
+A customer installs from a BOM; upgrades happen by bumping the BOM
+version, pulling every constituent plugin atomically. Linux distro /
+`kubeadm` / Helm chart pattern.
+
+## 2.9 Substrate matrix × workflow — customization without forking
+
+Every large customer has bespoke substrate preferences (Oracle vs
+Postgres, Cedar vs OPA, Datadog vs whatever). Without an absorption
+layer, a platform either ships N customer forks or refuses customer
+preferences. Neither is workable.
+
+The mesh's answer:
+
+1. **Each pillar's spec declares a substrate matrix** — the supported
+   backends, the seam contract. IBX lists Postgres / Oracle / MySQL +
+   KV stores; PGE lists Cedar / OPA; ACT lists OTLP-compatible
+   backends.
+2. **PCS workflows bind a specific substrate from that matrix** for a
+   specific deployment.
+3. **The OSS baseline pillar code stays the same** across every
+   deployment.
+
+**Worked example — Customer X requires Oracle:** they write a
+`customer-x-deployment:ibx-bootstrap-oracle` workflow that binds the
+existing IBX pillar to Oracle via the existing substrate matrix. No
+pillar fork. No mesh release. Future upgrades flow because the pillar
+interface is unchanged.
+
+**Seams are what they are. Customer chooses. Agents own deployment,
+installation, config, maintenance** via PCS workflows.
+
+## 2.10 AIR/CLCA continuous improvement
+
+Incidents drive workflow evolution:
+
+```
+incident → ACT telemetry → AIR drafted in AKB → CLCA action
+                                                    ↓
+                          new workflow OR modify existing workflow
+                                                    ↓
+                          validation → registry → versioned → signed
+                                                    ↓
+                          every agent picks up improved workflow next exec
+```
+
+The workflow IS the propagation — "fixed it locally, didn't propagate"
+is structurally impossible. Ford 8D / manufacturing CLCA applied to AI
+operations. Every workflow version traces back to the AIR that
+motivated it. Mesh customers get one mechanical loop instead of
+incident-report-in-PagerDuty + post-mortem-in-Confluence +
+action-items-in-Jira + runbook-update-in-GitHub-wiki +
+prompt-tweak-from-whoever's-on-call.
+
+## 2.11 Bootstrap — agent-as-installer
+
+PCS workflows manage the mesh; PCS runs on the mesh. The
+chicken-and-egg resolves because **the agent IS the substrate**.
+
+A fresh agent (Claude Code, Codex) + the `fiducial-mesh-deployment`
+plugin → run the install workflow → end-state is a running mesh. No
+external installer. No custom binary. The agent IS the installer.
+
+The only irreducibly human step is `vault operator init` on the host
+that becomes Vault-of-record — the unseal keys and root token can't
+route through an agent (agent-out-of-secret-path). After that,
+everything is workflow execution: `vault-pki-bootstrap` →
+`iam-bootstrap` → `pillar-deploy:ibx` → `pillar-deploy:akb` →
+`pillar-deploy:pcs-registry` (now PCS-managed from here on).
+
+Pattern matches `kubeadm init` or `pacstrap` — one privileged
+bootstrap step gets you to normal-mode platform operations. Difference:
+no separate join-cluster binary. The agent is the binary.
+
+## 2.12 Mesh-CLI + MCC delivery shape
+
+**Mesh-CLI is a configuration, not a product.** Claude Code and Codex
+already have plugin systems. The mesh adds OUR PCS plugins to THEIR
+system. We ride the vendor's harness + R&D. Net-new is the plugin
+*content*, not a parallel framework. Operator runs
+`claude plugin marketplace add github.com/<their-mesh>/marketplace`
+— no separate "Mesh CLI" to learn.
+
+**MCC — three surfaces, no AI loops:**
+
+| Surface | What it is |
+|---------|-----------|
+| MCC-TUI | Claude Code + PCS plugins (the doer surface) |
+| MCC-UI | JS/TS SPA dashboard — observe, trigger known-good, approve gated ops (Judge surface), read AIR + telemetry. **No LLM loop in the browser.** |
+| MCC backend | Conventional Python web/orchestration backend. **NOT an AI system.** |
+
+**The AI gets built ZERO times for MCC.** Everything intelligent
+happens in the CLI surface where Claude Code or Codex is already
+running. MCC is a control surface over already-existing capabilities,
+not a new place to put intelligence. The existing Wails `inbox-ui`
+(Judge approve/reject app) is the MCC-UI approval-gate pane in embryo.
+
+Governance rides Claude Code PreToolUse hooks — the seam already used
+by `subagent-guard.sh`. PGE/IAM enforcement at the hook layer. Tier-0
+profile = dev / low-stakes; destructive ops route through the governed
+MCC backend so the Judge gate intercepts before execution.
+
+---
+
+*Part 2 (PCS) fill-in complete. Parts 3 (The Pillars), 4 (Operations),
+and 5 (Appendices) land as subsequent commits.*
