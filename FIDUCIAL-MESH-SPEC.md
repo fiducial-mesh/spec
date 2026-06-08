@@ -726,5 +726,236 @@ MCC backend so the Judge gate intercepts before execution.
 
 ---
 
-*Part 2 (PCS) fill-in complete. Parts 3 (The Pillars), 4 (Operations),
-and 5 (Appendices) land as subsequent commits.*
+# Part 3 — The Pillars
+
+Eight pillars. PCS reaches each via its published interface (skills,
+MCP tools, hooks) — pillars stay zero-coupled, standalone-installable,
+and substrate-pluggable. Each section names the substrate matrix (the
+seam contract — customer chooses among supported substrates) and what
+PCS workflows do with the pillar. Detail beyond what's here lives in
+each pillar's individual spec (referenced).
+
+## 3.1 IBX — Inbox Exchange
+
+The control-plane message-routing substrate. Every async hand-off
+between agents and every Judge-approval gate routes through IBX. PCS,
+PGE, CRB, and the Judge gate route *through* IBX to reach Workforce.
+The PCT (Principal Control Token, nine-field schema) is an IBX message;
+that's why PCT lives in IBX rather than expanding PCS scope.
+
+**Status**: POC-in-production today (`agent-inbox-mcp` server +
+`inbox-ui` Wails desktop app + `messages.inbox` ClickHouse table).
+Formal spec at `planning/IBX-SPEC.md`.
+
+**Substrate matrix:**
+
+| Seam | Contract | Sovereign reference | Alternatives |
+|------|----------|---------------------|--------------|
+| Routing-audit storage | ANSI SQL + JSONB | PostgreSQL 17+ | Oracle 19+, MySQL 8+ |
+| Worker-pool claim queue | Transactional SKIP-LOCKED | PostgreSQL 17+ | (claim semantics need real transactions; OLAP unsuitable) |
+| Identity verification | Per IAM pillar | Vault PKI | (whatever IAM provides) |
+| Telemetry sink | OTLP-on-the-wire | OTLP-compatible backend | (operator-selected; see ACT) |
+
+**How PCS reaches it.** PCS workflows author / dispatch / mark messages
+via the `agent-inbox-mcp` MCP server. Worker-pool dispatch and Judge
+approval gates are first-class PCS workflow primitives — a `judge-gate`
+hook can be declared on any workflow step that needs explicit approval
+before proceeding.
+
+## 3.2 AKB — Agent Knowledge Base
+
+Role-projected, tier-stratified knowledge retrieval. Agents query AKB
+for ranked context relevant to their role and current task; agents also
+propose curator-gated updates. Tier-0 content is bounded-prior loaded
+at session start; Tier-1 content is gradient-gated mid-reasoning;
+substrate-trap-aware retrieval prevents the vector substrate (physics-
+blind) from surfacing dead-end content as candidate solutions.
+
+**Status**: built at `KI7MT/akb`; DDL + ingest + akb-mcp server +
+Tier-0 generator green. Formal spec at `planning/AKB-SPEC.md`.
+
+**Substrate matrix:**
+
+| Seam | Contract | Sovereign reference | Alternatives |
+|------|----------|---------------------|--------------|
+| Vector store | k-NN + filter predicates | ClickHouse + ANN index | pgvector, Weaviate (operator-tested) |
+| Embedding service | Sentence-embedding API | local model (sovereign) | sovereign-local alternatives only — no vendor APIs |
+| Telemetry sink | OTLP | OTLP-compatible backend | (per ACT) |
+
+**How PCS reaches it.** PCS workflows query AKB via the `akb-mcp` MCP
+server for retrieval-augmented context; CLCA workflows write AIR
+documents and lessons-learned back into AKB through curator-gated
+ingestion plugins.
+
+## 3.3 ACT — Agent Cognitive Telemetry
+
+The immutable, locally-hosted audit ledger. Every reasoning span,
+token, tool call, signed action, IAM event, IBX message, quorum vote,
+and Judge approval is emitted to ACT. Unidirectional — agents emit;
+nothing flows back out except via curator review. ACT is what makes
+non-repudiation, per-session forensics, regulatory compliance, and the
+dialectical-engine evidence trail mechanically possible.
+
+**Status**: spec validated at `planning/ACT-SPEC.md`; reference
+implementation pending.
+
+**Substrate matrix:**
+
+| Seam | Contract | Sovereign reference | Alternatives |
+|------|----------|---------------------|--------------|
+| Telemetry backend | OTLP traces + metrics + logs | SigNoz (sovereign, OSS) | ClickStack, any OTLP-compatible backend (operator-selected) |
+| Append-mostly OLAP store | Columnar, queryable | ClickHouse | (operator's existing OLAP, if OTLP-fronted) |
+| Retention engine | Policy-driven retention + erasure | substrate-native | (per ACT spec) |
+
+**How PCS reaches it.** Every PCS workflow execution emits telemetry
+to ACT via the standard OTLP exporter — this is how the AIR/CLCA loop
+in §2.10 sources its incident-detection signal. ACT is a passive
+emitter from PCS's perspective; PCS workflows don't read from ACT
+directly (that's MCC-UI and human operators).
+
+## 3.4 IAM — Identity & Access Management
+
+Foundational. The root of trust every other pillar's authorization,
+isolation, audit, segregation-of-duties, and human-approval guarantee
+is downstream of. **Two non-negotiable Tier-0 invariants**: no bypass
+(no action without an authenticated principal) and fail strict (under
+error / ambiguity / unavailability, the system halts).
+
+ARCA (Agentic Root CA) is the offline issuance authority — issues
+agent identities, then steps out; never in the action path. Runtime
+identity verification is local (signature + trust chain), never a
+callback. The mesh's IAM pillar implements identity-by-control;
+identity-by-assertion (what the lab runs today) is the prior state
+the mesh moves agents away from.
+
+**Status**: code-complete at lab `iam-1` (Phase 1 done — Roster,
+lifecycle audit, MCP surface, principal-type stamp, mint, suspend /
+resume / terminate, authz-context read contract for PGE, partial-mint
+reconciliation, 20/20 tests green). ARCA not yet built. Formal spec
+at `planning/IAM-CORE-SPEC.md`.
+
+**Substrate matrix:**
+
+| Seam | Contract | Sovereign reference | Alternatives |
+|------|----------|---------------------|--------------|
+| Credential store | Vault KV + Vault Database (dynamic creds) | HashiCorp Vault | (cloud KMS / HSM / PKCS#11 if argued) |
+| Identity store (Roster) | ANSI SQL + JSONB | PostgreSQL 17+ | (Vault Identity as alternate at scale; operator call) |
+| PKI / signing authority | x509 + Vault PKI engine | Vault `pki_arca` + `pki_tls` | (HSM-backed if FIPS) |
+| IdP federation | OIDC / LDAP / SAML | pluggable | LDAP/AD (Samba AD DC in the lab), OIDC providers |
+
+**How PCS reaches it.** Every PCS workflow execution runs under an
+authenticated identity from IAM. PCS does not implement
+authentication; it consumes the verified-principal context from IAM
+via standard interfaces. Publishing rights to namespaces are
+IAM-scoped — only the prefix-reservation signing identity can publish
+under that namespace.
+
+## 3.5 PGE — Policy Guardrail Engine
+
+Deterministic, owned, auditable policy enforcement. PGE is the mesh's
+sovereign alternative to vendor-mediated safety filters (which are
+opaque, non-deterministic, at the wrong layer, and subject to vendor
+policy drift). Double-guardrail: enforces policy on agent *intent*
+before messages reach IBX, and on *execution* inside DPG. Either gate
+alone misses a class.
+
+**Substrate matrix:**
+
+| Seam | Contract | Sovereign reference | Alternatives |
+|------|----------|---------------------|--------------|
+| Policy engine | Decision protocol (allow / deny + reason) | Cedar | OPA, Rego |
+| Audit sink | OTLP audit-class log records | (per ACT pillar) | — |
+| Hook integration | PreToolUse / PostToolUse / PermissionRequest | Claude Code + Codex hooks | (vendor-native hook surface) |
+
+**How PCS reaches it.** PCS workflows declare policy guards as hooks
+in the plugin manifest. PGE evaluation runs at hook fire time; deny
+verdicts halt the workflow step before execution. The
+`subagent-guard.sh` PreToolUse hook in the lab today is the precedent
+implementation pattern.
+
+## 3.6 CRB — Compute Resource Broker
+
+Hardware-aware workload dispatch. The mesh's hardware fleet is
+heterogeneous on purpose: unified-memory hosts (M3 Ultra for inference),
+GPU-bound hosts (RTX PRO 6000 on 9975 for CUDA), CPU-bound replicas
+(EPYC), DAC network for low-latency inter-host traffic. CRB routes
+each workload to the host that fits it.
+
+**Language**: Go (sanctioned deviation — hot concurrent broker;
+Go's concurrency + GC fit the workload class Python doesn't).
+
+**Substrate matrix:**
+
+| Seam | Contract | Sovereign reference | Alternatives |
+|------|----------|---------------------|--------------|
+| Host inventory | Static config OR live discovery | YAML / TOML inventory | (cloud-provider inventory if argued) |
+| Workload dispatch transport | gRPC / mTLS | local mTLS via Vault PKI | — |
+| Telemetry sink | OTLP | (per ACT) | — |
+
+**How PCS reaches it.** PCS workflows that need workload placement
+declare resource requirements (GPU, memory, CPU) as workflow
+parameters; CRB resolves placement at dispatch time. PCS does not
+build a parallel scheduler — CRB owns the placement decision.
+
+## 3.7 DPG — Deterministic Proving Ground
+
+Local, ephemeral isolation boundary for agent-emitted code. Every
+execution runs in a single-use boundary that is created, used, and
+destroyed; nothing persists across runs in the substrate; nothing the
+execution wrote inside the boundary survives unless it returns
+through the attested channel. DPG is where stochastic agent reasoning
+meets deterministic execution — agents may reason probabilistically;
+the code they emit is validated here under deterministic conditions
+before it touches production state.
+
+**Language**: Go driver + adopted microVM (sanctioned — driver layer
+needs Go for OCI / containerd integration; the microVM itself is
+adopted, not built).
+
+**Substrate matrix:**
+
+| Seam | Contract | Sovereign reference | Alternatives |
+|------|----------|---------------------|--------------|
+| Sandbox runtime | OCI-compatible ephemeral isolation | Podman (floor) → gVisor → **Kata** (ceiling) | (any OCI runtime with attested isolation) |
+| Container registry | OCI distribution-spec | local OCI registry | (operator-selected) |
+| Telemetry sink | OTLP | (per ACT) | — |
+
+**How PCS reaches it.** PCS workflows requiring code execution
+(test-run, build-validate, sandbox-execute) dispatch the code to DPG
+via the DPG driver MCP; results return through the attested channel
+to the calling workflow. PGE execution-side gates run inside DPG
+before the code touches anything.
+
+## 3.8 MCC — Mesh Control Center
+
+The operator UI binding the whole mesh together. **Three surfaces, no
+AI loops in any of them** (the AI is in the CLI — Claude Code / Codex
+— where the agents already run). Status: backend BUILT on `iam-1`
+(Python FastAPI + web UI, https://192.168.1.31:8443/, Vault TLS); the
+existing Wails `inbox-ui` is the MCC-UI approval-gate pane in embryo.
+
+| Surface | What it is | Language |
+|---------|-----------|----------|
+| MCC-TUI | Claude Code + PCS plugins (the doer surface) | (Claude Code / Codex; not built by mesh) |
+| MCC-UI | JS/TS SPA dashboard — observe, trigger known-good workflows, approve gated ops (Judge surface), read AIR + telemetry. **No LLM loop in the browser.** | JS / TS |
+| MCC backend | Conventional Python web + orchestration. **NOT an AI system.** | Python |
+
+**Substrate matrix:**
+
+| Seam | Contract | Sovereign reference | Alternatives |
+|------|----------|---------------------|--------------|
+| Web backend | HTTP + WebSocket + standard auth | FastAPI (Python) | (any Python WSGI/ASGI) |
+| Frontend SPA hosting | Static asset serving | nginx / Caddy / FastAPI static | — |
+| Session store | Server-side session | Redis OR PostgreSQL | — |
+| Identity backend | Per IAM pillar | Vault + Roster | — |
+
+**How PCS reaches it.** MCC-TUI *is* Claude Code + PCS plugins —
+PCS doesn't "reach" MCC-TUI; PCS plugins ARE what makes a Claude Code
+session into MCC-TUI. MCC-UI consumes PCS workflow definitions to
+build trigger panes, reads execution state from the registry, and
+gates approval-required workflow steps through the Judge surface.
+
+---
+
+*Part 3 (The Pillars) fill-in complete. Parts 4 (Operations) and 5
+(Appendices) land as subsequent commits.*
