@@ -728,3 +728,106 @@ This completes the contract → storage → retrieval seam triangle: contract he
 `fiducial-mesh/air/reports/AIR-001-closed-not-landed.md` (post-migration; originally at `fiducial-mesh/spec/planning/AIR-001-closed-not-landed.md`) is a faithful instance of the §2 structure (incident_class: workflow, severity: high) — the spec can reference it as the canonical example of the capture → 5-whys → CLCA → tracked-closure shape.
 
 `fiducial-mesh/air/reports/AIR-002-day-of-stale-state.md` (post-migration; originally at `fiducial-mesh/spec/planning/AIR-002-day-of-stale-state.md`) is the cascade variant — a single operating day producing ten distinct failures across multiple sub-types, with explicit per-failure CLCA actions, cross-class corpus references, and paper-consolidation sections. AIR-002 is also the worked example for the §7.1 operational decisions (its § 5 CLCA table will mint the first batch of Issues against `fiducial-mesh/air` post-migration).
+
+## 9. AIR Investigation Protocol — Multi-Framed Convergence
+
+**Operator directive 2026-06-07** (in-conversation methodology derivation, AIR-003 session): the AIR investigation itself is subject to the same "done is an unverified assertion" lesson AIR-001 captured for artifacts. A single-author AIR draft IS unverified analysis until at least one other framing has been put to it. This section codifies multi-framed convergence as the standard AIR methodology, derived from the lab's dialectical-engine pattern (cf. `ki7mt/research-papers/published/THE-DIALECTICAL-ENGINE.md`) applied to incident analysis specifically.
+
+### 9.1 Why this section exists
+
+Through AIR-001, AIR-002, and AIR-003, the AIR program drafted incident reports as single-author artifacts. The drafter's framing — necessarily biased toward what the drafter noticed and how the drafter conceptualizes the failure — became the report's framing. This produced workable AIRs, but post-hoc reflection (the AIR-003 session) revealed that *the strongest finding in any AIR was always the synthesis across multiple framings*, not any single agent's read. The single-author shape captured ~60-70% of the available signal; the dialectical pass surfaced the remaining 30-40%.
+
+**Load-bearing claim**: the binding methodology is multi-framed convergence, not single-author drafting. The drafter is one of several investigators, not the sole authority. The convergence step is where the actual finding lives.
+
+### 9.2 The five-stage protocol
+
+| Stage | Input | Output | Default owner | What it produces |
+|---|---|---|---|---|
+| **1. Draft** | Raw events + agent closest to the failure | Initial F-N breakdown + draft CLCAs (per § 2 spine) | The agent closest to the failure (often Watson or Bob; for substrate-side incidents, Bob; for spec/design incidents, Watson; for failure-mode discovery, Patton) | The first-pass framing. **Necessarily biased by the drafter's vantage; the bias is acknowledged, not eliminated.** |
+| **2. Biased pass (adversarial)** | Stage-1 draft + adversarial reviewer | CONFIRM / REFINE / FALSIFY verdict against the draft's specific claims | Any second agent (Patton is the default for failure-mode AIRs; Einstein for physics-class; Melody / Diana for general AIRs) | Tests the draft framing against direct challenge. Catches obvious overreach, missed counter-examples. |
+| **3. Multi-framed pass** | Neutralized event descriptions (drafter's characterizations stripped) + scoped prompts: (a) broad-classification ("what family of failures does this belong to per the literature?"), (b) narrow-mechanism ("walk one specific failure moment-by-moment"), (c) inverted-red-team ("how would you engineer this failure pattern reliably?") | Three structured reads from different angles + scopes | Same or different reviewer(s). Stages 3a/3b/3c can be the same agent answering three prompts or three agents answering one each | Reveals which framings the events support and which don't survive scrutiny. The three angles are deliberate: broad classification, narrow mechanism, inversion. |
+| **4. Open-field pass** | Raw events, **no candidate framing at all**, **no priming toward any literature concept or design pattern** | Whatever the reviewer surfaces unprompted | A reviewer who has not seen the draft or any prior pass output | Catches what priming was hiding. The AIR-003 session empirical finding: open-field Melody produced a fundamentally different register (operational/DevOps) than primed Melody (cognitive psychology) — neither alone was complete; the convergence between them was the signal. Diana, also open-field, surfaced a security framing neither Watson nor Melody had named. |
+| **5. Convergence analysis** | All Stage 1-4 outputs, side-by-side | Venn intersection (the convergence finding) + named divergences (productive disagreement worth investigating) + final CLCAs derived from convergence, not from the draft alone | A synthesizer who is NOT the Stage-1 drafter (separation of authoring from synthesizing is structural; cf. AIR-001 D-4 lesson applied to AIR methodology itself) | The actual finding. CLCAs are derived here, not from any single agent's draft. The AIR is signed off when the convergence finding is named and the divergences are documented as known-open. |
+
+### 9.3 Binding rules
+
+- **A single-author AIR is unverified analysis.** It may be useful as a Stage-1 draft, but it is not a closed investigation. The "disposition: resolved" status requires Stages 2-5 to have run.
+- **The drafter is NOT the synthesizer.** The agent who drafted Stage 1 has stake in their framing; the synthesizer must be a different agent (or in solo-operator scenarios, the operator). This is the AIR-001 D-4 lesson applied to AIR methodology itself: "done is an unverified assertion" — the drafter cannot also be the one who declares the analysis complete.
+- **The open-field pass (Stage 4) MUST NOT see prior framings.** Priming with the draft, the literature framing, or any candidate concept invalidates the open-field result. If the reviewer has already been exposed to the draft, a different reviewer must do Stage 4.
+- **CLCAs are derived from Stage 5 convergence, not Stage 1 draft.** Draft CLCAs are placeholders; binding CLCAs come from what multiple framings agreed on (the convergence finding directly produces them) and from what they productively disagreed on (the divergence becomes a tracked open question, often resolved as a separate downstream investigation).
+- **Stages may iterate.** Stage 5 convergence may surface a new question that requires Stage 3 to be re-run with different prompts or Stage 4 to be re-asked of a different reviewer. The protocol is a loop with a termination condition (convergence-stable), not a one-shot pipeline.
+
+### 9.4 Panel size — 4 LLMs + 1 human (operator directive, empirically validated)
+
+**Operator directive (AIR-003 session, 2026-06-07)**: "We have 4 LLM, and a Human. That guarantees a consensus result, even with a minority of dissenters."
+
+The binding minimum for an AIR investigation panel is **4 LLM voices + 1 human operator**. The math:
+
+- **4-1 vote** = clear consensus; the 1 dissenter is *signal*, not noise (the unique-perspective finding worth investigating)
+- **3-2 vote** = majority position with documented dissent; both perspectives captured for the record
+- **Pure 5-way disagreement** = still produces 5 explicit reads the synthesizer can Venn — no degenerate cases
+
+The panel size is what makes the convergence step always extract a non-degenerate signal. Smaller panels (1 LLM + 1 human, 2 LLM + 1 human) can produce ties or single-anchor framings; 4+1 guarantees a majority is always achievable and dissent is always interpretable.
+
+**Empirical validation** (AIR-003 session): the protocol was run with Watson + Melody-primed + Melody-open-field + Diana-open-field + operator-head-space framing — five voices total. Convergence was 5/5 on five load-bearing findings, 4/5 on one (one productive divergence that was itself informative about reviewer-priming behavior). One unique-perspective finding (Diana's security framing for the dev-workstation deploy) was 1/5 but specific and load-bearing.
+
+The empirical pattern matches the directive: 4+1 produced consensus on the load-bearing findings, dissent was signal, and the unique-perspective finding extended the convergence finding rather than contradicting it.
+
+### 9.5 Substrate-agnostic — applies to any agent panel
+
+The protocol does not require a specific agent set. The AIR-003 session ran it with Watson + Melody (in three different prompt modes) + Diana (open-field) + operator framing — five perspectives, one investigation. The same protocol works with Watson + Bob + Patton + Einstein, or with any subset that satisfies the 4+1 minimum.
+
+The default panel for routine AIRs (once the local-LLM fleet stabilizes per `ki7mt/ki7mt-ai-lab-devel/CLAUDE.md § Local Co-Developer LLM Fleet`):
+
+- **Stage 1 drafter**: agent closest to the failure
+- **Stage 2 adversary**: Patton (failure-mode lane) by default; Watson or Bob for cross-failure-class incidents
+- **Stage 3 multi-framer**: Melody (primed prompts — exactly the role Bob's CLAUDE.md framing names for her)
+- **Stage 4 open-field**: Diana (cross-fleet from 9975, no priming history on M3-side draft) OR Einstein OR any reviewer that hasn't been primed by prior stages
+- **Stage 5 synthesizer**: NOT the drafter. Default: Watson if Bob drafted, Bob if Watson drafted, Judge for high-severity or cross-agent-failure AIRs
+
+### 9.6 Worked example — AIR-003 as the first protocol-validated AIR
+
+The AIR-003 session (2026-06-07) was the first AIR to retroactively run the multi-framed convergence protocol:
+
+| Stage | What happened in the AIR-003 session | Outcome |
+|---|---|---|
+| 1. Draft | Watson drafted AIR-003 F-1/F-2/F-3 + CLCAs as a single-author artifact | Captured the Vault-bootstrap failure cleanly, missed F-4 + F-5 + F-6 |
+| 2. Biased pass | Operator pushed F-4 (didn't know EPYC target), F-5 (mesh-vs-substrate naming), F-6 (dev/prod boundary) into the draft | Three additional failures surfaced; the single-author draft was provably incomplete |
+| 3. Multi-framed pass | Watson asked Melody for adversarial review, then multi-frame analysis (broad-narrow-inverted) | Melody refined Watson's "cost of lookup" framing (separated complexity bias from verification failure); named "shared mental model failure" as a specific concept Watson had not named |
+| 4. Open-field pass (×2) | Watson asked Melody open-field with neutralized event descriptions (no priming), then asked Diana the same question with the same neutralized descriptions, also open-field | Melody open-field produced operational/DevOps register (different from her primed cognitive-psychology register). Diana open-field arrived in 4.6s (vs Melody's 73s), surfaced a security-framing on the dev-workstation deploy that neither Watson nor Melody had named, and named "operator empowerment / capability mismatch" as a fresh framing of the same head-space gap |
+| 5. Convergence analysis | Watson synthesized across all five framings (Watson + Melody-primed + Melody-open + Diana-open + operator-head-space) | Convergence finding: "canonical sources exist; nothing gates on them" — 5/5 on five load-bearing findings, 4/5 on one productive-divergence, 1/5 on one unique-perspective extension (Diana's security framing) — sharper than any single agent's framing |
+
+The session itself was the first instance of the methodology working under load. The operator's coaching ("don't bias the question," "use various viewpoints, broad and narrow," "somewhere in the convergence is the answer," "4 LLM + 1 human guarantees consensus") *was* the protocol, derived empirically. This § 9 codifies what was learned in flight as the standard methodology going forward.
+
+### 9.7 Real-world deployment value — the agentic CAB / IRB / M&M analog
+
+The protocol is not just an internal-lab discipline; it has direct real-world deployment value as **the agentic version of human-only convergence protocols enterprises already run** — Change Advisory Boards (CAB), Incident Review Boards (IRB), Morbidity & Mortality conferences (M&M), procurement panels, peer review committees.
+
+The protocol IS the value in those existing enterprise practices: multi-perspective consensus on hard decisions, with documented dissent. What's expensive in the human-only implementation is the calendar overhead, the cross-team scheduling cost, and the opportunity cost of senior practitioners' hours. **The multi-framed convergence protocol can run async with agents in seconds, at fractional cost per opinion, with the human staying in the high-value seat (synthesizer + final arbiter).** The parallel agent panel replaces the lower-value "give me your read" work that's currently expensive only because humans do it.
+
+**Real-world deployment targets**:
+
+| Target | Today's human-only protocol | What multi-framed convergence augments |
+|---|---|---|
+| **Regulated industries** (healthcare, finance, defense, aerospace) | Multi-reviewer approval boards required by law; documented dissent required by audit | Agent panel runs the analysis async; humans synthesize + sign; audit trail is automatic |
+| **24/7 SRE / NOC operations** | On-call escalates to senior engineers at 3am for diagnosis convergence | Agent panel runs the diagnostic convergence instantly; on-call gets a synthesized read to act on; senior wakes only for sign-off on truly load-bearing decisions |
+| **Code review at scale** | PR reviews bottleneck on senior engineer attention | Agent panel (diverse models, diverse vantages) does the first-pass convergence; humans focus on the load-bearing judgment calls |
+| **Procurement / vendor selection** | Multi-week analyst evaluations across criteria | Agent panel evaluates each vendor across criteria in parallel; human synthesizes + decides |
+| **Incident review / post-mortems** | Hours of cross-team human time per incident | Agent panel runs Stages 1-4 in minutes; human runs Stage 5 (synthesis); CLCAs are derived from the convergence with full provenance |
+
+**The cost economics**: 4 LLMs + 1 human is more expensive than 1 LLM + 1 human, but dramatically cheaper than the human-only convergence protocols enterprises currently run (typically 4-8 humans + 1 chair, at fully-loaded labor costs). The agentic panel keeps the high-value seat (synthesizer / arbiter) where humans add the most value, and offloads the lower-value seats (give-me-your-read) to agents that can run async in parallel at fractional cost.
+
+**The meta-application** is what the Fiducial Mesh lab is already doing: **operations of the multi-agent system itself**. The Fiducial Mesh ops "team" is the panel managing the Mesh. AIR-003 itself is one day's empirical evidence of the protocol working under real conditions. The lab IS the reference implementation.
+
+**Connection to existing artifacts**:
+- `ki7mt/research-papers/published/THE-DIALECTICAL-ENGINE.md` — names the underlying methodology (multi-agent falsification in scientific software)
+- `ki7mt/research-papers/drafts/OPERATING-ACROSS-THE-GAP.pdf` — names the operating-environment-substrate gap this protocol exists to manage at decision points
+- `ki7mt/research-papers/drafts/FIDUCIAL-MESH.md` — names the substrate the protocol runs on top of
+
+### 9.8 Open questions for AIR-SPEC proper
+
+- **Stage 5 synthesizer ownership** — should this default rotate (Watson ↔ Bob ↔ Patton) per AIR, or be tied to the incident_class?
+- **Time bounds** — Stages 2-5 add latency. Acceptable for sev:1/2; possibly heavy for sev:3. Does the protocol relax for low-severity AIRs?
+- **Tooling support** — should `fiducial-mesh/air` carry an automation that wires the stages (issue templates, PR review-protocol gates)?
+- **Frequency calibration** — if every AIR runs the full protocol, the bottleneck is the synthesizer's bandwidth. Worth measuring after the first ~5 protocol-validated AIRs.
+- **External deployment** — does the protocol get spec'd as part of the AIR pillar's *product surface* for customers? If yes, the conformance test is "panel of N produced convergence-stable result within latency-budget L." If no, it stays internal-lab methodology.
