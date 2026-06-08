@@ -957,5 +957,215 @@ gates approval-required workflow steps through the Judge surface.
 
 ---
 
-*Part 3 (The Pillars) fill-in complete. Parts 4 (Operations) and 5
-(Appendices) land as subsequent commits.*
+# Part 4 — Operations
+
+How a Mesh actually runs. This part covers operational concerns
+across deployment shapes; the per-pillar substrate decisions live in
+Part 3, the workflow / registry / customization mechanics in Part 2.
+
+## 4.1 Four flexibility axes — "run what you brung"
+
+A Mesh deployment is parameterized along four orthogonal axes. The
+customer's hardware and operating posture pick a point in this space;
+the architecture adapts to the substrate, not the other way around.
+
+| Axis | What it varies | Customer picks |
+|------|---------------|----------------|
+| **HA** | Single-instance ↔ HA cluster (Raft / leader-election) | Their availability requirement |
+| **Scale** | Single host ↔ multi-host fleet | Their workload size |
+| **Performance** | Commodity hardware ↔ specialized accelerators (GPU, fast NVMe, low-latency interconnect) | Their workload profile |
+| **OSS ‖ commercial substrates** | Pure-OSS substrate matrix vs commercial alternatives where allowed | Their procurement posture |
+
+**Deployment spectrum** spans:
+
+- **One-box hobbyist** — single Linux box; every pillar runs locally; one Claude Code or Codex session is the entire operator surface
+- **Lab / small team** — a handful of hosts (e.g. KI7MT's "3 minis + 9975" — three small unified-memory hosts plus a workstation-class GPU/CPU node); per-host venv + DAC interconnect; the lab fleet is this point
+- **Datacenter** — Proxmox / VMware / bare-metal cluster; HA Vault, replicated PG, container-orchestrated pillars; per-customer PKI rooted at their ARCA
+
+The same pillars run at every point in the spectrum. The PCS workflow
+that deploys IBX on a one-box deployment is the same workflow that
+deploys IBX on a datacenter cluster — different parameters, same
+plugin. **The mesh runs what the customer brung.**
+
+## 4.2 Security framework
+
+Sovereignty is **not** a configuration option. It is the architecture.
+Every pillar inherits these non-negotiables:
+
+- **Credentials** live in Vault (KV or dynamic-secrets) or OS keyring,
+  never in config files or environment variables that touch disk in
+  plaintext
+- **No injection surfaces** — no `subprocess` with `shell=True`, no
+  `eval`/`exec` on untrusted input, parameterized SQL only
+- **HTTPS / TLS only** for any cross-host traffic; mTLS against Vault
+  PKI where pillars talk to each other
+- **Audit emission is a build standard** (per `PILLAR-SPEC-TEMPLATE.md`
+  Acceptance Criterion 5) — every state-affecting operation produces
+  an accountability event via ACT
+- **No bypass + fail strict** (IAM Tier-0 invariants — §3.4) — no
+  trusted-because-internal account; the system halts under ambiguity
+- **PreToolUse hooks gate destructive operations** before they execute;
+  PGE evaluates intent before IBX; DPG isolates code before it touches
+  production state
+
+The framework detail lives in `MCP-SECURITY-FRAMEWORK.md` in the
+`qso-graph-devel` repo and is referenced by every pillar's Acceptance
+Criterion 1.
+
+**Release gate.** No mesh-shipped component (pillar, PCS plugin, MCP
+server) reaches production without (1) `test_security.py` passing,
+(2) two-person GH-native review, (3) multi-platform validation. Tag
+push triggers automated publish; manual publish is forbidden.
+
+## 4.3 Delivery and packaging
+
+Language map (canonical reference in Appendix B):
+
+| Layer | Language |
+|-------|----------|
+| Pillars (IBX, AKB, ACT, PGE, IAM) | **Python** |
+| CRB | **Go** (sanctioned) |
+| DPG (driver + adopted microVM) | **Go** + adopted microVM |
+| MCC backend | **Python** |
+| MCC-UI | **JS/TS SPA** (browser-context argued deviation) |
+| Mesh-CLI / installer | **Go** static binary OR "Claude Code + PCS plugins is the CLI" |
+| All MCP servers | **Python** |
+
+**C# is purged from the canon.** Any C# in lab history is retained as
+reference source code but does not bind a canonical mesh component.
+
+**Build / runtime substrate** per `DELIVERY-PACKAGING.md` § OS dual-tier:
+RHEL-compatible family only in v0.1 (Rocky 9.7+ / Alma 9.7+ / RHEL 9.7+
+/ UBI 9.7+). `ubuntu-latest` is **not acceptable** as the runner /
+container base / install host for any pillar's reference CI or
+shipped artifacts. The constraint exists because the mesh's
+FIPS-clean and audit-substrate claims are not credibly verifiable
+from a non-RHEL-family build. Cross-distro test jobs are allowed as
+additive signal, never substitutive.
+
+**Distribution shape.** Each pillar publishes as a `pip install`able
+Python package (or `go install`able binary for the Go pillars). The
+default manifest BOM (per §2.8) pins coherent versions across the
+whole stack. Customer installs from the BOM; upgrades happen by
+bumping the BOM version.
+
+## 4.4 The AIR / CLCA discipline (operations side)
+
+The AIR / CLCA loop is described mechanically in §2.10. The
+**operational** side:
+
+- **Every incident produces an AIR.** Blameless post-mortem;
+  documented in AKB; CLCA actions explicit
+- **Every CLCA action becomes a workflow change.** New workflow OR
+  modify existing workflow; versioned; signed; through the validation
+  harness
+- **No fix that isn't a workflow change is "done."** Local fixes that
+  don't propagate via workflow versioning are operational debt — they
+  will recur
+
+The discipline comes from Ford 8D / manufacturing CLCA, applied to
+AI operations. The mesh makes it mechanical because the workflow IS
+the propagation — there is no separate "rollout" step that can be
+skipped.
+
+## 4.5 Customer extends without forking
+
+The substrate-matrix × workflow composition is described mechanically
+in §2.9. The **operational** side:
+
+- The customer **does not fork the pillar**. The pillar's substrate
+  matrix declares the seam contract; the customer's workflow binds
+  their specific substrate from within that contract.
+- The customer's workflow lives in **their tenant namespace** in
+  their mesh registry — `<customer-x>:<workflow>:<version>`
+- The OSS baseline pillar code is untouched across every customer.
+  Mesh upgrades flow because the pillar interface is unchanged.
+
+If the customer needs a substrate the pillar's matrix doesn't list,
+the path is: argue the case → pillar maintainers add it to the matrix
+→ ship in the next mesh release → customer's workflow now has a
+supported binding to point at. The argued-deviation discipline (§1.5)
+is the same shape applied to substrate choices.
+
+## 4.6 Agents own deployment, installation, config, maintenance
+
+There are no human-following install procedures in the canonical
+distribution. The mesh ships with PCS plugins that execute the work:
+
+- **Install**: `fiducial-mesh-deployment` namespace workflows
+- **Configure**: `fiducial-mesh-configuration` namespace workflows
+- **Operate**: `fiducial-mesh-operations` namespace workflows
+- **Administer**: `fiducial-mesh-administration` namespace workflows
+- **Diagnose**: `fiducial-mesh-diagnostics` namespace workflows
+
+The operator's interaction is to load the right plugin loadout
+(per §2.2 — the loadout makes the agent the role) and tell their
+agent what they want. The agent reads the plugin and executes the
+workflow. The operator approves what needs Judge-gating; everything
+else is mechanical.
+
+The only irreducibly-human step is the bootstrap trust-root mint
+(`vault operator init` — agent-out-of-secret-path; §2.11). After that,
+everything is workflow execution.
+
+## 4.7 Documentation model
+
+The mesh ships **three documentation artifacts, total:**
+
+| Artifact | What it answers | Audience |
+|----------|----------------|----------|
+| **The spec** (this document) | "What IS the system?" — formal contract | Implementers, auditors, alternative-implementations, future agent sessions |
+| **The user guide** | "What DOES the system do?" — conceptual narrative | Operators, architects, evaluating customers |
+| **The workflow matrix** | "How do I DO things?" — registry-derived executable index | Anyone running a Mesh |
+
+**No traditional admin guide. No step-by-step install procedure. No
+operations runbook PDF.** The workflows ARE the procedures.
+
+| What that displaces | Replaced by |
+|---------------------|-------------|
+| Installation guide | `fiducial-mesh-deployment-*` workflows + the bootstrap step |
+| Configuration reference | Workflow parameter declarations (auto-discoverable) |
+| Operations runbook | `fiducial-mesh-operations-*` workflows |
+| Administration manual | `fiducial-mesh-administration-*` workflows |
+| Troubleshooting guide | `fiducial-mesh-diagnostics-*` workflows |
+| API reference | Auto-generated from MCP schemas |
+
+The workflow matrix is registry-derived — not hand-maintained. When
+a workflow is added or changed, the matrix updates automatically.
+This is the model self-describing platforms (Kubernetes / Arch /
+Terraform) use; it rejects the OpenStack-style "10,000 pages of stale
+admin docs."
+
+## 4.8 The dogfood story — KI7MT lab as tenant #1
+
+The KI7MT AI Lab is structurally just one specific Mesh deployment —
+the one where Fiducial Mesh itself is built. Same PCS registry, same
+validation harness, same governance gates as any customer deployment.
+Lab projects are tenants in the Lab Mesh: `ki7mt-lab-fm-dev` (mesh
+development), `ki7mt-lab-ionis` (IONIS-AI), `ki7mt-lab-qsograph`
+(QSO-Graph MCP fleet), `ki7mt-lab-substrate` (substrate operations),
+`ki7mt-lab-research` (paper drafts).
+
+Lab workflows reference specific lab hardware (`9975WX`, `M3`, `EPYC`),
+specific IPs (`10.60.1.1`, DAC subnets), specific paths
+(`/mnt/ai-stack`, `/Users/gbeam/workspace`), and the lab's own Vault
+and PKI. They would not run on anyone else's setup — that's not a
+portability bug, that's the whole point. **Lab workflows stay internal;
+the OSS plugins they compose stay public.**
+
+This is the **plugin-vs-workflow open-vs-private boundary** in
+practice:
+
+| Layer | Generic? | Portable? | OSS? | Lives where? |
+|-------|----------|-----------|------|--------------|
+| Plugins | Yes | Yes (cross-vendor common core) | Yes (GPLv3, public) | Public OSS reference plugins in `fiducial-mesh-*` namespaces |
+| Workflows | No (deployment-specific) | No (hostnames, paths, IPs baked in) | Operator-owned (private by default) | Stays in the operator's mesh registry |
+
+KI7MT Lab dogfoods the same artifacts every customer gets. The
+workflows we use daily become the proof. "The lab IS the reference
+implementation" — mechanically true at the PCS layer.
+
+---
+
+*Part 4 (Operations) fill-in complete. Part 5 (Appendices) lands as
+the next commit.*
