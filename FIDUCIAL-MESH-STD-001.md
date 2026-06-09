@@ -912,6 +912,16 @@ issued an identity by ARCA through the Publish pipeline
    non-secret identity fields and the initial job-code / role
    assignment.
 
+*Verification: Inspection (current) / Conformance-test (post-IAM-operational)*
+— review of the issuance code path verifies the three-component
+output (keypair generated with private key in Vault, birth
+certificate signed by ARCA binding fingerprint to principal-id +
+timestamp + principal-type, Roster entry created with non-secret
+identity fields and initial job-code / role); once operational, the
+harness exercises issuance and asserts all three components are
+produced and that the private key is unreachable outside the Vault
+boundary at every observable point of the ceremony.
+
 ##### `[FM-IAM-0003.1]` Identity-permanent / authority-mutable separation
 
 The `principal-id` and public-key fingerprint **shall** be **immutable**
@@ -923,10 +933,12 @@ two **shall not** be conflated; an identity that is suspended or whose
 role changes retains the same fingerprint.
 
 *Verification: Inspection (current) / Conformance-test (post-IAM-operational)*
-— review of the issuance code path verifies the three-component
-output; once operational, the harness exercises issuance and asserts
-keypair-in-Vault + birth-cert-signed-by-ARCA + Roster-entry-present
-with correct identity-permanent / authority-mutable field separation.
+— review of the issuance + lifecycle code paths verifies that
+`principal-id` and public-key fingerprint are non-mutable fields in
+the Roster schema, that suspend / resume / role-change operations
+per `[FM-IAM-0004]` and `[FM-IAM-0005]` do not modify them, and that
+the harness can re-verify a suspended-then-resumed identity carries
+the same fingerprint it was born with.
 
 #### `[FM-IAM-0004]` Identity lifecycle — suspend / resume
 
@@ -3947,15 +3959,87 @@ execution touches each pillar. Will be landed alongside §5 and §6.*
 identifiers to external regulatory frameworks (NIST SP 800-53, HIPAA,
 FedRAMP, ICD 705, etc.). Will be landed alongside §7.*
 
-## Appendix F — Argued cases and deviations (reserved)
+## Appendix F — Argued cases and deviations (normative entry schema)
 
-*Reserved for the registry of argued cases per `[FM-INV-0003.2]` and
-recognized deviations per `[FM-IBX-0010]` and analogous deviation
-clauses in future pillar sections. Each entry will record: requirement
-ID, deviation or argued-case rationale, scope and sunset condition
-(for deviations), authoring identity, approval chain. Will be landed
-alongside §5 as deviation entries accumulate or per the first formal
-argued case.*
+This Appendix is the normative registry of **argued cases** per
+`[FM-INV-0003.2]` and **recognized deviations** per the transitional
+clauses of `[FM-IBX-0010]`, `[FM-IAM-0014]`, `[FM-PGE-0005]` Gate-2,
+`[FM-ACT-0008]`, `[FM-DPG-0013]`, `[FM-CRB-0010]`, and
+`[FM-MCC-0012]` (and any future requirements that introduce
+deviation clauses by the same pattern).
+
+The registry itself is **per-deployment** — each conforming
+deployment maintains its own Appendix F as part of its conformance
+documentation. This section of the Standard defines the **entry
+schema** that every registry entry **shall** satisfy. The Standard
+does not enumerate specific deployments' entries; those are runtime
+artifacts of each deployment's operational state.
+
+### §F.1 Argued-case entry schema
+
+An argued-case entry (per `[FM-INV-0003.2]`) **shall** carry:
+
+| Field | Required content |
+|-------|------------------|
+| `entry_id` | Unique identifier within the deployment's registry; monotonically assigned |
+| `entry_date` | UTC timestamp of entry creation |
+| `type` | `argued-case` |
+| `bound_requirements` | One or more `[FM-*-NNNN]` requirement IDs the case extends or argues against |
+| `case_rationale` | Structured argument satisfying `[FM-INV-0003.2]` — what new capability is being requested, why the existing Standard requirement does not cover it, what mitigations apply |
+| `quorum_attestation` | If the case is catastrophic-class per `[FM-INV-0004]`: the quorum signatures or references thereto; otherwise the field is `n/a` with explicit justification |
+| `authoring_identity` | The `principal-id` of the case's author |
+| `approval_chain` | Ordered list of `{approver_identity, approval_timestamp, approval_signature}` records |
+| `status` | One of `proposed` / `approved` / `rejected` / `superseded` |
+
+An argued case that adds a substrate to a pillar's Conformance
+Profile **shall** also include the multi-profile conformance run
+result for the new substrate as part of `case_rationale`.
+
+### §F.2 Recognized-deviation entry schema
+
+A recognized-deviation entry (per a Standard transitional clause)
+**shall** carry:
+
+| Field | Required content |
+|-------|------------------|
+| `entry_id` | Unique identifier within the deployment's registry; monotonically assigned |
+| `entry_date` | UTC timestamp of entry creation |
+| `type` | `deviation` |
+| `bound_requirements` | The `[FM-*-NNNN]` requirement(s) the deployment is deviating from |
+| `deviation_clause` | The transitional clause within the bound requirement that authorizes the deviation (e.g., "FM-MCC-0012 Operational-state transitional clause") |
+| `deviation_scope` | Specific scope of the deviation — which pillars, which workloads, which surfaces are affected |
+| `sunset_condition` | Verbatim text of the sunset condition declared by the transitional clause |
+| `divergence_type` | The `divergence_type` value emitted per the requirement's `[FM-INV-0005.2]` divergence-event emission requirement (cross-references `[FM-PGE-0011]`'s discriminator table) |
+| `authoring_identity` | The `principal-id` of the deviation's author |
+| `approval_chain` | Ordered list of `{approver_identity, approval_timestamp, approval_signature}` records |
+| `status` | One of `active` / `sunset` / `superseded` |
+| `sunset_attestation` | When `status = sunset`: the `principal-id` + timestamp + attestation that the sunset condition has been met |
+
+### §F.3 Registry integrity requirements
+
+A conforming deployment's Appendix F registry **shall**:
+
+1. Append entries monotonically (entry IDs increase; entries are not
+   modified in place once `status` is set to a terminal value);
+2. Be reviewable by audit at any time — every entry **shall** be
+   queryable by `bound_requirements`, by `divergence_type`, and by
+   `status`;
+3. Cross-reference the corresponding ACT events emitted per
+   `[FM-INV-0005.2]` — a deviation entry's `divergence_type`
+   **shall** match the ACT-emitted `divergence_type` per the
+   `[FM-PGE-0011]` discriminator table;
+4. Be reviewed at each major Standard release per the transitional
+   clauses' Standard-release-review condition; entries whose
+   `bound_requirements` reference a requirement that has been
+   superseded by a Standard revision **shall** have their `status`
+   transitioned accordingly.
+
+*Verification: Inspection of registry + Conformance-test of registry
+queries* — Inspection verifies each entry conforms to the §F.1 or
+§F.2 schema; Conformance-test exercises the three query axes
+(`bound_requirements`, `divergence_type`, `status`) and asserts
+matching ACT events exist for every deviation entry whose
+`divergence_type` is non-empty.
 
 ---
 
