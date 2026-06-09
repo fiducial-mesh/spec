@@ -1342,11 +1342,44 @@ hook per `[FM-PGE-0007]`, per-server test suite) **may** layer
 additional enforcement; supplemental enforcement does **not**
 substitute for either Gate 1 or Gate 2.
 
-*Verification: Conformance-test* — the harness submits non-compliant
-intent through IBX and asserts rejection at Gate 1; submits compliant
-intent that emits non-compliant code into DPG and asserts rejection
-at Gate 2; verifies removing either gate causes the conformance suite
-to fail.
+**Transitional deviation — Gate-2 sunset on DPG operational
+availability.** Gate-2 enforcement lives in the DPG pillar (§5.6
+when landed). Until DPG is operational per the future `[FM-DPG-NNNN]`
+declaration in §5.6, a deployment **may** operate the supplemental
+enforcement surfaces (PreToolUse hook + per-server test suite + CI
+release gate) **only** for execution-side policy without satisfying
+Gate-2. **This is a recognized deviation, not satisfaction of this
+requirement.** Same shape as `[FM-IBX-0010]` and `[FM-IAM-0014]`
+transitional deviations.
+
+The transitional Gate-2 deviation **shall**:
+
+1. Be registered in Appendix F with explicit sunset condition: "DPG
+   operational per the future `[FM-DPG-NNNN]` requirement marking
+   DPG operational state, to be defined in §5.6."
+2. Emit a divergence event to ACT per `[FM-INV-0005.2]` with
+   `divergence_type = "gate-2-supplemental-only"` per
+   `[FM-PGE-0011]` discriminator (canonical emitter: PGE) for every
+   execution-side policy evaluation operating under the deviation.
+3. Be reviewed at each major Standard release; deviation expiry
+   **shall** be enforced when DPG operational state is declared per
+   §5.6.
+
+A deployment operating under the Gate-2 transitional deviation
+**shall not** be claimed conformant to `[FM-PGE-0005]`; it is
+conformant to the deviation clause only.
+
+*Verification: Conformance-test (post-DPG)* — the harness submits
+non-compliant intent through IBX and asserts rejection at Gate 1;
+submits compliant intent that emits non-compliant code into DPG and
+asserts rejection at Gate 2; verifies removing either gate causes
+the conformance suite to fail.
+*Verification (deviation period): Inspection of deviation registry +
+Static-check of supplemental-surface coverage + Conformance-test of
+Gate 1 alone* — Gate 1 conformance verified per the post-DPG harness;
+Gate-2 deviation entry verified in Appendix F; supplemental surfaces
+(PreToolUse hook + CI gate + per-server tests) verified to cover the
+execution-side rule set even though they do not constitute Gate-2.
 
 #### `[FM-PGE-0006]` No vendor-mediated bypass
 
@@ -1448,23 +1481,48 @@ is recorded.
 When PGE detects a divergence between a plugin's declared policy
 block (per §6 when landed) and the platform enforcement floor PGE
 applies, PGE **shall** emit a `pcs.policy.divergence` event to ACT
-per `[FM-INV-0005.2]` with the six required attributes (`plugin_id`,
+per `[FM-INV-0005.2]` with the required attributes (`plugin_id`,
 `operation`, `plugin_declared`, `platform_enforced`,
-`caller_identity`, timestamp+trace).
+`caller_identity`, timestamp+trace) plus the `divergence_type`
+discriminator per the following clause.
 
-When the count of divergence events from one `plugin_id` exceeds the
-operator-configured threshold within the configured window, PGE
-**shall** emit the derived `pcs.policy.divergence.clca-trigger` event
-per `[FM-INV-0005.2]`.
+**Divergence-type discriminator.** `pcs.policy.divergence` events
+**shall** carry a `divergence_type` attribute distinguishing the
+divergence subclass. Each subclass has a single canonical emitter
+pillar; an event of a given `divergence_type` value is authoritative
+when emitted by its canonical pillar:
 
-PGE is the canonical emitter of these events; other pillars **may**
-emit corroborative records but the authoritative event class is PGE's.
+| `divergence_type` | Canonical emitter | What it represents |
+|-------------------|-------------------|--------------------|
+| `policy-block-mismatch` | **PGE (this requirement)** | Plugin's declared policy block disagrees with PGE's enforced floor |
+| `identity-by-brief` | **IBX (per `[FM-IBX-0010]`)** | Assertion-only identity claim under the transitional deviation |
+| (future subtypes) | Their respective canonical emitter pillar | Per the requirement that introduces the subtype |
 
-*Verification: Conformance-test* — the harness induces a divergence
-event by submitting a plugin manifest with a relaxed policy block;
-asserts `pcs.policy.divergence` is emitted with all six attributes;
-exceeds the threshold by repetition and asserts the
-`pcs.policy.divergence.clca-trigger` event is also emitted.
+Other pillars **may** emit corroborative records of an out-of-subtype
+event for cross-pillar observability, but the canonical emitter for
+each `divergence_type` is the authoritative source for that subtype.
+Downstream consumers — including `[FM-IAM-0014]` Condition 4 reading
+`identity-by-brief` events to verify sunset — operate against the
+canonical-emitter records for the subtype they're verifying. All
+subtypes flow into the same `pcs.policy.divergence` event class in
+ACT, distinguishable by the `divergence_type` discriminator.
+
+When the count of `divergence_type = "policy-block-mismatch"` events
+from one `plugin_id` exceeds the operator-configured threshold within
+the configured window, PGE **shall** emit the derived
+`pcs.policy.divergence.clca-trigger` event per `[FM-INV-0005.2]`.
+CLCA-trigger derivation **shall** operate per-`divergence_type`;
+counts and thresholds for other subtypes are owned by the canonical
+emitter of that subtype (e.g., `identity-by-brief` CLCA-trigger
+derivation is IBX's per `[FM-IBX-0010]`).
+
+*Verification: Conformance-test* — the harness induces a
+`policy-block-mismatch` divergence by submitting a plugin manifest
+with a relaxed policy block; asserts `pcs.policy.divergence` is
+emitted with all required attributes plus `divergence_type =
+"policy-block-mismatch"`; exceeds the threshold by repetition and
+asserts the `pcs.policy.divergence.clca-trigger` event is also
+emitted with the correct discriminator scope.
 
 #### `[FM-PGE-0012]` Policy overlay consumption
 
