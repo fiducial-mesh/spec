@@ -348,7 +348,178 @@ IBX or AKB runs correctly on its own — PCS reaches into each pillar via
 its published interface (skills, MCP, hooks) and orchestrates from
 outside. `pip install <pillar>` works with no PCS present.
 
-## 1.7 How to read the rest of this spec
+## 1.7 Foundational invariants
+
+Three invariants govern every pillar and every workflow in the mesh.
+They are not policy — they are architecture. Policy is the operational
+ratchet within the bounds they define; it never widens them.
+
+### 1.7.1 No bypass + fail strict (IAM Tier-0)
+
+**No action, data access, or approval occurs without an authenticated
+principal.** There is no "trusted because internal." Every actor —
+human, agent, plugin, service — authenticates, every time. No standing
+god-rights account, no caller trusted by location, no bootstrap path
+that runs before identity is up.
+
+**Under error, ambiguity, unavailability, or unverifiable state, the
+system halts.** A principal that cannot confirm its credential is
+valid stops. An action whose authorization cannot be resolved is
+denied. When in doubt, stop.
+
+These two clauses cannot be relaxed by policy. They are the load-bearing
+floor every other guarantee in the mesh stands on.
+
+### 1.7.2 Capability provisioning as primary defense
+
+**Policy is a breach waiting to happen. If you don't want something
+done, don't enable / provision the feature. Capability provisioning is
+the primary defense; policy is the operational ratchet within the
+already-bounded capability set.**
+
+The natural enterprise-platform instinct is to provision a feature
+broadly, then layer policy on top to restrict its use, then layer audit
+on top to detect misuse. This produces platforms with broad capability
+surfaces and rich policy languages — and a long tail of "honest
+residuals" where policy defenses thin out: insider threats, key
+compromise, supply-chain attacks on the policy authoring pipeline
+itself. **Those residuals are not gaps to mitigate with more policy.
+They are provisioning mistakes.** The right move on each is to engineer
+the capability out, not the policy in.
+
+The mesh already follows this principle implicitly at every pillar:
+
+- **Air-gap by construction** (§1.1) — we don't policy "agent can't
+  make outbound calls"; the outbound network path doesn't exist.
+- **C# purged from the canon** (§1.5) — we don't policy "no C# in
+  production"; C# isn't provisioned as a target language.
+- **DPG ephemeral isolation** (§3.7) — we don't policy "execution
+  state shouldn't persist between runs"; the sandbox is destroyed.
+- **Mesh-internal registry, not public** (§2.10 / §2.8) — we don't
+  policy "no anonymous publishers"; anonymous publish has no capability path.
+- **Cardinal rule** (§2.3) — we don't policy "stick to vendor plugin
+  formats"; PCS plugins ARE vendor plugins. There's no separate "Mesh
+  plugin format" surface to subvert.
+- **No-callbacks runtime verification** (§1.2) — we don't policy
+  "don't phone home"; there is no phone-home substrate.
+
+**The test for new architectural decisions.** When a new capability is
+proposed, the first question is: *"Do we want anyone — anywhere, ever
+— to be able to do this?"*
+
+- If no: don't provision it. Policy can't make it safer than not existing.
+- If yes: policy gates who can do it, under what conditions, with what audit.
+
+**Resolution against the open-extension model.** The mesh ships an open
+extension surface (PCS plugins, the cardinal rule, marketplaces) which
+could appear to contradict capability minimization. It does not.
+**Extension composes within the provisioned capability surface; net-new
+capability requires the argued-case + quorum path.** Concretely:
+
+- Pillar implementations and their substrate matrices define the
+  capability surface; the maintainer provisions each with an argued case
+- Plugins compose within that surface — they invoke skills / hooks /
+  MCP servers / agents the pillars already expose
+- An MCP server in a plugin is bounded by PGE policy (allowed tools),
+  DPG sandbox (execution boundary), and IAM scope (calling agent's
+  authority) — it cannot introduce capabilities the mesh doesn't already
+  constrain
+- Workflows compose plugins — same containment, no net-new capability
+- Net-new capability at the platform level (new pillar, extended
+  substrate matrix, new agent surface) requires an argued case at the
+  maintainer level and quorum at the apply step (per §1.7.3)
+
+This invariant inverts the "feature-then-policy" default that produces
+most enterprise breaches. Mesh's first line of defense at every pillar
+is the absence of the capability, not the presence of the policy.
+
+### 1.7.3 Quorum authority for catastrophic-class capabilities
+
+**For any capability whose mis-use would be catastrophic, the mesh
+distributes the authority across independent identities — by
+architecture, not by policy.** Single-identity wielding of such
+capabilities is structurally impossible, not policy-restricted.
+
+The pattern is Shamir's Secret Sharing applied to governance —
+direct extension of the Vault unseal model. Authority is split into N
+shards; K-of-N independent identities must independently attest before
+the operation applies. Each shard-holder is a different human role
+(CISO / CCO / GC / CTO / Security Officer / etc.) with custody of their
+own signing key (their own keyring or HSM; never shared storage).
+Single-identity compromise does not enable the operation.
+
+**Capabilities in this class** (non-exhaustive):
+
+- Applying or revoking a PGE policy overlay
+- Revoking the ARCA root CA
+- Minting a new overlay-author identity
+- Rotating the trust-root key chain
+- Mass identity action (e.g., revoking the entire workforce)
+- Substrate decommission or irreversible data destruction
+
+**Mechanism**: implementation rides existing mesh primitives — the
+Quorum-Voter agent archetype (independent identities, not sessions of
+one), PCT (Principal Control Token in IBX carries signing identity per
+attestation), ACT (each attestation is an independent immutable audit
+record), and IAM identity lifecycle (mint / suspend / resume /
+terminate handles quorum member rotation). PGE Judge-gate is the
+consumer: it refuses to apply the operation until K-of-N attestations
+are present.
+
+**Asymmetric thresholds.** Apply (arming) is harder than revoke
+(firing). Apply requires a higher K (e.g., 4-of-5); emergency revoke
+allows lower (e.g., 2-of-5) so rollback isn't blocked by
+quorum-coordination overhead. Hard to ARM the system; one trigger to
+fire it.
+
+**Time-bounded attestation windows.** An attestation expires if K-of-N
+isn't reached within an operator-configured window. Prevents stale
+approvals being held in reserve.
+
+**Role-typed quorum.** Some operations require *specific* roles in the
+quorum, not just any K-of-N. HIPAA overlay apply may require the
+HIPAA-compliance-officer identity *in* the K set, not "any 4 quorum
+members."
+
+**Bootstrap at mesh init.** Initial quorum is minted at mesh
+initialization (parallel to `vault operator init`). From that point on,
+quorum-gated operations — including modifications to quorum
+membership itself — require existing quorum.
+
+**Platform enforcement floor is authoritative and independent of plugin
+self-declaration.** A plugin's `.pcs/plugin.pcs.json` policy block
+(§2.4) may *declare* the operations it considers `judge_gated` or
+`quorum_required`, but the **platform's enforcement is not bounded by
+the declaration.** PGE's judge-gate and §1.7.3's quorum-class apply to
+every operation the platform classifies as catastrophic-class,
+regardless of whether the plugin declares it. **Absence of declaration
+is not absence of constraint.** Three corollaries follow:
+
+- **Default-deny on declaration omission.** A plugin that does not
+  declare a `judge_gates` or `quorum_required` field does not thereby
+  acquire permission to perform those operations without the platform's
+  gates. Absent ≠ safe; absent = unspecified, and the platform applies
+  its floor.
+- **Divergence is a signal.** When a plugin's declared policy diverges
+  from the platform's enforcement (plugin claims an op needs no judge
+  gate; platform enforces one anyway), the divergence is logged to ACT
+  as a discrete audit event. The plugin author and the operator both
+  receive the signal; over time, repeated divergence is a CLCA
+  trigger.
+- **Granularity covers all dangerous operations.** Catastrophic-class
+  is the headline list (§1.7.3); judge-gating and quorum-enforcement
+  cover the broader surface of state-affecting operations PGE policy
+  classifies as requiring approval — not just the named catastrophic
+  set.
+
+This is capability-minimization (§1.7.2) applied recursively to the
+policy substrate itself: the plugin's declaration is a *hint to
+authors and consumers*, not an *enforcement contract*. The platform
+floor cannot be opted out of by omission, weakening, or silence.
+
+---
+
+## 1.8 How to read the rest of this spec
 
 The spec is one document, organized top-down with PCS as the central
 theme:
@@ -369,10 +540,15 @@ theme:
   map, conformance criteria, namespace inventory, plugin manifest
   reference, cross-pillar binding matrix.
 
+The three foundational invariants in §1.7 govern every pillar and
+every workflow in the parts that follow. Where the rest of the spec
+describes specific mechanisms, the invariants are the floor those
+mechanisms cannot go below.
+
 **Working notes preserved for provenance** — design dialogue, AIR
 reports, draft material that produced this spec — remain in
-`https://github.com/fiducial-mesh/devel/blob/main/spec-drafts/` and `devel/spec-drafts/` in the spec and devel repos
-respectively. They are not part of the canon; this single spec is.
+[`devel/spec-drafts/`](https://github.com/fiducial-mesh/devel/tree/main/spec-drafts).
+They are not part of the canon; this single spec is.
 
 ---
 
@@ -459,7 +635,7 @@ fiducial-mesh-deployment-vault-management/
 ├── .claude-plugin/plugin.json    ← Anthropic-owned, verbatim
 ├── .codex-plugin/plugin.json     ← OpenAI-owned, verbatim
 ├── .pcs/                         ← PCS extension territory
-│   └── plugin.pcs.json           ← provenance, signature, BOM refs
+│   └── plugin.pcs.json           ← provenance, signature, BOMs, policy block
 ├── workflows/                    ← PCS extension (not vendor-claimed)
 ├── skills/<name>/SKILL.md        ← open Agent Skills standard
 ├── hooks/hooks.json              ← vendor-defined
@@ -489,6 +665,27 @@ projection flattens to fit vendor flat-namespace constraints
 mega-workflows. A vault-management plugin ships `vault-install`,
 `vault-unseal`, `vault-rotate-cert`, `vault-pki-bootstrap` — pick the
 one you need.
+
+**Declared capability surface — the `policy:` block.** The plugin's
+PCS manifest (`.pcs/plugin.pcs.json`) carries a top-level `policy:`
+block that declares the plugin's entire capability surface in one
+auditable place: tools exposed, sandbox mode required, network access
+needed, hooks fired, identity scopes accepted. This serves the
+capability-minimization invariant (§1.7.2) directly — the validation
+harness reads this single declaration and gates entry; one place to
+audit; one place to deny. The pattern is borrowed from OpenAI Codex's
+`requirements.toml` consolidation; the mesh adopts it because it
+serves capability minimization better than a surface split across PGE
+policy + DPG sandbox config + plugin manifest. Concrete schema lives
+in Appendix E.
+
+**The `policy:` block is a declaration, not an enforcement contract.**
+Per §1.7.3, the platform enforcement floor is authoritative and
+independent of plugin self-declaration. A plugin cannot opt out of
+judge-gates or quorum-class controls by omitting the corresponding
+field — absent ≠ safe. PGE applies its floor regardless; divergence
+between plugin declaration and platform enforcement is logged to ACT
+as a CLCA signal.
 
 ## 2.5 Plugin portability across surfaces
 
@@ -850,6 +1047,14 @@ via standard interfaces. Publishing rights to namespaces are
 IAM-scoped — only the prefix-reservation signing identity can publish
 under that namespace.
 
+**FIPS-Day-1 discipline.** For deployments targeting FIPS-regulated
+regimes, the IAM substrate (Vault PKI, TLS endpoints, signing engines,
+credential authority) must run FIPS-validated mode from initial
+provisioning. **Canonical statement of the requirement and its
+rationale lives at §4.2.** This is a substrate-implementation
+discipline, not a policy overlay — the validated crypto path must be
+the substrate's default from `vault operator init` onward.
+
 ## 3.5 PGE — Policy Guardrail Engine
 
 Deterministic, owned, auditable policy enforcement. PGE is the mesh's
@@ -1016,6 +1221,19 @@ Criterion 1.
 server) reaches production without (1) `test_security.py` passing,
 (2) two-person GH-native review, (3) multi-platform validation. Tag
 push triggers automated publish; manual publish is forbidden.
+
+**FIPS-Day-1 substrate discipline.** For deployments targeting regulated
+regimes that require FIPS-validated cryptography (FedRAMP-High,
+IL5/IL6, HIPAA-hardened, DoD/SCIF), the substrate must run FIPS-mode
+crypto from initial provisioning — Vault PKI, TLS endpoints, signing
+engines, all on FIPS 140-3 (or 140-2 transitional) validated modules.
+**FIPS-mode cannot be retrofitted onto a substrate that grew up
+non-FIPS.** The validated crypto path is a property of the
+implementation pillars (per §3.4), not a policy overlay. Per
+capability-minimization (§1.7.2), if a deployment targets FIPS-regulated
+work, non-FIPS crypto modules must not be provisioned at all — the
+overlay encodes the NIST controls, the substrate provides the validated
+primitives.
 
 ## 4.3 Delivery and packaging
 
@@ -1320,6 +1538,68 @@ gracefully when projecting to the other vendor):
 standard, no additional codegen):
 - Copilot CLI — reads `.claude/skills/` for interop
 - Copilot Coding Agent — reads `.github/skills/` + `.mcp.json`
+
+### The `policy:` block in `.pcs/plugin.pcs.json`
+
+The plugin's PCS manifest carries a top-level `policy:` block that
+declares the plugin's entire capability surface in one auditable
+place. The validation harness reads this once and gates entry; this
+is the surface that capability-minimization (§1.7.2) operates against.
+
+```jsonc
+{
+  "name": "fiducial-mesh-deployment-vault-management",
+  "version": "1.4.2",
+  "signature": "...",
+  "boms": ["fiducial-mesh:default-mesh-bom:2026.06"],
+  "provenance": { /* signing identity, harness version, hash chain */ },
+
+  "policy": {
+    "tools": [                           // tools the plugin exposes
+      "vault.read", "vault.write", "vault.sign"
+    ],
+    "sandbox": "ephemeral-network-restricted",  // DPG sandbox mode required
+    "network": {                         // declared external touchpoints
+      "outbound": [],                    // empty = no internet egress required
+      "intra-mesh": ["pillar:iam", "pillar:act"]
+    },
+    "hooks": [                           // lifecycle events the plugin fires
+      "PreToolUse", "PostToolUse", "SessionStart"
+    ],
+    "identity_scopes": [                 // IAM scopes a calling identity must hold
+      "vault.admin", "pillar.iam.read"
+    ],
+    "judge_gates": [                     // operations requiring Judge approval
+      "vault.rotate-root", "vault.purge"
+    ],
+    "quorum_required": [                 // operations requiring K-of-N quorum (§1.7.3)
+      "vault.rotate-root"
+    ]
+  },
+
+  "components": {
+    "skills":   "./skills/",
+    "hooks":    "./hooks/hooks.json",
+    "mcp":      "./.mcp.json",
+    "agents":   ["./agents/"],
+    "workflows": "./workflows/"
+  }
+}
+```
+
+**Validation gates run against the `policy:` block:**
+
+- Tier 0 (vendor base): vendor manifests must declare components
+  consistent with the `policy:` tool surface
+- Tier 1 (PCS Core): `policy:` block must be present, signed, internally consistent
+- Tier 2+: `policy.sandbox` must match a supported DPG sandbox mode;
+  `policy.network` cannot declare egress the deployment's PGE overlay
+  forbids; `policy.identity_scopes` must map to IAM-defined scopes;
+  `policy.quorum_required` operations must be enforceable
+
+One declaration, machine-readable, auditable, gateable at the
+validation harness. Operators and compliance auditors read the
+`policy:` block to know what a plugin can do without reading code.
 
 ## Appendix F — Cross-pillar binding matrix
 
