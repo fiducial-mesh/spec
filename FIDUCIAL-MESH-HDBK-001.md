@@ -1852,6 +1852,15 @@ Reference material. Tables and lookup, not narrative.
 
 ## Appendix A — Glossary
 
+> **STD cross-reference.** Acronyms with a numbered-pillar binding
+> (ACT, AIR, AKB, ARCA, BOM, CLCA, CRB, DPG, IAM, IBX, MCC, MCP,
+> PCS, PCT, PGE, etc.) are also defined in STD-001 §3.1 — the
+> Standard's definitions are authoritative. This Handbook glossary
+> adds **narrative-only terms** not in the Standard (Cardinal rule,
+> DAC, Default manifest, Dogfood, Free target, Plugin-loadout,
+> Role-loadout, Tenant namespace, Tested variation, Workflow as
+> rationale-shape).
+
 | Term | Meaning |
 |------|---------|
 | **AIR** | After-Incident Report — blameless post-mortem stored in AKB |
@@ -1875,6 +1884,16 @@ Reference material. Tables and lookup, not narrative.
 
 ## Appendix B — Language map
 
+> **STD/HDBK boundary.** The Standard is **language-neutral at
+> the contract layer** per STD-001 §1; pillar requirements shall
+> not mandate an implementation language. This Appendix documents
+> the **project's reference-implementation choice** — what *we*
+> build to. A customer using a different language for any pillar
+> remains conformant on the same terms (passing the per-pillar
+> Conformance Profile test set per STD §0.4 + §5.x.1). The C#
+> exclusion below is a project-level reference-implementation
+> choice, not a Standard requirement.
+
 Canonical per-pillar language assignment. Python is the default;
 non-Python deviations are argued explicitly. C# is purged from the
 canon.
@@ -1883,8 +1902,8 @@ canon.
 |----------------|----------|-------|
 | IBX | Python | Default |
 | AKB | Python | Default |
-| ACT — Detect Layer | Python | Default |
-| ACT — Record Layer | Python | (was C# per old CD2; flipped) |
+| ACT — Detect Layer | Python | Default; transitional deviation per `[FM-ACT-0008]` until operational |
+| ACT — Record Layer | Python | Default |
 | IAM | Python | Default; watch for argued deviation in PKI / AD area |
 | PGE | Python | Default |
 | CRB | **Go** | Sanctioned — hot concurrent broker |
@@ -1899,25 +1918,51 @@ canon.
 
 ## Appendix C — Conformance criteria
 
-Per `https://github.com/fiducial-mesh/devel/blob/main/spec-drafts/PILLAR-SPEC-TEMPLATE.md` v1.1, every pillar spec
-satisfies six non-negotiables. PCS plugins inherit the analogous
-discipline through the tiered validation harness (§2.7).
+> **STD anchor.** The **authoritative** conformance criteria for
+> each pillar are the per-pillar **Conformance Profile** in STD-001
+> §5.x.1, exercised against the §0.4 verification methods and the
+> per-requirement Verification lines (`Conformance-test` /
+> `Inspection` / `Static-check`). The six non-negotiables below are
+> a **narrative summary** of the cross-cutting acceptance criteria
+> every pillar inherits — they map directly to numbered STD
+> requirements. PCS plugins inherit the analogous discipline
+> through the tiered validation harness (§2.7); the §6 PCS plugin
+> requirements (Reserved) will codify the harness as numbered
+> requirements when filled.
 
-**Pillar-spec acceptance criteria (six non-negotiables):**
+**Pillar-spec acceptance criteria (six non-negotiables) with STD bindings:**
 
-1. **Secure** — credential handling, no injection surface, HTTPS-only,
-   parameterized SQL, input validation, rate limiting
+1. **Secure** — credential handling per `[FM-IAM-0006]` Vault
+   in-boundary signing; no injection surface (§0.5 Static-check);
+   HTTPS-only per each pillar's Conformance Profile transport seam;
+   parameterized SQL; input validation; rate limiting.
 2. **Instrumented-by-default** — OTLP traces + metrics per the
-   pillar's telemetry contract
+   per-pillar telemetry requirement (`[FM-IBX-*]`, `[FM-IAM-0012]`,
+   `[FM-PGE-0014]`, `[FM-ACT-0012]`, `[FM-AKB-0014]`,
+   `[FM-DPG-0014]`, `[FM-CRB-0013]`, `[FM-MCC-0014]`); each pillar
+   names its `mesh.<pillar>.*` namespace.
 3. **JSON logs** — structured JSON to stderr with required keys
    (`timestamp`, `level`, `message`, `service.name`, `service.version`,
-   `trace_id`, `span_id`, `identity`, `session`)
+   `trace_id`, `span_id`, `identity`, `session`); part of each
+   pillar's telemetry requirement.
 4. **CLI-first, UI-second** — every management function runnable on
-   CLI/API before any UI exists; MCC is a thin client of the CLI/API
-5. **Audit emission** — accountability events for every state-affecting
-   operation (per IAM / ACT contract)
-6. **RHEL-compatible build / runtime substrate** — Rocky 9.7+ / Alma
-   9.7+ / RHEL 9.7+ / UBI 9.7+ only in v0.1; no `ubuntu-latest`
+   CLI/API before any UI exists per `[FM-MCC-0008]` (UI is a strict
+   subset of frame API; the UI is documentation-by-example for the
+   contract, never a parallel control surface).
+5. **Audit emission** — accountability events for every state-
+   affecting operation, bound to the `[FM-ACT-0009]` emission-
+   confirmation contract (`[FM-IBX-0012]`, `[FM-IAM-0013]`,
+   `[FM-PGE-0008]`, `[FM-AKB-0013]`, `[FM-DPG-0012]`,
+   `[FM-CRB-0012]`, `[FM-MCC-0013]`); the operation shall not be
+   considered complete until ACT acknowledges the emission per the
+   ack sequence; lack-of-ack or negative-ack causes fail-strict per
+   `[FM-INV-0002]` / `[FM-INV-0002.1]`.
+6. **RHEL-compatible build / runtime substrate** — Rocky 9.7+ /
+   Alma 9.7+ / RHEL 9.7+ / UBI 9.7+ only in v0.1; no
+   `ubuntu-latest`. This is a project-level reference-implementation
+   choice per the STD/HDBK boundary (§1.5); the Standard is
+   substrate-pluggable per STD §1 — a customer's regulated build
+   substrate stays substrate-pluggable on the same terms.
 
 **PCS plugin validation harness (tiered, per §2.7):**
 
@@ -2064,47 +2109,62 @@ validation harness. Operators and compliance auditors read the
 
 ## Appendix F — Cross-pillar binding matrix
 
+> **STD anchor.** This Handbook appendix is the **narrative
+> companion** to STD-001 **Appendix D — Normative cross-pillar
+> binding matrix** (currently Reserved; will be filled as the
+> §6 PCS plugin requirements land). Where STD Appendix D becomes
+> the requirement-by-requirement mapping, this Handbook table is
+> the workflow-moment view of the same composition. The STD
+> Appendix D, when filled, is authoritative.
+
 How PCS workflow execution touches each pillar:
 
-| Workflow moment | Pillars engaged |
-|-----------------|----------------|
-| Operator triggers a workflow via agent | IBX (request lands), IAM (who's asking, what's authorized) |
-| Workflow execution begins | DPG (sandbox provisioned), IAM (run-as identity bound) |
-| Workflow consults a runbook / skill | AKB (read context, lessons learned), PGE (allowed?) |
-| Workflow emits events | ACT (telemetry captured), IBX (cross-agent coordination msgs) |
-| Workflow completes | ACT (final state), AKB (outcomes stored), IBX (notify dependent agents) |
-| Incident occurs during execution | ACT → AIR drafted → AKB → CLCA → new workflow version → registry |
-| Workflow version evolves | IAM (publish auth), PGE (policy gates), registry update |
-| Operator reviews the whole story | MCC (UI surfaces all of it) |
-| Workload placement | CRB (hardware-aware dispatch) |
+| Workflow moment | Pillars engaged + STD bindings |
+|-----------------|--------------------------------|
+| Operator triggers a workflow via agent | IBX (request lands) per `[FM-IBX-0007]` worker-pool dispatch; IAM (who's asking, what's authorized) per `[FM-IAM-0011]` identity-context |
+| Workflow execution begins | DPG (sandbox provisioned) per `[FM-DPG-0002]` five ephemeral-isolation properties; IAM (run-as identity bound) per `[FM-DPG-0006]` runner identity |
+| Workflow consults a runbook / skill | AKB (read context, lessons learned) per `[FM-AKB-0001]` two-tier delivery + `[FM-AKB-0004]` substrate-trap pre-filter; PGE (allowed?) per `[FM-PGE-0005]` double-guardrail |
+| Workflow emits events | ACT (telemetry captured) per `[FM-ACT-0009]` ack contract; IBX (cross-agent coordination msgs) per the §5.1 message-shape |
+| Workflow completes | ACT (final state) per `[FM-ACT-0009]`; AKB (outcomes stored) per `[FM-AKB-0008]` promotion gates; IBX (notify dependent agents) |
+| Incident occurs during execution | ACT → AIR drafted → AKB per `[FM-AKB-0012]` AIRs as Tier-1 corpus → CLCA per `[FM-PGE-0011]` divergence-derivation → new workflow version → registry per `[FM-DPG-0009]` Registry-bound validation |
+| Workflow version evolves | IAM (publish auth) per `[FM-IAM-0008]` Publish pipeline; PGE (policy gates) per `[FM-PGE-0005]` + `[FM-PGE-0010]`; registry update |
+| Operator reviews the whole story | MCC (UI surfaces all of it) per `[FM-MCC-0007]` web admin UI + `[FM-MCC-0008]` UI-strict-subset-of-API |
+| Workload placement | CRB (hardware-aware dispatch) per `[FM-CRB-0003]` policy contract + `[FM-CRB-0009]` isolation-tier eligibility-input with explicit pre-dispatch validation |
 
 ## Appendix G — Working notes (provenance)
 
-Design dialogue, AIR reports, draft material that produced this spec
-remain in:
+Design dialogue, AIR reports, draft material that produced this
+Handbook and the companion STD-001 remain in `fiducial-mesh/devel/
+spec-drafts/` (kept for provenance; not part of the canon — the
+canon is STD-001 + this HDBK).
 
-- `fiducial-mesh/devel/spec-drafts/` — the working drafts and design notes
-  in the spec repo (kept for provenance; not part of the canon)
-- `fiducial-mesh/devel/spec-drafts/` — the devel repo's spec-drafts
-  area (when populated)
+**The per-pillar spec drafts** (`IBX-SPEC.md`, `IAM-CORE-SPEC.md`,
+`ACT-SPEC.md`, `PGE-SPEC.md`, `CRB-SPEC.md`, `DPG-SPEC.md`,
+`AKB-SPEC.md`, `MCC-SPEC.md`) **are superseded** by the
+corresponding STD-001 §5.x sections; they are retained as
+historical reference for the trajectory but are no longer the
+authoritative pillar specs. The current canonical pillar spec for
+each is its STD-001 §5.x section + §5.x.1 Conformance Profile.
 
-Notable design-trajectory documents:
+Notable design-trajectory documents (all in `devel/spec-drafts/`;
+all superseded by the current canon but retained for provenance):
 
 | Document | What it captured |
 |----------|------------------|
-| `https://github.com/fiducial-mesh/devel/blob/main/spec-drafts/MANIFESTO.md` | Design drivers from operational practice |
-| `https://github.com/fiducial-mesh/devel/blob/main/spec-drafts/DESIGN-PHILOSOPHY.md` | The capability/constraint duality |
-| `https://github.com/fiducial-mesh/devel/blob/main/spec-drafts/TECHNICAL-OVERVIEW.md` | External-facing architecture summary |
-| `https://github.com/fiducial-mesh/devel/blob/main/spec-drafts/IDENTITY-PILLAR-DESIGN.md` | IAM foundational design |
-| `https://github.com/fiducial-mesh/devel/blob/main/spec-drafts/CONCURRENCY-AND-ARCHETYPES.md` | Worker/reasoner/quorum archetypes |
-| `https://github.com/fiducial-mesh/devel/blob/main/spec-drafts/PCS-PLATFORM-REDESIGN-NOTES.md` | The 2026-06-08 PCS redesign conclusions doc |
-| `https://github.com/fiducial-mesh/devel/blob/main/spec-drafts/LANGUAGE-POLICY-AND-CANON-CLEANUP-2026-06-08.md` | The consolidated language-policy + C#-purge + categorization plan |
-| Per-pillar specs (`IBX-SPEC.md`, `IAM-CORE-SPEC.md`, `ACT-SPEC.md`, `PGE-SPEC.md`, `CRB-SPEC.md`, `DPG-SPEC.md`, `AKB-SPEC.md`, `MCC-SPEC.md`) | Full pillar detail; this consolidated spec folds the load-bearing material in |
+| `MANIFESTO.md` | Design drivers from operational practice |
+| `DESIGN-PHILOSOPHY.md` | The capability/constraint duality |
+| `TECHNICAL-OVERVIEW.md` | External-facing architecture summary |
+| `IDENTITY-PILLAR-DESIGN.md` | IAM foundational design |
+| `CONCURRENCY-AND-ARCHETYPES.md` | Worker / Reasoner / Quorum-Voter archetypes (now bound to per-pillar §5.x) |
+| `PCS-PLATFORM-REDESIGN-NOTES.md` | The 2026-06-08 PCS redesign conclusions doc (input to §6 PCS, reserved) |
+| `LANGUAGE-POLICY-AND-CANON-CLEANUP-2026-06-08.md` | The consolidated language-policy + C#-purge + categorization plan (now reflected in STD §1 language-neutral clause + HDBK §1.5 / Appendix B) |
+| Per-pillar drafts (8 files above) | Full pillar detail; superseded by STD-001 §5.x sections (12–14 numbered requirements + Conformance Profile per pillar) |
 
 ---
 
-*End of Fiducial Mesh Specification v0.1.*
+*End of Fiducial Mesh Handbook v0.1.*
 
-Working notes preserved in `https://github.com/fiducial-mesh/devel/blob/main/spec-drafts/` for provenance. The canonical
-spec is this single document. As pillars evolve, this spec is updated
-in place — same single-doc shape, versioned in git.
+The Handbook is the rationale / worked-example / narrative
+companion to the normative Standard (`FIDUCIAL-MESH-STD-001`).
+The Standard is authoritative; this Handbook is read-against-it.
+Working notes preserved in `devel/spec-drafts/` for provenance.
