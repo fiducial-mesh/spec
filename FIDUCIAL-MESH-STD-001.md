@@ -1613,7 +1613,292 @@ substrate change.
 
 ### §5.4 ACT — Agent Cognitive Telemetry
 
-*Reserved for future PR. Required by `[FM-IBX-0012]` and the audit-emission requirements every other pillar inherits.*
+**Scope.** ACT is the mesh's immutable, locally-hosted audit ledger.
+Every reasoning span, tool call, token consumed, signed action, IAM
+event, IBX message, quorum vote, Judge approval, policy decision, and
+divergence event flows to ACT. ACT is the consumer of the mesh's
+audit emission stream; every other pillar **shall** emit
+state-affecting events here. ACT enables non-repudiation, per-session
+forensics, regulatory compliance audit, and the dialectical-engine
+evidence trail.
+
+**Dependencies.**
+
+- `[FM-INV-0001]` (No bypass) and `[FM-INV-0002]` (Fail strict) apply — ACT emission failure is fail-strict (the upstream operation halts) per the per-pillar audit-emission requirements.
+- ACT consumes events emitted by every other pillar: `[FM-IBX-0012]` (IBX status transitions), `[FM-IAM-0013]` (IAM state-affecting operations), `[FM-PGE-0008]` (PGE decisions), `[FM-PGE-0011]` (`pcs.policy.divergence` events with `divergence_type` discriminator), and per-pillar audit requirements in future pillars (§§5.5–5.8).
+- ACT is queried by `[FM-IAM-0014]` Condition 4 for `divergence_type = "identity-by-brief"` events to verify the IAM operational-state sunset.
+- ACT runs all stack layers in **Python** per §4.3 language map (the prior "C# record layer / Python detect layer" framing in source material is retired; both layers are Python).
+
+#### `[FM-ACT-0001]` Append-only event store
+
+The ACT event store **shall** be append-only at the substrate layer.
+No event, once committed, **shall** be modifiable, deletable, or
+shadowed by an in-place rewrite. Corrections **shall** be expressed
+as a new event with a `correcting_event_id` field referencing the
+event being corrected; the original event **shall** remain in the
+store.
+
+The append-only property is what makes the audit chain
+tamper-evident; modify-in-place semantics would destroy the property.
+
+*Verification: Conformance-test* — the harness attempts every
+documented substrate write path (UPDATE, DELETE, REPLACE) targeting
+committed events; asserts every attempt fails. Inserts new events
+including a `correcting_event_id` reference and asserts both events
+are queryable.
+
+#### `[FM-ACT-0002]` Unidirectional cognitive-event emission
+
+Cognitive events **shall** flow into ACT from emitting pillars and
+**shall not** flow back into the mesh's decision pipeline except via
+explicit curator-gated review. ACT is the terminal store for audit
+emission; pillars **shall not** read recent events from ACT to make
+runtime decisions (with the documented exceptions: `[FM-IAM-0014]`
+Condition 4 sunset verification, and `[FM-PGE-0011]` CLCA-trigger
+derivation, both of which are explicit queries against ACT
+specifically because the audit trail IS the source of truth for those
+specific checks).
+
+Curator-review workflows (CLCA action review, AIR drafting,
+compliance audit) **may** read from ACT freely; their outputs
+**shall not** loop directly back into pillar-decision pipelines
+without an explicit review step.
+
+*Verification: Inspection* — review of each pillar's runtime code
+path verifies no read-from-ACT-into-decision pattern exists except
+the documented exceptions; the documented exceptions are explicitly
+listed and reviewed against the requirements that invoke them.
+
+#### `[FM-ACT-0003]` Session-granular attribution
+
+Every cognitive event **shall** carry attribution to the specific
+session under which it occurred. Session attribution **shall**
+include both the `principal-id` (the identity per `[FM-IAM-0006]`)
+and a session identifier distinct from `principal-id` per
+`[FM-IBX-0006]`'s identity-vs-session distinction.
+
+Session-granular attribution is load-bearing for per-session
+incident response: suspend one session of one identity while other
+sessions of the same identity continue operating per
+`[FM-IAM-0004]`. Without session granularity, the only response
+unit is "the whole identity."
+
+*Verification: Conformance-test* — the harness invokes operations
+from multiple sessions of the same identity and asserts each event
+in ACT carries distinct session identifiers; asserts session
+identifiers persist with their events through the storage layer.
+
+#### `[FM-ACT-0004]` Event-type taxonomy
+
+Every event in ACT **shall** carry a typed `event_type` discriminator
+drawn from a stable, versioned event-type taxonomy. The taxonomy
+**shall** include at minimum:
+
+- **`iam.*`** — IAM state-affecting events per `[FM-IAM-0013]`
+- **`ibx.*`** — IBX message-transition events per `[FM-IBX-0012]`
+- **`pge.*_evaluated`** — PGE decision events per `[FM-PGE-0008]`
+- **`pcs.policy.divergence`** — Divergence events per `[FM-INV-0005.2]` + `[FM-PGE-0011]` (with `divergence_type` discriminator)
+- **`pcs.policy.divergence.clca-trigger`** — Derived CLCA-trigger events per `[FM-INV-0005.2]`
+- **`act.chain_checkpoint`** — Chain-verification checkpoints per `[FM-ACT-0005]`
+- **`act.detection_signal`** — Detection-layer outputs per `[FM-ACT-0008]` when operational
+
+Event-type identifiers are immutable + append-only per the same
+discipline as requirement IDs (§0.2). Deprecated event types
+**shall** be marked and retained; new types **may** be added.
+
+*Verification: Static-check* — the event-type registry is parsed and
+verified against the substrate schema; the harness submits events of
+each enumerated type and asserts schema-conformant storage.
+
+#### `[FM-ACT-0005]` Per-session cryptographic chaining
+
+Events within a session **shall** be cryptographically chained: each
+event's record **shall** include a hash incorporating the prior
+event's hash within the same session, forming a per-session
+tamper-evidence chain. The session boundary defines chain scope —
+cross-session correlation **shall** use `trace_id` / `span_id`
+correlation per `[FM-INV-0001]` audit invariants, not the per-session
+hash chain.
+
+Chain-verification checkpoints **shall** be emitted as
+`act.chain_checkpoint` events at operator-configured cadence (event
+count or wall-clock interval); checkpoints aggregate the chain hash
+across the prior session window and **shall** be independently
+verifiable from substrate state without trust in ACT's runtime.
+
+*Verification: Static-check + Conformance-test* — Static-check
+verifies hash-chain field presence in the event schema; the harness
+constructs a tampered event in storage (e.g., by direct substrate
+write outside the ACT API) and asserts chain re-verification detects
+the tampering at the next checkpoint.
+
+#### `[FM-ACT-0006]` Hash algorithm policy
+
+The chain-hash algorithm **shall** be a collision-resistant
+cryptographic hash function suitable for chaining. The sovereign
+reference is **SHA-256**; FIPS-validated implementations are required
+for deployments invoking the §4.2 FIPS-Day-1 discipline. Hash
+upgrades (e.g., SHA-256 → SHA-3-256) **shall** be performed via a
+documented migration ceremony that preserves verification of the
+pre-migration chain through the migration boundary.
+
+*Verification: Inspection* — review of the ACT runtime configuration
+verifies the active hash algorithm + FIPS-validated implementation
+in regulated deployments.
+
+#### `[FM-ACT-0007]` Three-consumer-class access pattern support
+
+The ACT event store **shall** support three concurrent consumer
+classes without compromise to any of them:
+
+1. **Compliance / Audit** — point lookups by `(identity, session,
+   time range)` for human-supervised review. Latency-tolerant; query
+   patterns simple.
+2. **Detection** — pattern analytics for behavioral-anomaly and
+   policy-violation detection (per `[FM-ACT-0008]` when
+   operational). Latency-sensitive; query patterns ML-driven.
+3. **CLCA / Post-Mortem** — JOIN-heavy reconstructive queries across
+   identities, sessions, and time ranges, to trace cascades or
+   identify CLCA action targets. Latency-irrelevant; query patterns
+   ad-hoc.
+
+The substrate choice **shall** demonstrate it can serve all three
+patterns under representative load without degrading any of them.
+
+*Verification: Conformance-test* — the harness exercises
+representative queries from each class concurrently against a
+populated event store and asserts SLO-conformant latency for
+detection + correctness for audit and CLCA query patterns.
+
+#### `[FM-ACT-0008]` Detect Layer (transitional clause)
+
+ACT **may** expose a Detect Layer that consumes events from the
+event store and emits `act.detection_signal` events back into the
+store for behavioral-anomaly detection and policy-violation
+correlation. The Detect Layer is a runtime ML component reading
+ACT's event stream and producing inferences.
+
+**Transitional deviation — sunset on Detect Layer operational
+availability.** A deployment operating without Detect Layer **may**
+satisfy this Standard's other requirements without satisfying
+`[FM-ACT-0008]`; the Detect Layer is a future capability whose
+absence is a recognized deviation, not non-conformance for the
+Compliance/Audit + CLCA consumer classes. The deviation **shall**:
+
+1. Be registered in Appendix F with explicit sunset condition:
+   "Detect Layer operational per `[FM-ACT-0008]`" — declared by the
+   operator when the Detect Layer is built, tested, and connected to
+   the event store.
+2. Be reviewed at each major Standard release.
+3. Not be cited as satisfaction of detection-class compliance
+   requirements (e.g., regulatory requirements demanding active
+   behavioral monitoring) that the Detect Layer addresses.
+
+*Verification (operational): Conformance-test* — the harness
+verifies Detect Layer consumes events and emits
+`act.detection_signal` records to the store.
+*Verification (deviation period): Inspection of deviation registry*
+— deviation entry present in Appendix F with sunset condition; the
+deployment does not claim conformance to detection-class compliance
+requirements without Detect Layer.
+
+#### `[FM-ACT-0009]` Fail-strict on ACT unavailability
+
+Per the per-pillar audit-emission requirements (`[FM-IBX-0012]`,
+`[FM-IAM-0013]`, `[FM-PGE-0008]`, and analogous future pillar
+requirements), an upstream operation **shall not** complete if its
+audit emission cannot be confirmed by ACT. ACT unavailability —
+substrate down, network partition, ingestion queue saturated —
+**shall** result in the upstream operation failing strict per
+`[FM-INV-0002]`.
+
+ACT **shall not** silently drop events under load. If sustained
+ingest exceeds capacity, ACT **shall** apply backpressure such that
+upstream emissions block (with timeout per `[FM-INV-0002]` →
+fail-strict) rather than complete without persistence.
+
+*Verification: Conformance-test* — the harness induces ACT
+unavailability (substrate down, ingestion saturation) and submits
+upstream operations across pillars; asserts every operation fails
+strict; restores ACT and asserts operations resume successfully.
+
+#### `[FM-ACT-0010]` Cold-storage tier (deferred)
+
+ACT **may** offload events older than an operator-configured age to
+a cold-storage tier with cheaper-per-byte economics; the cold tier
+**shall** retain chain verifiability per `[FM-ACT-0005]` across the
+migration boundary and **shall** remain readable on demand for
+compliance queries.
+
+This requirement is intentionally deferred — sovereign-reference
+selection waits on operational sizing data. Operators **shall not**
+implement a cold-storage tier that breaks chain verifiability.
+
+*Verification: Inspection (deferred)* — when a cold-storage tier is
+implemented, chain re-verification across the warm/cold boundary
+**shall** pass as a conformance gate; until then, this requirement is
+not exercised.
+
+#### `[FM-ACT-0011]` Retention controls per regulatory regime
+
+Event retention **shall** be operator-configurable per regulatory
+regime via the PGE overlay model (per `[FM-PGE-0012]`). Different
+event types **may** have different retention windows (e.g.,
+`iam.*` events retained longer than `act.detection_signal` events
+under a HIPAA overlay). Retention reduction past the regime's
+minimum **shall** be classified as a catastrophic-class operation
+per `[FM-INV-0004]` and **shall** require quorum.
+
+Events past their retention window **shall** be removed via the
+documented retention-expiration ceremony, which **shall** itself
+emit an `act.retention.expired` event recording the count of removed
+events and the retention rule applied. Direct deletion via substrate
+APIs **shall not** be permitted; expiration is the only documented
+removal path.
+
+*Verification: Static-check + Conformance-test* — Static-check
+verifies retention policy configuration is loaded from PGE overlay;
+Conformance-test exercises retention-expiration and verifies the
+`act.retention.expired` event is emitted with the correct attributes;
+direct-deletion attempts via substrate API are rejected.
+
+#### `[FM-ACT-0012]` ACT's own telemetry emission
+
+ACT **shall** emit OTLP-format traces, metrics, and logs for its own
+operational observability per the mesh-wide telemetry discipline.
+Span names **shall** follow the `mesh.act.*` namespace; required
+attributes per the per-pillar telemetry contract.
+
+Note: ACT's *own* operational telemetry (`mesh.act.*`) is distinct
+from ACT's role as the consumer of every other pillar's audit emission
+(the `iam.*` / `ibx.*` / `pge.*` / `pcs.policy.divergence` etc. event
+classes flowing into ACT's event store). The two flow to different
+sinks — the operational OTLP sink for ACT-pillar observability;
+ACT's own event store for the audit class.
+
+*Verification: Conformance-test* — the harness invokes representative
+ACT operations and asserts emission of expected span/metric/log
+records to the operational OTLP sink with `mesh.act.*` namespace.
+
+### §5.4.1 ACT Conformance Profile
+
+The ACT pillar's substrate substitutability claim covers exactly the
+rows in this Conformance Profile. Conformance is verified by passing
+the ACT multi-profile conformance suite against the listed
+implementations.
+
+| Seam | Bound requirement(s) | Sovereign reference (version floor) | Supported alternatives | Test Set |
+|------|---------------------|-------------------------------------|------------------------|----------|
+| Event store | `[FM-ACT-0001]`, `[FM-ACT-0004]`, `[FM-ACT-0007]`, `[FM-ACT-0009]` | ClickHouse 23.8+ with append-only `act.events` table | PostgreSQL 17+ with columnar extension (cstore_fdw / pg_columnar), NATS JetStream 2.10+ (event-store mode), Apache Kafka 3.6+ (compacted topics), OpenTelemetry backend (Tempo + Loki) | `act-event-store-v1` |
+| Chain-verification crypto | `[FM-ACT-0005]`, `[FM-ACT-0006]` | SHA-256 (FIPS-validated implementation when §4.2 FIPS-Day-1 applies) | SHA-3-256, BLAKE3 (newer FIPS path), HMAC-keyed variants for additional tamper resistance | `act-chain-crypto-v1` |
+| Detect Layer ML runtime | `[FM-ACT-0008]` | Python 3.10+ with PyTorch / scikit-learn / Polars (Detect Layer operational); transitional deviation per `[FM-ACT-0008]` | Python 3.11+/3.12+, alternative ML stacks (TensorFlow, JAX, ONNX Runtime), embedded inference (Triton Inference Server) | `act-detect-v1` (operational) / `act-detect-deviation-v1` (transitional) |
+| Cold-storage tier | `[FM-ACT-0010]` | Deferred — sovereign-ref selection pending operational sizing | S3-compatible object storage (MinIO, AWS S3, Azure Blob, OCI Object Storage), Apache Iceberg + Parquet on S3-compatible, ClickHouse cold-storage tier with tiered TTL | `act-cold-storage-v1` (when implemented) |
+| Telemetry sink | `[FM-ACT-0012]` | OTLP-on-the-wire (any OTLP-compatible backend) | Grafana/Prometheus/Tempo, Azure Monitor, Datadog, OCI Monitoring | `act-telemetry-v1` |
+
+Out-of-set substrates **shall not** be claimed supported. Extending
+the profile requires the argued-case discipline per `[FM-INV-0003.2]`
+and a multi-profile conformance run proving the new substrate passes
+the ACT test suite.
 
 ### §5.5 AKB — Agent Knowledge Base
 
