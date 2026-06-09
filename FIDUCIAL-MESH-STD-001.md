@@ -819,7 +819,7 @@ dotted line; Control Plane runtime).
 - `[FM-INV-0001]` (No bypass) and `[FM-INV-0002]` (Fail strict) apply to all IAM operations at Tier-0 rigor; they **cannot be relaxed** by any IAM-level policy.
 - `[FM-INV-0005]` (Platform enforcement floor authoritative) binds — IAM does not honor plugin self-declared identity claims that contradict its own verification.
 - FIPS-Day-1 substrate discipline per §4.2 applies — Vault PKI, TLS endpoints, and signing engines run FIPS-validated mode from initial provisioning for FIPS-regulated deployments.
-- IAM is consumed by IBX (§5.1) per `[FM-IBX-0010]`, PGE (§5.3) per the authorization-context contract `[FM-IAM-0011]`, and every other pillar's audit emission.
+- IAM is consumed by IBX (§5.1) per `[FM-IBX-0010]`, PGE (§5.3) per the identity-context contract `[FM-IAM-0011]` (IAM provides identity context; PGE makes the allow|deny decision), and every other pillar's audit emission.
 
 **Transitional posture (universal across IAM requirements):** IAM
 ships in stages. Until `[FM-IAM-0014]` (IAM operational-state
@@ -1047,25 +1047,51 @@ routing) without requiring re-verification against IAM.
 issuance code asserts every issuance path sets the stamp; harness
 attempts to mutate principal-type post-issuance and asserts denial.
 
-#### `[FM-IAM-0011]` Authorization-context contract for PGE consumers
+#### `[FM-IAM-0011]` Identity-context contract for PGE consumers
 
-IAM **shall** expose an authorization-context resolution contract to
-PGE (§5.3) and other policy-consuming pillars: given
-`(principal-id, job_code, action, resource)`, return an
-`allow | deny` decision with the deciding policy version recorded for
-audit. Resolution **shall** be deterministic — the same input
-**shall** produce the same output absent intervening
-policy-version changes — and **shall** support policy versioning so
-that audit can attribute decisions to the policy version in force at
-decision time.
+IAM **shall** expose an **identity-context** resolution contract to
+PGE (§5.3) and other policy-consuming pillars. **IAM provides
+identity context; IAM does NOT make the allow|deny decision.** The
+decision is PGE's responsibility (per §5.3 when landed); IAM's
+responsibility is to provide PGE with the verified identity and the
+identity-bound claims PGE needs to make the decision.
 
-This is the seam at which PGE policy enforcement consumes IAM
-identity context.
+Given a verified `principal-id`, IAM **shall** return an identity
+context comprising:
 
-*Verification: Conformance-test* — the harness issues authorization
-queries with known principal/job-code/action/resource tuples against
-known policies and asserts the expected allow/deny outcomes plus
-correct policy-version attribution.
+1. **Verified identity** — `principal-id` + public-key fingerprint
+   (per `[FM-IAM-0003]`)
+2. **Principal-type stamp** — `agent | human | service` (per
+   `[FM-IAM-0010]`)
+3. **Status** — `active | suspended | terminated` (per `[FM-IAM-0004]`
+   / `[FM-IAM-0005]`); a non-`active` status **shall** cause PGE to
+   deny independent of policy
+4. **Job-code** + **role** — the identity's current
+   authorization-relevant attributes from the Roster (per
+   `[FM-IAM-0007]`)
+5. **Scope set** — the IAM-issued scopes bound to this identity at
+   the time of resolution
+6. **Identity-context version** — a monotonic version token that
+   increments when any of fields 3–5 change; this is what PGE
+   attributes decisions to in its audit chain (PGE additionally
+   records its own policy version per its §5.3 requirements)
+
+Resolution **shall** be deterministic — the same `principal-id`
+**shall** produce the same identity context absent intervening
+suspend/resume/terminate or role-change operations. The
+identity-context version **shall** be monotonic across the lifetime
+of the identity.
+
+This is the seam at which PGE consumes IAM identity context. PGE
+combines this context with its policy registry to produce the
+`allow | deny` decision; IAM is not in the decision path.
+
+*Verification: Conformance-test* — the harness queries the contract
+with known `principal-id` values and asserts the six-element context
+is returned with correct values; exercises suspend/role-change/resume
+and asserts the identity-context version increments monotonically;
+asserts the contract returns context only — no `allow | deny` field
+is part of the contract surface.
 
 #### `[FM-IAM-0012]` Telemetry emission
 
@@ -1129,10 +1155,38 @@ This is the requirement that sunsets the `[FM-IBX-0010]` transitional
 deviation (and any analogous deviations in other pillars). When
 `[FM-IAM-0014]` is satisfied, those deviations expire.
 
-*Verification: Inspection* — the four conditions are evaluated
-against the deployment's IAM build state; operational-state
-declaration requires written attestation by the deployment's
-ARCA-custody role + the IAM-administration role, recorded in ACT.
+*Verification: Conformance-test* — all four conditions are
+mechanically verified before operational-state declaration is
+accepted:
+
+- **Condition 1** (ARCA signing intermediates): the harness queries
+  ARCA's published certificate state and asserts at least one valid
+  intermediate signed by the root; asserts root is unreachable from
+  the runtime network per `[FM-IAM-0001]`.
+- **Condition 2** (Vault in-boundary signing operational): the
+  harness exercises `[FM-IAM-0006]` Conformance-test against the
+  declared deployment tier; passes both per-tier discipline and the
+  no-export assertion.
+- **Condition 3** (Roster online + Publish-write-only): the harness
+  exercises `[FM-IAM-0007]` and `[FM-IAM-0008]` Conformance-tests
+  and asserts both pass.
+- **Condition 4** (no principal on brief alone): the harness queries
+  ACT for active `pcs.policy.divergence` events of the
+  identity-by-brief class (per `[FM-INV-0005.2]` and the
+  `[FM-IBX-0010]` deviation emission), measured over the prior
+  operator-configured observation window (default: 7 days). **Zero
+  active divergence events of this class** is the mechanical
+  satisfaction of Condition 4; any non-zero count blocks
+  operational-state declaration. This is self-consistent: the
+  deviation registers its own divergence events; the operational-
+  state requirement uses the absence of those events as its sunset
+  signal.
+
+Attestation layer (additive to Conformance-test): operational-state
+declaration **shall** additionally carry a written attestation by
+the deployment's ARCA-custody role + the IAM-administration role,
+recorded in ACT. The attestation is corroborative — it does **not**
+substitute for the mechanical Conformance-test.
 
 ### §5.2.1 IAM Conformance Profile
 
@@ -1147,7 +1201,7 @@ implementations — once IAM is built per `[FM-IAM-0014]`.
 | Vault — credential store + in-boundary signing | `[FM-IAM-0006]`, `[FM-IAM-0008]` | HashiCorp Vault (Tier-0 with PKCS#11 HSM; Tier-2 soft-mode) | Azure Key Vault (HSM Tier-0), AWS KMS + Secrets Manager (CloudHSM Tier-0), OCI Vault (dedicated HSM), Thales CipherTrust Manager, standalone PKCS#11 HSM on-prem | `iam-vault-v1` |
 | Roster — identity store | `[FM-IAM-0007]`, `[FM-IAM-0008]`, `[FM-IAM-0010]` | Standalone Roster adapter (lab starting point) | Active Directory, LDAP / OpenLDAP, Microsoft Entra ID, Keycloak, AWS Cognito, Auth0, custom JSON-on-disk with Publish-pipeline write discipline | `iam-roster-v1` |
 | IdP federation | `[FM-IAM-0009]` | Lab Roster (single-adapter starting point, AD-shaped) | LDAP, AD (on-prem), Microsoft Entra ID with Conditional Access, OIDC providers (Okta, Auth0, Google Workspace), PIV-CAC, AWS IAM Identity Center | `iam-idp-v1` |
-| Authorization-context lookup (PGE seam) | `[FM-IAM-0011]` | In-pillar job-code resolver (lab Roster reads policy directly) | Open Policy Agent (OPA) with Rego, Casbin, AWS IAM, Azure RBAC, custom rules engine | `iam-authz-v1` |
+| Identity-context lookup (PGE seam) | `[FM-IAM-0011]` | In-pillar Roster identity resolver (returns context only; no allow\|deny) | Any identity-store adapter exposing the six-element context per `[FM-IAM-0011]` — LDAP-attribute mapper, Active Directory attribute query, OIDC userinfo + claim mapping, custom Roster adapter | `iam-identity-context-v1` |
 | Telemetry sink | `[FM-IAM-0012]` | OTLP-on-the-wire (any OTLP-compatible backend per ACT §5.4) | Grafana/Prometheus/Tempo, Azure Monitor, Datadog, OCI Monitoring, AWS CloudWatch (with OTLP adapter) | `iam-telemetry-v1` |
 
 Out-of-set substrates **shall not** be claimed supported. Extending
