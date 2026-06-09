@@ -112,11 +112,13 @@ discipline, with Judge as the merge gate.
 This Standard defines the normative platform-level requirements
 Fiducial Mesh implementations **shall** satisfy. It covers the
 foundational invariants every pillar inherits, the cross-pillar
-contracts (PCS plugin and workflow shape, validation harness tiers,
-registry behavior, substrate-matrix conformance discipline), the
-per-pillar requirements (IBX, AKB, ACT, IAM, PGE, CRB, DPG, MCC), and
-the operational disciplines (security framework, delivery and
-packaging substrate, AIR/CLCA continuous-improvement loop).
+contracts (validation harness tiers, registry behavior,
+substrate-matrix conformance discipline), the per-pillar
+requirements for the **eight pillars** (IBX, IAM, PGE, ACT, AKB,
+DPG, CRB in §§5.1–5.7; PCS in §6) plus the **MCC host frame**
+(§5.8) that hosts them, and the operational disciplines (security
+framework, delivery and packaging substrate, AIR/CLCA continuous-
+improvement loop).
 
 This Standard is **substrate-pluggable**: it defines what
 implementations and deployments **shall** do, not what specific
@@ -195,7 +197,7 @@ specified herein.
 | HDBK | Handbook (NASA document type) |
 | IAM | Identity and Access Management (pillar) |
 | IBX | Inbox Exchange (pillar) |
-| MCC | Mesh Control Center (pillar) |
+| MCC | Mesh Control Center (host frame; **not** a pillar — see `[FM-MCC-0011]`) |
 | MCP | Model Context Protocol |
 | PCS | Platform Control System (pillar) |
 | PCT | Principal Control Token |
@@ -3331,10 +3333,10 @@ pool, secret-store client, identity-provider federation, telemetry
 sink), the IAM auth hook (every request is authenticated against
 the IAM plugin before reaching another plugin), and the operator
 surface (web admin UI; not CLI for routine operations). The
-pillars (IBX / IAM / PGE / ACT / AKB / DPG / CRB) are
-**loadable modules** that live inside MCC; MCC is the structural
-host they run on. **Pillar count stays at eight** per
-`[FM-INV-0001]` — MCC is not a ninth pillar but the host the
+eight pillars (IBX, IAM, PGE, ACT, AKB, DPG, CRB per §§5.1–5.7;
+PCS per §6) are **loadable modules** that live inside MCC; MCC is
+the structural host they run on. **Pillar count stays at eight**
+per `[FM-MCC-0011]` — MCC is not a ninth pillar but the host the
 eight pillar contracts live inside.
 
 **Dependencies.**
@@ -3440,9 +3442,14 @@ appropriate transport-level rejection (HTTP 401/403 or MCP
 equivalent).
 
 The IAM auth-hook implementation **shall** be backed by a
-session-validation cache to bound per-call latency; the cache
-boundary is governed by the IAM pillar's session-cache contract
-and **shall not** outlive the IAM-declared session lifetime.
+session-validation cache to bound per-call latency. The cache
+entry **shall not** outlive the IAM-declared session lifetime,
+and **shall** be invalidated by IAM revocation events per
+`[FM-IAM-0005]` — a `suspend` or `terminate` against the
+session's principal-id **shall** evict the corresponding cache
+entry before the next authenticated call lands. The cache is a
+latency optimization, not an extension mechanism for the IAM
+authorization decision.
 
 *Verification: Conformance-test* — the harness submits calls
 with missing / invalid / denied credentials and asserts halt at
@@ -3646,9 +3653,9 @@ frame's confirmation step.
 
 #### `[FM-MCC-0011]` Eight pillars; MCC is the host
 
-The mesh's pillar count **shall** remain eight (IBX, IAM, PGE,
-ACT, AKB, DPG, CRB, and the eighth as enumerated by the
-deployment's pillar set in §5.1–§5.8 of this Standard). MCC
+The mesh's pillar count **shall** remain eight: IBX (§5.1), IAM
+(§5.2), PGE (§5.3), ACT (§5.4), AKB (§5.5), DPG (§5.6), CRB
+(§5.7), and PCS (§6). MCC (§5.8) is the **host frame** and
 **shall not** be claimed a ninth pillar.
 
 MCC is the **host frame** the eight pillar contracts live inside,
@@ -3664,10 +3671,11 @@ every pillar emits audit and telemetry through the patterns
 specified in this Standard — **shall** be unaffected by the MCC
 host frame's existence; MCC adds a host layer, not a pillar.
 
-*Verification: Inspection* — the mesh's pillar enumeration in
-§§5.1–5.8 is verified to count eight; MCC is documented as host
-frame, not as pillar #9; the Conformance Profile across all
-pillars is unaffected by the MCC frame.
+*Verification: Inspection* — the mesh's pillar enumeration
+across §§5.1–5.7 (seven pillars) + §6 (PCS, the eighth) is
+verified to count eight; MCC (§5.8) is documented as host frame,
+not as pillar #9; the Conformance Profile across all pillars is
+unaffected by the MCC frame.
 
 #### `[FM-MCC-0012]` Operational-state transitional clause
 
