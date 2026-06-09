@@ -186,24 +186,42 @@ specified herein.
 | Acronym | Expansion |
 |---------|-----------|
 | ACT | Agent Cognitive Telemetry (pillar) |
+| AD | Active Directory (Microsoft directory service; Samba AD is the open-source equivalent) |
 | AIR | After-Incident Report |
 | AKB | Agent Knowledge Base (pillar) |
 | ARCA | Agentic Root Certificate Authority |
 | BOM | Bill of Materials (versioned signed registry artifact pinning a coherent plugin set) |
 | CLCA | Closed Loop Corrective Action (Ford 8D discipline) |
 | CRB | Compute Resource Broker (pillar) |
+| CUDA | Compute Unified Device Architecture (NVIDIA GPU computing platform) |
 | DPG | Deterministic Proving Ground (pillar) |
 | FIPS | Federal Information Processing Standards |
+| GPU | Graphics Processing Unit |
 | HDBK | Handbook (NASA document type) |
+| HSM | Hardware Security Module |
 | IAM | Identity and Access Management (pillar) |
 | IBX | Inbox Exchange (pillar) |
+| IdP | Identity Provider |
+| KMS | Key Management Service |
+| LDAP | Lightweight Directory Access Protocol |
 | MCC | Mesh Control Center (host frame; **not** a pillar — see `[FM-MCC-0011]`) |
 | MCP | Model Context Protocol |
+| MFA | Multi-Factor Authentication |
+| MPS | Metal Performance Shaders (Apple GPU computing API) |
+| OCI | Oracle Cloud Infrastructure (used in this Standard exclusively for the Oracle cloud provider; not to be confused with the Open Container Initiative) |
+| OIDC | OpenID Connect |
+| OTLP | OpenTelemetry Protocol |
 | PCS | Platform Control System (pillar) |
 | PCT | Principal Control Token |
 | PGE | Policy Guardrail Engine (pillar) |
+| PIV-CAC | Personal Identity Verification — Common Access Card |
+| PKCS | Public-Key Cryptography Standards |
+| ROCm | Radeon Open Compute platform (AMD GPU computing platform) |
+| SAML | Security Assertion Markup Language |
 | SCIF | Sensitive Compartmented Information Facility |
+| SHA | Secure Hash Algorithm |
 | STD | Standard (NASA document type) |
+| TLS | Transport Layer Security |
 | VMA | Vendor-Mediated Architecture |
 
 ### §3.2 Definitions
@@ -1511,8 +1529,21 @@ when emitted by its canonical pillar:
 | `divergence_type` | Canonical emitter | What it represents |
 |-------------------|-------------------|--------------------|
 | `policy-block-mismatch` | **PGE (this requirement)** | Plugin's declared policy block disagrees with PGE's enforced floor |
-| `identity-by-brief` | **IBX (per `[FM-IBX-0010]`)** | Assertion-only identity claim under the transitional deviation |
+| `identity-by-brief` | **IBX (per `[FM-IBX-0010]`)** | Assertion-only identity claim under the IBX-0010 / IAM-0014 transitional deviation |
+| `gate-2-supplemental-only` | **PGE (per `[FM-PGE-0005]` Gate-2 transitional clause)** | Execution-side policy enforcement via supplemental surfaces only; DPG Gate-2 not yet operational |
+| `detect-layer-not-operational` | **PGE (per `[FM-ACT-0008]` transitional clause)** | Deployment lacks an operational Detect Layer; detection-class compliance is failing, not deferred |
+| `subagent-worktree-precursor` | **PGE (per `[FM-DPG-0013]` transitional clause)** | Workload uses the subagent-worktree pattern as a precursor; full DPG ephemeral-isolation contract not satisfied |
+| `crb-codified-by-convention` | **PGE (per `[FM-CRB-0010]` transitional clause)** | Dispatch decision made under operator/agent convention; CRB broker daemon not yet operational |
+| `mcc-partial-load` | **PGE (per `[FM-MCC-0012]` transitional clause)** | Dispatch targets a pillar not yet loaded into MCC as a plugin |
 | (future subtypes) | Their respective canonical emitter pillar | Per the requirement that introduces the subtype |
+
+**Pattern note.** PGE is the canonical emitter for substrate-policy and
+deployment-state divergences (the rows above with PGE as emitter); IBX
+owns identity-state divergences (`identity-by-brief`). The pattern is
+*PGE emits when the divergence is observable from a policy decision;
+IBX emits when the divergence is observable from a message-routing
+decision*. Future subtypes **shall** be assigned to the pillar whose
+decision surface first observes the divergence.
 
 Other pillars **may** emit corroborative records of an out-of-subtype
 event for cross-pillar observability, but the canonical emitter for
@@ -1614,8 +1645,8 @@ implementations.
 
 | Seam | Bound requirement(s) | Sovereign reference (version floor) | Supported alternatives | Test Set |
 |------|---------------------|-------------------------------------|------------------------|----------|
-| Rule corpus storage | `[FM-PGE-0003]`, `[FM-PGE-0004]` | Git-versioned Markdown (`MCP-SECURITY-FRAMEWORK.md` style) + per-component `test_security.py` files | OPA Rego policy bundle, Cedar policy file, database-backed corpus with explicit version table, hybrid (Markdown for Stratum 1 + Rego for Stratum 2) | `pge-corpus-v1` |
-| Policy evaluation engine | `[FM-PGE-0001]`, `[FM-PGE-0002]`, `[FM-PGE-0013]` | Distributed per-surface enforcement — Python pytest + Bash `subagent-guard.sh` + CI release gate | OPA (Open Policy Agent) 0.60+ with Rego eval, Cedar runtime with declarative policy engine, per-pillar embedded policy engines, hybrid centralized + per-surface | `pge-engine-v1` |
+| Rule corpus storage | `[FM-PGE-0003]`, `[FM-PGE-0004]` | Git-versioned Markdown narrative + per-component executable rule files (one per enforcement surface) | OPA Rego policy bundle, Cedar policy file, database-backed corpus with explicit version table, hybrid (Markdown for Stratum 1 + Rego for Stratum 2) | `pge-corpus-v1` |
+| Policy evaluation engine | `[FM-PGE-0001]`, `[FM-PGE-0002]`, `[FM-PGE-0013]` | Distributed per-surface enforcement composed of: a build-time test-runtime policy suite exercising the rule corpus, a runtime tool-call guard hook on the agent surface, and a CI release gate | OPA (Open Policy Agent) 0.60+ with Rego eval, Cedar runtime with declarative policy engine, per-pillar embedded policy engines, hybrid centralized + per-surface | `pge-engine-v1` |
 | Enforcement surface | `[FM-PGE-0005]`, `[FM-PGE-0007]`, `[FM-PGE-0009]`, `[FM-PGE-0010]` | Distributed multi-surface — PreToolUse hook + IBX submission chokepoint + DPG ephemeral boundary + CI release gate + per-server test suite | OPA-sidecar middleware at IBX/DPG, Cedar runtime sidecar, custom enforcement library per-pillar, hybrid | `pge-enforcement-v1` |
 | Overlay consumption | `[FM-PGE-0012]` | Signed overlay bundles consumed from PCS registry (§6 when landed) | Any signed bundle format declared conformant by PCS (§6 + Appendix B when landed) | `pge-overlay-v1` |
 | Telemetry sink | `[FM-PGE-0014]` | OTLP-on-the-wire (any OTLP-compatible backend per ACT §5.4) | Grafana/Prometheus/Tempo, Azure Monitor, Datadog, OCI Monitoring | `pge-telemetry-v1` |
@@ -1825,8 +1856,20 @@ requirements. The deviation **shall**:
    "Detect Layer operational per `[FM-ACT-0008]`" — declared by the
    operator when the Detect Layer is built, tested, and connected to
    the event store.
-2. Be reviewed at each major Standard release.
-3. Not be cited as satisfaction of detection-class compliance
+2. Emit a divergence event to ACT per `[FM-INV-0005.2]` with
+   `divergence_type = "detect-layer-not-operational"` per
+   `[FM-PGE-0011]` discriminator (canonical emitter: PGE, via the
+   policy that classifies a deployment without an operational
+   Detect Layer as non-conformant to detection-class compliance) at
+   deployment-attestation time and on each operator-configured
+   attestation review cycle, recording the deviation's continued
+   application.
+3. Be reviewed at each major Standard release; deviation expiry
+   **shall** be enforced when the Detect Layer is declared
+   operational. Mirror of the `[FM-IBX-0010]` / `[FM-IAM-0014]` /
+   `[FM-PGE-0005]` Gate-2 / `[FM-DPG-0013]` / `[FM-CRB-0010]` /
+   `[FM-MCC-0012]` transitional pattern.
+4. Not be cited as satisfaction of detection-class compliance
    requirements (e.g., regulatory requirements demanding active
    behavioral monitoring) that the Detect Layer addresses — an
    absent Detect Layer is failing such requirements, not deferring
@@ -1967,7 +2010,7 @@ implementations.
 |------|---------------------|-------------------------------------|------------------------|----------|
 | Event store | `[FM-ACT-0001]`, `[FM-ACT-0004]`, `[FM-ACT-0007]`, `[FM-ACT-0009]` | ClickHouse 23.8+ with append-only `act.events` table | PostgreSQL 17+ with columnar extension (cstore_fdw / pg_columnar), NATS JetStream 2.10+ (event-store mode), Apache Kafka 3.6+ (compacted topics), OpenTelemetry backend (Tempo + Loki) | `act-event-store-v1` |
 | Chain-verification crypto | `[FM-ACT-0005]`, `[FM-ACT-0006]` | SHA-256 (FIPS-validated implementation when §4.2 FIPS-Day-1 applies) | SHA-3-256, BLAKE3 (newer FIPS path), HMAC-keyed variants for additional tamper resistance | `act-chain-crypto-v1` |
-| Detect Layer ML runtime | `[FM-ACT-0008]` | Python 3.10+ with PyTorch / scikit-learn / Polars (Detect Layer operational); transitional deviation per `[FM-ACT-0008]` | Python 3.11+/3.12+, alternative ML stacks (TensorFlow, JAX, ONNX Runtime), embedded inference (Triton Inference Server) | `act-detect-v1` (operational) / `act-detect-deviation-v1` (transitional) |
+| Detect Layer ML runtime | `[FM-ACT-0008]` | ML inference runtime with structured-data preprocessing, capable of consuming ACT's event stream and emitting `act.detection_signal` records at SLO-conformant latency per `[FM-ACT-0007]` (Detect Layer operational); transitional deviation per `[FM-ACT-0008]` | Any conforming ML-inference runtime satisfying the consume-stream-and-emit-detection-signal capability — embedded inference servers (Triton Inference Server, BentoML, custom), stream-processing engines with ML hooks, ONNX-Runtime-class portable inference | `act-detect-v1` (operational) / `act-detect-deviation-v1` (transitional) |
 | Cold-storage tier | `[FM-ACT-0010]` | Deferred — sovereign-ref selection pending operational sizing | S3-compatible object storage (MinIO, AWS S3, Azure Blob, OCI Object Storage), Apache Iceberg + Parquet on S3-compatible, ClickHouse cold-storage tier with tiered TTL | `act-cold-storage-v1` (when implemented) |
 | Telemetry sink | `[FM-ACT-0012]` | OTLP-on-the-wire (any OTLP-compatible backend) | Grafana/Prometheus/Tempo, Azure Monitor, Datadog, OCI Monitoring | `act-telemetry-v1` |
 
