@@ -101,6 +101,21 @@ STD/HDBK companion pattern). It does **not** adopt:
 - Cancellation and supersession procedures specific to federal-agency
   standards processes
 
+This Standard is also **language- and framework-neutral** at the
+contract layer: pillar requirements and appendices **shall not**
+specify the implementation language or framework an implementer
+**shall** use. The conformance test sets are written to be blind to
+implementation language by construction — an implementation that
+passes a pillar's test set is conformant whether written in Python,
+Go, Rust, C#, Java, or any other host language. Reference-
+implementation choices (the project's own pillar implementations and
+language preferences) live in the engineering-standards companion
+documentation, not in this Standard. Languages **may** appear in
+this Standard only as a *supported workload runtime* (per a pillar's
+declared capability, e.g., DPG accepting Python / CUDA / Bash
+workloads) — that is a capability statement about the substrate, not
+an implementation mandate.
+
 Changes to this Standard follow the Fiducial Mesh GH-native PR
 convention: author-review-merge by the project's two-person review
 discipline, with Judge as the merge gate.
@@ -1628,7 +1643,6 @@ evidence trail.
 - `[FM-INV-0001]` (No bypass) and `[FM-INV-0002]` (Fail strict) apply — ACT emission failure is fail-strict (the upstream operation halts) per the per-pillar audit-emission requirements.
 - ACT consumes events emitted by every other pillar: `[FM-IBX-0012]` (IBX status transitions), `[FM-IAM-0013]` (IAM state-affecting operations), `[FM-PGE-0008]` (PGE decisions), `[FM-PGE-0011]` (`pcs.policy.divergence` events with `divergence_type` discriminator), and per-pillar audit requirements in future pillars (§§5.5–5.8).
 - ACT is queried by `[FM-IAM-0014]` Condition 4 for `divergence_type = "identity-by-brief"` events to verify the IAM operational-state sunset.
-- ACT runs all stack layers in **Python** per §4.3 language map (the prior "C# record layer / Python detect layer" framing in source material is retired; both layers are Python).
 
 #### `[FM-ACT-0001]` Append-only event store
 
@@ -2867,11 +2881,6 @@ the bottleneck is *visibility into which workloads can run in
 parallel on existing compute*, not "not enough compute." CRB
 turns that visibility into a fleet-callable dispatch contract.
 
-CRB is the mesh's **Go** pillar at the §4.3 language map — the
-broker daemon, when built, is a hot always-on concurrent
-dispatcher and is the canonical place the §4.3 Go carve-out is
-spent.
-
 **Dependencies.**
 
 - `[FM-INV-0001]` (No bypass) and `[FM-INV-0002]` (Fail strict) apply — dispatch decisions **shall not** be circumvented and **shall** fail strict on substrate unavailability.
@@ -3023,8 +3032,12 @@ never the operator's.
 
 Authorization to invoke CRB **shall** be checked against the
 requester's principal-id at the chokepoint per `[FM-IAM-0011]`
-identity-context contract. Workloads requiring scarce or
-high-tier resources **may** carry tighter job-code authorization
+identity-context contract. The broker's own authentication at
+dispatch is governed by `[FM-INV-0001]` (every actor
+authenticates, every time) — the broker holds and presents its
+own principal-id on every dispatch decision; no implicit-trust
+shortcut applies. Workloads requiring scarce or high-tier
+resources **may** carry tighter job-code authorization
 requirements than routine `reasoning_bound` workloads. Per
 `[FM-IAM-0011]`, "not authorized" is terminal — the broker emits
 `crb.dispatch_request_rejected` and halts.
@@ -3137,6 +3150,19 @@ target host's available substrate set constrains the isolation
 tiers DPG can provision; a host without `/dev/kvm` excludes
 microVM-class isolation tiers.
 
+CRB **shall** treat isolation-tier satisfaction as an explicit
+validation step on the selected host, not as an implicit
+consequence of the eligibility filter. Before emitting
+`crb.dispatch_started`, the broker **shall** verify the selected
+host satisfies the workload's declared isolation-tier
+requirement; a host that passes the eligibility filter but fails
+the validation step (e.g., because the host's substrate set
+changed between policy evaluation and dispatch) **shall** cause
+the broker to re-evaluate eligibility or emit
+`crb.policy_no_match`. This makes the eligibility-filter
+assumption a checked invariant at the dispatch boundary, not a
+trust-the-filter shortcut.
+
 The composition is **at decision time**, not at the *concern*
 level: the two pillars compose per workload, neither subsumes
 the other.
@@ -3144,8 +3170,12 @@ the other.
 *Verification: Conformance-test* — the harness submits a
 workload requiring a Tier-0 DPG isolation substrate; asserts CRB
 filters to hosts that can run the substrate; asserts a host
-unable to run the substrate is rejected at eligibility; asserts
-the composition is logged in the dispatch-decision audit.
+unable to run the substrate is rejected at eligibility; mutates
+the selected host's substrate set between eligibility evaluation
+and dispatch and asserts the explicit-validation step catches
+the divergence and emits `crb.policy_no_match` rather than
+proceeding; asserts the composition is logged in the dispatch-
+decision audit.
 
 #### `[FM-CRB-0010]` Operational-state transitional clause
 
@@ -3281,7 +3311,7 @@ archetype and therefore has **no claim-queue substrate seam**
 
 | Seam | Bound requirement(s) | Sovereign reference (version floor) | Supported alternatives | Test Set |
 |------|---------------------|-------------------------------------|------------------------|----------|
-| Scheduling / dispatch backend | `[FM-CRB-0001]`, `[FM-CRB-0003]`, `[FM-CRB-0008]` | Custom mesh broker daemon in Go over DAC routing + per-host language-runtime — design-stage; operational under the `[FM-CRB-0010]` deviation today | Nomad 1.7+, Slurm 23+, Kubernetes 1.29+ — broker becomes a job emitter / controller against the same CRB contract | `crb-dispatch-backend-v1` |
+| Scheduling / dispatch backend | `[FM-CRB-0001]`, `[FM-CRB-0003]`, `[FM-CRB-0008]` | Custom mesh broker daemon over DAC routing + per-host runtime — design-stage; operational under the `[FM-CRB-0010]` deviation today | Nomad 1.7+, Slurm 23+, Kubernetes 1.29+ — broker becomes a job emitter / controller against the same CRB contract | `crb-dispatch-backend-v1` |
 | Accelerator runtime (`gpu_bound` / `mps_bound` target) | `[FM-CRB-0002]`, `[FM-CRB-0008]` | NVIDIA CUDA 12.x (`gpu_bound`) + Apple MPS (`mps_bound` sub-class) | ROCm 6+ (AMD), Vulkan compute, oneAPI (Intel) — each satisfying the accelerator-compute capability on a host that carries it | `crb-accelerator-runtime-v1` |
 | Telemetry sink | `[FM-CRB-0013]` | OTLP-on-the-wire (any OTLP-compatible backend) | Grafana/Prometheus/Tempo, Azure Monitor, Datadog, OCI Monitoring | `crb-telemetry-v1` |
 
