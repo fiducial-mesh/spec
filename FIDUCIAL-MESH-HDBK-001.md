@@ -1172,8 +1172,13 @@ Eight pillars. PCS reaches each via its published interface (skills,
 MCP tools, hooks) — pillars stay zero-coupled, standalone-installable,
 and substrate-pluggable. Each section names the substrate matrix (the
 seam contract — customer chooses among supported substrates) and what
-PCS workflows do with the pillar. Detail beyond what's here lives in
-each pillar's individual spec (referenced).
+PCS workflows do with the pillar. The **normative spec** for each
+pillar lives in STD-001 §5.x (per-pillar numbered requirements +
+Conformance Profile). The substrate matrices in this Part are
+**illustrative**; the authoritative substitutability claim per
+pillar is the STD's **§5.x.1 Conformance Profile** with its Test
+Set column. Where this Handbook substrate matrix and the STD
+Conformance Profile differ, the STD is authoritative.
 
 ## 3.1 IBX — Inbox Exchange
 
@@ -1185,7 +1190,9 @@ that's why PCT lives in IBX rather than expanding PCS scope.
 
 **Status**: POC-in-production today (`agent-inbox-mcp` server +
 `inbox-ui` Wails desktop app + `messages.inbox` ClickHouse table).
-Formal spec at `https://github.com/fiducial-mesh/devel/blob/main/spec-drafts/IBX-SPEC.md`.
+**Normative spec**: STD-001 §5.1 (12 requirements + Conformance
+Profile). Authoring drafts retained in `devel/spec-drafts/IBX-SPEC.md`
+as historical reference.
 
 **Substrate matrix:**
 
@@ -1202,6 +1209,15 @@ approval gates are first-class PCS workflow primitives — a `judge-gate`
 hook can be declared on any workflow step that needs explicit approval
 before proceeding.
 
+**Bound STD requirements.** PCT shape + nine-field schema = the IBX
+message-shape requirements in §5.1; worker-pool dispatch semantics =
+`[FM-IBX-0007]`; claim-queue substrate seam (transactional
+SKIP-LOCKED) = `[FM-IBX-0009]`; routing-audit storage seam =
+`[FM-IBX-0008]`; status-transition audit emission via the
+`[FM-ACT-0009]` ack contract = `[FM-IBX-0012]`. The identity-by-
+brief transitional deviation (the recognized gap until IAM
+operational) = `[FM-IBX-0010]` — sunsets via `[FM-IAM-0014]`.
+
 ## 3.2 AKB — Agent Knowledge Base
 
 Role-projected, tier-stratified knowledge retrieval. Agents query AKB
@@ -1212,7 +1228,9 @@ substrate-trap-aware retrieval prevents the vector substrate (physics-
 blind) from surfacing dead-end content as candidate solutions.
 
 **Status**: built at `KI7MT/akb`; DDL + ingest + akb-mcp server +
-Tier-0 generator green. Formal spec at `https://github.com/fiducial-mesh/devel/blob/main/spec-drafts/AKB-SPEC.md`.
+Tier-0 generator green. **Normative spec**: STD-001 §5.5
+(14 requirements + Conformance Profile). Authoring draft retained
+in `devel/spec-drafts/AKB-SPEC.md` as historical reference.
 
 **Substrate matrix:**
 
@@ -1227,6 +1245,22 @@ server for retrieval-augmented context; CLCA workflows write AIR
 documents and lessons-learned back into AKB through curator-gated
 ingestion plugins.
 
+**Bound STD requirements.** Two-tier delivery (Tier 0 bounded prior
++ Tier 1 gradient-gated injection) = `[FM-AKB-0001]`; the 1024-byte
+Tier-0 hard cap = `[FM-AKB-0002]`; substrate-trap deterministic
+pre-filter before vector similarity = `[FM-AKB-0004]`; role
+projection at retrieval = `[FM-AKB-0005]`; self-review exemption =
+`[FM-AKB-0006]`; cross-role per-document cap = `[FM-AKB-0007]`;
+stratified promotion gates (Bar A/B/C/Physics-C) = `[FM-AKB-0008]`;
+bootstrap pre-write gate ≥20 chunks = `[FM-AKB-0009]`; hook trigger
+domains (code-author + infra-decision) = `[FM-AKB-0010]`; fail-open
+on retrieval with infra-decision-side escalation (the new
+`akb-fail-open-on-irreversible-hook` divergence_type) =
+`[FM-AKB-0011]`; AIRs as Tier-1 corpus with security-class
+exclusion = `[FM-AKB-0012]`; ACT audit emission via the
+`[FM-ACT-0009]` ack contract = `[FM-AKB-0013]`; mesh.akb.*
+operational telemetry = `[FM-AKB-0014]`.
+
 ## 3.3 ACT — Agent Cognitive Telemetry
 
 The immutable, locally-hosted audit ledger. Every reasoning span,
@@ -1236,8 +1270,10 @@ nothing flows back out except via curator review. ACT is what makes
 non-repudiation, per-session forensics, regulatory compliance, and the
 dialectical-engine evidence trail mechanically possible.
 
-**Status**: spec validated at `https://github.com/fiducial-mesh/devel/blob/main/spec-drafts/ACT-SPEC.md`; reference
-implementation pending.
+**Status**: **Normative spec**: STD-001 §5.4 (12 requirements +
+Conformance Profile). Reference implementation pending. Authoring
+draft retained in `devel/spec-drafts/ACT-SPEC.md` as historical
+reference.
 
 **Substrate matrix:**
 
@@ -1252,6 +1288,25 @@ to ACT via the standard OTLP exporter — this is how the AIR/CLCA loop
 in §2.10 sources its incident-detection signal. ACT is a passive
 emitter from PCS's perspective; PCS workflows don't read from ACT
 directly (that's MCC-UI and human operators).
+
+**Bound STD requirements.** Append-only event store with carve-out
+for retention-expiration ceremony only = `[FM-ACT-0001]`;
+unidirectional cognitive-event emission = `[FM-ACT-0002]`;
+session-granular attribution with genesis-event carve-out =
+`[FM-ACT-0003]`; the event-type taxonomy = `[FM-ACT-0004]`;
+per-session cryptographic chaining with genesis chain seeding and
+retention-boundary re-anchoring = `[FM-ACT-0005]`; hash algorithm
+policy (SHA-256 sovereign reference, FIPS-validated when §4.2
+FIPS-Day-1 applies) = `[FM-ACT-0006]`; three-consumer-class
+access pattern (Compliance / Detection / CLCA) = `[FM-ACT-0007]`;
+Detect Layer transitional clause (with the new
+`detect-layer-not-operational` divergence_type emission) =
+`[FM-ACT-0008]`; the load-bearing **emission-confirmation
+contract** every state-affecting pillar depends on (emit →
+durable commit → ack → proceed; idempotent on `emission_id`) =
+`[FM-ACT-0009]`; cold-storage tier deferred = `[FM-ACT-0010]`;
+retention controls per regulatory regime = `[FM-ACT-0011]`;
+mesh.act.* operational telemetry = `[FM-ACT-0012]`.
 
 ## 3.4 IAM — Identity & Access Management
 
@@ -1271,8 +1326,13 @@ the mesh moves agents away from.
 **Status**: code-complete at lab `iam-1` (Phase 1 done — Roster,
 lifecycle audit, MCP surface, principal-type stamp, mint, suspend /
 resume / terminate, authz-context read contract for PGE, partial-mint
-reconciliation, 20/20 tests green). ARCA not yet built. Formal spec
-at `https://github.com/fiducial-mesh/devel/blob/main/spec-drafts/IAM-CORE-SPEC.md`.
+reconciliation, 20/20 tests green). ARCA not yet built. Deployment
+operates under the `identity-by-brief` transitional deviation
+per `[FM-IAM-0014]` + `[FM-IBX-0010]` until ARCA + Vault signing
+are operational across the deployment. **Normative spec**: STD-001
+§5.2 (14 requirements + Conformance Profile). Authoring drafts
+retained in `devel/spec-drafts/IAM-CORE-SPEC.md` /
+`IAM-INCREMENT-2.md` as historical reference.
 
 **Substrate matrix:**
 
@@ -1298,6 +1358,22 @@ rationale lives at §4.2.** This is a substrate-implementation
 discipline, not a policy overlay — the validated crypto path must be
 the substrate's default from `vault operator init` onward.
 
+**Bound STD requirements.** Offline-ARCA separation =
+`[FM-IAM-0001]`; identity issuance + lifecycle =
+`[FM-IAM-0003]` + `[FM-IAM-0003.1]`; suspend / resume (with
+worker-pool claim-draining semantics) = `[FM-IAM-0004]`;
+revocation / termination = `[FM-IAM-0005]`; Vault in-boundary
+signing = `[FM-IAM-0006]`; Roster = `[FM-IAM-0007]`; Publish
+pipeline = `[FM-IAM-0008]`; IdP federation = `[FM-IAM-0009]`;
+principal-type stamp = `[FM-IAM-0010]`; identity-context contract
+for PGE consumers (six-element context including the monotonic
+Identity-context version field that powers MCC-0003 cache
+revalidation) = `[FM-IAM-0011]`; mesh.iam.* telemetry =
+`[FM-IAM-0012]`; state-affecting-operation audit emission via the
+`[FM-ACT-0009]` ack contract = `[FM-IAM-0013]`; operational-state
+declaration = `[FM-IAM-0014]` (the four-condition gate that
+sunsets the identity-by-brief deviation).
+
 ## 3.5 PGE — Policy Guardrail Engine
 
 Deterministic, owned, auditable policy enforcement. PGE is the mesh's
@@ -1320,6 +1396,28 @@ in the plugin manifest. PGE evaluation runs at hook fire time; deny
 verdicts halt the workflow step before execution. The
 `subagent-guard.sh` PreToolUse hook in the lab today is the precedent
 implementation pattern.
+
+**Status**: **Normative spec**: STD-001 §5.3 (14 requirements +
+Conformance Profile). Authoring drafts retained in
+`devel/spec-drafts/PGE-SPEC.md` as historical reference.
+
+**Bound STD requirements.** Deterministic evaluation = `[FM-PGE-0001]`
++ `[FM-PGE-0002]`; rule corpus storage with the two-stratum split =
+`[FM-PGE-0003]` (Stratum 1 non-negotiable) + `[FM-PGE-0004]`
+(Stratum 2 patterns); the **double-guardrail enforcement** (Gate 1
+intent at IBX submission + Gate 2 execution at DPG ephemeral
+boundary) = `[FM-PGE-0005]` (sunsets when `[FM-DPG-0005]` is
+operational); no-vendor-mediated-bypass = `[FM-PGE-0006]`;
+PreToolUse hook surface = `[FM-PGE-0007]`; per-decision audit
+emission via the `[FM-ACT-0009]` ack contract = `[FM-PGE-0008]`;
+catastrophic-class quorum gating = `[FM-PGE-0009]`; platform
+enforcement floor independent of plugin self-declaration =
+`[FM-PGE-0010]`; the **`divergence_type` discriminator system**
+with 8 active subtypes + canonical-emitter assignment rule +
+fallback-emitter rule for unloaded emitters = `[FM-PGE-0011]`;
+policy overlay consumption = `[FM-PGE-0012]`; per-surface
+enforcement = `[FM-PGE-0013]`; mesh.pge.* telemetry =
+`[FM-PGE-0014]`.
 
 ## 3.6 CRB — Compute Resource Broker
 
@@ -1344,6 +1442,34 @@ Go's concurrency + GC fit the workload class Python doesn't).
 declare resource requirements (GPU, memory, CPU) as workflow
 parameters; CRB resolves placement at dispatch time. PCS does not
 build a parallel scheduler — CRB owns the placement decision.
+
+**Status**: **Normative spec**: STD-001 §5.7 (13 requirements +
+Conformance Profile). Broker daemon design-stage — deployment
+operates under the `crb-codified-by-convention` transitional
+deviation per `[FM-CRB-0010]` until the broker is built. Authoring
+draft retained in `devel/spec-drafts/CRB-SPEC.md` as historical
+reference.
+
+**Bound STD requirements.** Three architecturally distinct
+components (Classification + Dispatch Policy + Broker Daemon) =
+`[FM-CRB-0001]`; bounded classification taxonomy (`gpu_bound`,
+`mps_bound`, `db_bound`, `reasoning_bound`, `mixed`) =
+`[FM-CRB-0002]`; dispatch policy as pure function with bounded
+eligibility / tiered fallback / capacity-aware = `[FM-CRB-0003]`;
+hardware topology model = `[FM-CRB-0004]`; broker identity =
+`[FM-CRB-0005]` (with FM-INV-0001 cross-ref for authentication-
+at-dispatch); Reasoner archetype — no worker-pool claim seam =
+`[FM-CRB-0006]`; clean seam — no isolation / no validation / no
+content policy = `[FM-CRB-0007]`; substrate substitutability via
+Exit Test with accelerator-runtime as a *capability* not a
+CUDA-lock-in = `[FM-CRB-0008]`; DPG seam — isolation-tier as
+eligibility input with **explicit pre-dispatch revalidation**
+closing the eligibility-vs-dispatch TOCTOU = `[FM-CRB-0009]`;
+operational-state transitional clause = `[FM-CRB-0010]`;
+convention-codification fidelity (parity battery gating sunset) =
+`[FM-CRB-0011]`; crb.* audit emission via the `[FM-ACT-0009]`
+ack contract = `[FM-CRB-0012]`; mesh.crb.* telemetry =
+`[FM-CRB-0013]`.
 
 ## 3.7 DPG — Deterministic Proving Ground
 
@@ -1374,6 +1500,36 @@ via the DPG driver MCP; results return through the attested channel
 to the calling workflow. PGE execution-side gates run inside DPG
 before the code touches anything.
 
+**Status**: **Normative spec**: STD-001 §5.6 (14 requirements +
+Conformance Profile). Design-stage — deployments operate under the
+`subagent-worktree-precursor` transitional deviation per
+`[FM-DPG-0013]` until the generalized DPG runner is built. The
+`subagent-guard.sh` PreToolUse hook and the `isolation: "worktree"`
+subagent pattern are the operational precedent.
+
+**Bound STD requirements.** Three architecturally distinct
+components (Runner + Boundary + Gates) = `[FM-DPG-0001]`; the
+five non-negotiable ephemeral-isolation properties (single-use,
+filesystem isolation, network default-deny, resource limits,
+process+identity isolation) **with explicit accelerator-VRAM
+scrub at teardown** = `[FM-DPG-0002]`; single attested return
+channel with `boundary_audit_summary` = `[FM-DPG-0003]`; four
+mandatory validation gates (Syntax + PGE + test-suite + resource-
+limit attestation) = `[FM-DPG-0004]`; PGE Gate-2 enforcement (the
+sunset for the `[FM-PGE-0005]` Gate-2 transitional clause) =
+`[FM-DPG-0005]`; DPG runner identity = `[FM-DPG-0006]`; worker-
+pool dispatch via `[FM-IBX-0007]` / `[FM-IBX-0009]` =
+`[FM-DPG-0007]`; substrate substitutability via Exit Test with
+tier-graded isolation runtimes = `[FM-DPG-0008]`; Registry-bound
+executable validation (dev-to-production trust boundary) =
+`[FM-DPG-0009]`; deterministic execution with declared determinism
+level = `[FM-DPG-0010]`; reconciliation sweep for lost completions
+(fact-of-loss recovery via `lost_completion_recovered`) =
+`[FM-DPG-0011]`; dpg.* audit emission via the `[FM-ACT-0009]`
+ack contract = `[FM-DPG-0012]`; subagent-worktree precursor
+transitional clause = `[FM-DPG-0013]`; mesh.dpg.* telemetry =
+`[FM-DPG-0014]`.
+
 ## 3.8 MCC — Mesh Control Center
 
 The operator UI binding the whole mesh together. **Three surfaces, no
@@ -1402,6 +1558,30 @@ PCS doesn't "reach" MCC-TUI; PCS plugins ARE what makes a Claude Code
 session into MCC-TUI. MCC-UI consumes PCS workflow definitions to
 build trigger panes, reads execution state from the registry, and
 gates approval-required workflow steps through the Judge surface.
+
+**Status**: **Normative spec**: STD-001 §5.8 (14 requirements +
+Conformance Profile — note MCC is the **host frame**, not a
+ninth pillar, per `[FM-MCC-0011]`). Backend BUILT on iam-1
+(Python FastAPI + web UI, Vault TLS); deployment operates under
+the `mcc-partial-load` transitional deviation per `[FM-MCC-0012]`
+until all eight pillars are loaded as plugins.
+
+**Bound STD requirements.** Pluggable host-frame model =
+`[FM-MCC-0001]`; single endpoint = `[FM-MCC-0002]`; IAM auth hook
+on every call with synchronous Identity-context-version
+revalidation (the TOCTOU defense) = `[FM-MCC-0003]`; centralized
+substrate handles via dependency injection = `[FM-MCC-0004]`;
+IAM-first load order (frame fails closed if IAM cannot load) =
+`[FM-MCC-0005]`; minimum-viable plugin contract = `[FM-MCC-0006]`;
+operator surface as web admin UI = `[FM-MCC-0007]`; CLI-first /
+UI-second discipline = `[FM-MCC-0008]`; agent-out-of-secret-path
+enforcement at the frame boundary = `[FM-MCC-0009]`; Judge-gate
+hook with uniform typed re-attestation = `[FM-MCC-0010]`;
+eight-pillars-MCC-is-host invariant = `[FM-MCC-0011]`;
+operational-state transitional clause = `[FM-MCC-0012]`; mcc.*
+audit emission via the `[FM-ACT-0009]` ack contract =
+`[FM-MCC-0013]`; mesh.mcc.* operational telemetry (frame's own,
+distinct from per-plugin pass-through) = `[FM-MCC-0014]`.
 
 ---
 
