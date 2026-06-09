@@ -1343,27 +1343,28 @@ additional enforcement; supplemental enforcement does **not**
 substitute for either Gate 1 or Gate 2.
 
 **Transitional deviation — Gate-2 sunset on DPG operational
-availability.** Gate-2 enforcement lives in the DPG pillar (§5.6
-when landed). Until DPG is operational per the future `[FM-DPG-NNNN]`
-declaration in §5.6, a deployment **may** operate the supplemental
-enforcement surfaces (PreToolUse hook + per-server test suite + CI
-release gate) **only** for execution-side policy without satisfying
-Gate-2. **This is a recognized deviation, not satisfaction of this
-requirement.** Same shape as `[FM-IBX-0010]` and `[FM-IAM-0014]`
-transitional deviations.
+availability.** Gate-2 enforcement lives in the DPG pillar per
+`[FM-DPG-0005]`. Until `[FM-DPG-0005]` is declared operational
+(per the Appendix F sunset condition), a deployment **may**
+operate the supplemental enforcement surfaces (PreToolUse hook +
+per-server test suite + CI release gate) **only** for execution-
+side policy without satisfying Gate-2. **This is a recognized
+deviation, not satisfaction of this requirement.** Same shape as
+`[FM-IBX-0010]` and `[FM-IAM-0014]` transitional deviations.
 
 The transitional Gate-2 deviation **shall**:
 
-1. Be registered in Appendix F with explicit sunset condition: "DPG
-   operational per the future `[FM-DPG-NNNN]` requirement marking
-   DPG operational state, to be defined in §5.6."
+1. Be registered in Appendix F with explicit sunset condition:
+   "`[FM-DPG-0005]` operational — generalized DPG runner
+   executing the PGE rule corpus inside the ephemeral boundary
+   across the deployment's executable-emission surface."
 2. Emit a divergence event to ACT per `[FM-INV-0005.2]` with
    `divergence_type = "gate-2-supplemental-only"` per
    `[FM-PGE-0011]` discriminator (canonical emitter: PGE) for every
    execution-side policy evaluation operating under the deviation.
 3. Be reviewed at each major Standard release; deviation expiry
-   **shall** be enforced when DPG operational state is declared per
-   §5.6.
+   **shall** be enforced when `[FM-DPG-0005]` operational state is
+   declared in Appendix F.
 
 A deployment operating under the Gate-2 transitional deviation
 **shall not** be claimed conformant to `[FM-PGE-0005]`; it is
@@ -2365,7 +2366,493 @@ the AKB test suite.
 
 ### §5.6 DPG — Deterministic Proving Ground
 
-*Reserved for future PR.*
+**Scope.** DPG is the mesh's ephemeral-isolation boundary: the
+single-use, attested compute environment in which agent-emitted
+code is compiled, tested, validated, and either returned through
+the attested channel or destroyed with the boundary. DPG closes the
+gap between stochastic reasoning and deterministic execution —
+agents may reason probabilistically, but the code they emit
+**shall** be validated under deterministic conditions inside DPG
+before it touches production state. The pillar exists because the
+two industry alternatives — vendor-mediated safety filters (not
+auditable from outside the vendor) and cloud-hosted sandboxes
+(sovereignty loss) — both fail the mesh's invariants.
+
+**Dependencies.**
+
+- `[FM-INV-0001]` (No bypass) and `[FM-INV-0002]` (Fail strict) apply — code intended to affect production state **shall** pass through DPG; a path that reaches production while bypassing DPG is non-conforming.
+- DPG accepts execution requests as `action`-priority PCTs per `[FM-IBX-0007]` worker-pool dispatch semantics; result PCTs are returned to the original requester via the standard IBX path.
+- DPG runners hold IAM-issued identities per `[FM-IAM-0006]` (Vault in-boundary signing) and `[FM-IAM-0011]` (identity-context contract); the runner's principal-id is what executions run AS at the substrate level.
+- DPG executes PGE policy as the second guardrail per `[FM-PGE-0005]` Gate-2 — DPG operational under `[FM-DPG-0005]` is the sunset condition for the `[FM-PGE-0005]` Gate-2 transitional deviation.
+- DPG state-affecting operations (every execution lifecycle) emit `dpg.*` events to ACT per the `[FM-ACT-0009]` ack contract and the `[FM-ACT-0004]` taxonomy.
+- DPG and CRB own orthogonal concerns (*how to isolate* vs *where to run*); the seam composes at decision time and **shall not** be subsumed by either pillar.
+
+#### `[FM-DPG-0001]` Three architecturally distinct components
+
+DPG **shall** be implemented as three architecturally distinct
+components:
+
+1. **Runner** — the service that accepts execution requests,
+   provisions the ephemeral boundary, runs the requested code,
+   applies validation gates, and returns the structured execution
+   record. Substrate-coupled (implementation tracks substrate); the
+   runner's behavior contract (accept → provision → run → validate
+   → return) is substrate-agnostic.
+2. **Boundary** — the single-use isolation primitive in which the
+   execution runs. Substrate-specific internals; the contract per
+   `[FM-DPG-0002]` holds across all conforming substrates.
+3. **Validation Gates** — the pass/fail checks applied to the
+   execution's outputs before return through the attested channel.
+   Substrate-agnostic; consume only the execution's outputs.
+
+The separation lets substrate choice evolve at the deployment layer
+without altering the runner's behavior contract or the gates'
+interface. A monolithic implementation that fuses any two of these
+into a single component does not conform.
+
+*Verification: Inspection* — the implementation's component
+boundaries are reviewed against the runner / boundary / gates
+separation; the gates **shall** be exercised independently of the
+substrate (a gate's test suite is runnable against a stub
+execution result).
+
+#### `[FM-DPG-0002]` Five ephemeral-isolation properties (non-negotiable)
+
+Every DPG ephemeral boundary **shall** satisfy all five of the
+following properties. A substrate that fails any property is not
+DPG-conformant and **shall not** be claimed supported.
+
+1. **Single-use creation and destruction.** The boundary is
+   created for one execution, used, and destroyed. No state
+   persists across executions in the substrate; two consecutive
+   executions in the same runner see fresh boundaries.
+2. **Filesystem isolation.** The boundary has its own filesystem
+   view. Reads from outside the boundary are permitted only via
+   explicit input declarations in the execution request; writes
+   from inside cannot reach outside except via the attested return
+   channel. Isolation is substrate-enforced — not dependent on
+   the executing code's good behavior.
+3. **Network isolation — default-deny.** The boundary has no
+   network access by default. Network egress requires explicit
+   per-execution declaration (hostnames + ports); declared egress
+   is routed through a substrate-provisioned proxy. Inbound
+   network **shall not** be permitted — no listening sockets
+   reachable from outside the boundary.
+4. **Resource limits.** Every execution runs under explicit CPU,
+   memory, wall-clock-time, and disk-write limits declared in the
+   request. Exceeding any limit terminates the execution with a
+   `resource_limit_exceeded` outcome. Limits **shall** be
+   substrate-enforced (cgroups, VM resource configuration, or
+   equivalent).
+5. **Process and identity isolation.** The execution runs as a
+   dedicated execution user with no host privilege beyond what
+   the boundary substrate provisions. The execution **shall not**
+   be able to escalate to the host's user identity; even
+   root-level operations inside the boundary **shall not** affect
+   anything outside it.
+
+What the boundary does **not** guarantee at this Standard:
+side-channel-attack resistance (timing / cache / Spectre-class)
+is out of scope at the contract layer — deployments handling
+sensitive data **shall** select a Tier-0 substrate per the
+Conformance Profile.
+
+*Verification: Conformance-test* — the harness runs the adversarial
+containment battery (fork-bomb containment, unauthorized-egress
+containment, out-of-boundary-write containment, privilege-escalation
+containment, persistent-state containment) against every
+conformance-claimed substrate; asserts every attempt is contained.
+
+#### `[FM-DPG-0003]` Single attested return channel
+
+DPG executions **shall** return outputs through exactly one
+canonical, attested channel: the structured execution record
+returned to the requester per the result PCT shape. Side channels
+(network egress to non-declared targets, filesystem writes outside
+the boundary, IPC to host processes outside the runner) **shall
+not** be provisioned by the substrate and **shall not** be
+permitted by the runner.
+
+The execution record **shall** carry a `boundary_audit_summary`
+capturing what the substrate observed: process tree, network
+egress attempted vs. allowed, filesystem reads outside declared
+inputs, resource-limit-exceeded events. The summary is part of the
+attestation surface — it is what makes "what did this code
+actually do" answerable from the audit trail.
+
+*Verification: Conformance-test* — the harness submits executions
+that attempt side-channel exfiltration (network egress to
+undeclared target, filesystem write to host path); asserts each
+attempt is contained by the substrate AND recorded in the
+`boundary_audit_summary` of the returned execution record.
+
+#### `[FM-DPG-0004]` Four mandatory validation gates
+
+Every DPG execution **shall** be subject to four mandatory
+validation gates before its result is permitted to return through
+the attested channel. The four gates are non-negotiable per
+execution; per-request `validation_specification` entries **may**
+add gates but **shall not** remove or weaken any of the four:
+
+1. **Syntax conformance** — the execution's source and any
+   declared output artifacts are validated against the relevant
+   PCS-governed Syntax per the requested `workload_type`.
+2. **PGE compliance** (Gate-2 enforcement point) — the PGE rule
+   corpus is evaluated against the execution per `[FM-DPG-0005]`.
+3. **Test-suite execution** — the request's declared test suite
+   runs inside the boundary; per-test pass/fail is recorded.
+4. **Resource-limit attestation** — actual CPU / memory /
+   wall-clock-time / disk consumed are recorded against the
+   declared limits.
+
+An execution **passes** only when all four mandatory gates plus
+any request-declared additional gates report success. Any gate
+failure marks the execution `validation_failed` and **shall**
+prevent the result from advancing to downstream consumers
+(PCS-Daemon promotion, production-state writes, Registry
+deployment).
+
+*Verification: Conformance-test* — the harness submits sample
+executions that fail each of the four gates in turn; asserts the
+execution is marked `validation_failed` with the failing gate
+recorded; asserts the result does not advance to any downstream
+consumer.
+
+#### `[FM-DPG-0005]` PGE double-guardrail — Gate-2 enforcement
+
+DPG **shall** execute the PGE rule corpus per `[FM-PGE-0005]`
+inside the ephemeral boundary as the second guardrail in the
+mesh's double-guardrail enforcement model. The rule corpus
+evaluated inside DPG **shall** be the same corpus PGE applies at
+the IBX submission chokepoint (Gate 1) — PGE owns the rules; DPG
+is the substrate; the runner is the policy executor for inside-
+boundary evaluation.
+
+A DPG implementation operational against this requirement
+**discharges** the `[FM-PGE-0005]` Gate-2 transitional deviation —
+i.e., declaration of `[FM-DPG-0005]` operational state is the
+sunset condition for the `[FM-PGE-0005]` Gate-2 deviation
+registered in Appendix F. Until `[FM-DPG-0005]` is operational,
+the `[FM-PGE-0005]` Gate-2 deviation remains in force per its
+transitional clause; deployments are conformant to the deviation
+clause only.
+
+PGE rules evaluated inside DPG **shall** catch the failure class
+intent-side enforcement structurally misses: code that *looks*
+compliant at submission but *behaves* non-compliant when
+executed (e.g., a test that triggers a subprocess-injection only
+at runtime).
+
+*Verification: Conformance-test* — the harness submits executions
+whose code passes Gate-1 (IBX intent gate) but violates a PGE rule
+at runtime; asserts DPG evaluates the rule inside the boundary and
+marks the execution `validation_failed`; cross-references the
+`[FM-PGE-0005]` post-DPG conformance suite (both pillars'
+conformance is exercised by the same test set).
+
+#### `[FM-DPG-0006]` DPG runner identity
+
+DPG runners **shall** hold their own IAM-issued principal-id
+(job code: `dpg-runner` or equivalent) per `[FM-IAM-0006]`
+in-boundary signing. Runners **shall not** use the operator's
+credentials, the requester's credentials, or any shared
+service-account credential.
+
+The execution inside the boundary **shall** run AS the runner's
+identity at the substrate level (the boundary user account is
+derived from the runner's principal-id). Even malicious execution
+code cannot escape to the operator's identity because the runner
+never held it.
+
+Authorization to invoke DPG **shall** be checked against the
+requester's principal-id at the chokepoint per `[FM-IAM-0011]`
+identity-context contract — the runner inspects the originating
+PCT's principal-id and confirms the requester is authorized to
+execute the requested workload class. Per `[FM-IAM-0011]`,
+"not authorized" is terminal: the runner emits
+`execution_request_rejected` and halts; it **shall not** reason
+about routing around access controls.
+
+*Verification: Conformance-test* — the harness verifies the
+runner's principal-id is distinct from the requester's and from
+the operator's; submits an execution from an unauthorized
+principal-id and asserts `execution_request_rejected` is emitted;
+verifies the boundary user account at the substrate maps to the
+runner's principal-id.
+
+#### `[FM-DPG-0007]` Worker-pool dispatch
+
+DPG runners **shall** participate in the IBX worker-pool dispatch
+contract per `[FM-IBX-0007]` for parallel execution. Pool claim
+**shall** be exactly-once via the SKIP-LOCKED-style atomic claim
+substrate per `[FM-IBX-0009]`; lease / visibility-timeout for
+crash recovery applies; idempotency keys per the IBX worker-pool
+contract permit safe re-execution.
+
+Per-runner-identity concurrency caps **may** be applied at the
+IAM layer; the DPG runner **shall not** exceed its IAM-declared
+session concurrency cap.
+
+Mid-action-safe termination per the worker-pool contract: a
+runner session terminated while holding an in-flight claim
+**shall** return the claim to the queue per the IBX
+mid-action-safe termination semantics; in-flight executions emit
+all events through termination per `[FM-ACT-0009]` ack contract
+before claim release.
+
+*Verification: Conformance-test* — the harness exercises
+worker-pool dispatch against multiple concurrent runners and
+asserts exactly-once claim; terminates a runner mid-execution and
+asserts the claim returns to the queue with audit events
+preserved.
+
+#### `[FM-DPG-0008]` Substrate substitutability via Exit Test
+
+DPG's substrate substitutability **shall** be defined as passing
+the multi-profile conformance run against the Conformance Profile
+seams per §5.6.1. The contract — the five ephemeral-isolation
+properties per `[FM-DPG-0002]` — **shall** hold across substrate
+change.
+
+Isolation runtimes **shall** be tier-graded; deployments handling
+sensitive data **shall** select a substrate appropriate to the
+data tier (Tier-0 substrates provide separate-kernel-per-execution
+isolation; Tier-2 substrates provide OS-level isolation suitable
+for low-sensitivity validation only).
+
+Out-of-set isolation runtimes **shall not** be claimed supported
+— an unvetted isolation runtime is a security boundary, not a
+convenience substrate. Extending the profile requires the
+argued-case discipline per `[FM-INV-0003.2]` AND a conformance-
+suite extension running the adversarial containment battery against
+the new runtime before merging.
+
+*Verification: Conformance-test* — the multi-profile harness runs
+the same adversarial containment battery and the same sample
+execution workload across every conformance-claimed substrate;
+asserts identical containment outcomes and semantically identical
+execution results (modulo declared determinism level per
+`[FM-DPG-0010]`).
+
+#### `[FM-DPG-0009]` Registry-bound executable validation
+
+All Registry-bound executable artifacts (PCS-governed plugins, MCP
+servers, skills, runbooks, workflows, hooks, agents — anything the
+mesh runs) **shall** pass DPG validation as part of their
+pre-promotion lifecycle. PCS-Daemon's pre-promotion state
+**shall** invoke DPG for executable validation; the Daemon's
+state transition reflects the DPG outcome.
+
+The Daemon **shall not** bypass DPG for executable workloads.
+Every plugin or MCP server that includes runtime tests **shall**
+pass through DPG validation. The Registry contains only artifacts
+that have been DPG-validated against the security framework and
+the four mandatory validation gates.
+
+This requirement is the dev-to-production trust boundary applied
+to executable artifacts.
+
+*Verification: Conformance-test* — the harness exercises a plugin
+promotion through PCS-Daemon and asserts DPG is invoked during the
+pre-promotion state; asserts a `validation_failed` DPG outcome
+prevents promotion advancement; asserts a bypass-attempt (a
+direct Registry write skipping DPG) is rejected by the Registry
+contract.
+
+#### `[FM-DPG-0010]` Deterministic execution with declared determinism level
+
+DPG executions **shall** be deterministic where possible: same
+inputs + same execution command + same validation specification
+**shall** produce the same result, modulo externally-sourced
+nondeterminism the substrate cannot replay (wall-clock time,
+RNG, external network responses).
+
+Where external nondeterminism is required, the execution request
+**may** declare a deterministic seed; the runner **shall** provide
+the seed to the execution environment.
+
+CUDA workloads **may** carry numerical drift from
+nondeterministic reduction orderings. The execution record
+**shall** declare the determinism level achieved per a bounded
+enumeration: `deterministic`, `numerical-drift-only`,
+`nondeterministic`. Downstream consumers (PCS-Daemon promotion,
+ACT, test-result interpretation) **shall** read the declared
+level rather than assuming `deterministic`.
+
+*Verification: Conformance-test* — the harness runs the same
+sample execution twice under identical inputs and asserts
+identical outputs for `deterministic`-declared workloads; runs a
+CUDA workload twice and asserts the execution record's declared
+determinism level matches the observed reduction-order behavior.
+
+#### `[FM-DPG-0011]` Reconciliation sweep for lost completions
+
+DPG **shall** run an idempotent reconciliation sweep that
+detects executions whose `dpg.execution_complete` event emission
+was lost (e.g., runner crashed after boundary destruction but
+before the completion event reached ACT). The sweep **shall**:
+
+1. **Find** executions in `running` state older than a bounded
+   window (default: max execution time + grace period; operator-
+   configurable per deployment SLO) with no `dpg.execution_complete`
+   event in ACT AND no live boundary in the substrate.
+2. **Confirm** substrate state by re-checking the boundary is
+   actually gone before emitting any recovery event.
+3. **Emit** a terminal `dpg.execution_complete` event with outcome
+   `lost_completion_recovered` and a structured note indicating
+   reconciliation as the emission source rather than normal
+   completion. The recovery event **shall** itself emit via the
+   `[FM-ACT-0009]` ack contract.
+4. **Be safe to re-run** — idempotency keys on the recovery
+   event **shall** prevent double-emission; a re-run that sees an
+   existing recovery event is a no-op.
+
+The reconciliation sweep recovers the *fact* of a lost completion
+— the synthetic `lost_completion_recovered` event records that the
+execution's completion path did not reach ACT normally. The sweep
+does **not** recover the *content* of in-boundary telemetry that
+died before flushing to ACT; that gap (the boundary-local-to-
+ACT-ingest interval for in-execution telemetry) is acknowledged
+and **shall** be addressed by a future requirement when its
+design is settled. The fact-of-loss recovery is the audit floor.
+
+*Verification: Conformance-test* — the harness simulates a runner
+crash after boundary destruction and before completion-event
+emission; runs the reconciliation sweep and asserts emission of
+the recovery event with `lost_completion_recovered` outcome; runs
+the sweep a second time and asserts no duplicate event.
+
+#### `[FM-DPG-0012]` Audit emission via ACT
+
+DPG **shall** emit the following `dpg.*` events to ACT via the
+`[FM-ACT-0009]` ack contract, drawn from the `[FM-ACT-0004]`
+event-type taxonomy:
+
+- `dpg.code_emitted` — emitted by the upstream code-emitting
+  agent (not DPG itself), recording that an agent submitted code
+  to DPG. Provides Workforce-side attribution.
+- `dpg.execution_complete` — emitted by the DPG runner on
+  execution finish (success or any failure outcome). Payload
+  includes `execution_id`, `outcome`, validation results summary,
+  `resource_usage`, `boundary_audit_summary`.
+- `dpg.execution_request_rejected` — emitted by the DPG runner
+  when an execution request is refused at submission (e.g.,
+  unauthorized principal-id, malformed request).
+- `dpg.lost_completion_recovered` — emitted by the
+  reconciliation sweep per `[FM-DPG-0011]`.
+
+Per `[FM-ACT-0009]`, an execution **shall not** be considered
+complete until ACT acknowledges the corresponding
+`dpg.execution_complete` (or recovery) event; lack-of-ack or
+negative-ack **shall** cause the operation to fail strict.
+
+Every execution **shall** have exactly one terminal completion
+event in ACT (either a normal `dpg.execution_complete` or a
+`dpg.lost_completion_recovered`); an execution with neither is a
+no-bypass violation per `[FM-INV-0001]`.
+
+*Verification: Conformance-test* — the harness verifies each
+event type is emitted on the corresponding event class; asserts
+the ACT ack contract is honored; asserts every execution has
+exactly one terminal completion event.
+
+#### `[FM-DPG-0013]` Subagent-worktree precursor (transitional clause)
+
+The mesh's current subagent-worktree pattern (`isolation:
+"worktree"` per the operator's subagent-policy convention)
+provides OS-level git-isolation for agent-spawned subagents
+performing write-enabled work. The pattern is the operational
+precedent for `[FM-DPG-0002]` properties 1 and 2 (single-use
+creation/destruction + filesystem isolation) but does **not**
+satisfy the full ephemeral-isolation contract or the four
+mandatory validation gates per `[FM-DPG-0004]`.
+
+**Transitional deviation — sunset on `[FM-DPG-0002]` operational
+availability.** A deployment **may** continue to use the
+subagent-worktree pattern for low-sensitivity research /
+read-mostly workflows during the transition period, but **shall
+not** be claimed conformant to `[FM-DPG-0002]` or
+`[FM-DPG-0004]` on the basis of subagent-worktree usage. The
+deviation **shall**:
+
+1. Be registered in Appendix F with explicit sunset condition:
+   "Generalized DPG operational per `[FM-DPG-0002]` and
+   `[FM-DPG-0004]` across the deployment's executable-emission
+   surface."
+2. Emit a divergence event to ACT per `[FM-INV-0005.2]` with
+   `divergence_type = "subagent-worktree-precursor"` per
+   `[FM-PGE-0011]` discriminator (canonical emitter: PGE, via
+   the policy that classifies subagent-worktree usage as
+   non-DPG-conformant execution) for every workload using the
+   precursor pattern.
+3. Be reviewed at each major Standard release; deviation expiry
+   **shall** be enforced when generalized DPG is declared
+   operational.
+
+A deployment operating under the subagent-worktree precursor
+deviation **shall not** be claimed conformant to `[FM-DPG-0002]`
+on the basis of the precursor; it is conformant to the deviation
+clause only.
+
+*Verification (operational): Conformance-test* — the
+adversarial containment battery per `[FM-DPG-0002]` Conformance-
+test is satisfied by the generalized DPG implementation.
+*Verification (deviation period): Inspection of deviation
+registry* — deviation entry present in Appendix F with sunset
+condition; divergence events emitted per item 2 above.
+
+#### `[FM-DPG-0014]` DPG telemetry emission
+
+DPG **shall** emit OTLP-format traces, metrics, and logs for its
+own operational observability. Span names **shall** follow the
+`mesh.dpg.*` namespace (e.g., `mesh.dpg.sandbox.create`,
+`mesh.dpg.sandbox.execute`, `mesh.dpg.gate.evaluate`,
+`mesh.dpg.sandbox.terminate`, `mesh.dpg.return.attest`,
+`mesh.dpg.reconciliation.sweep`).
+
+The required metric set **shall** include at minimum:
+`executions_total` (counter, labeled by outcome),
+`sandbox.lifecycle_ms` (histogram),
+`gate.rejection_rate` (counter, labeled by gate),
+`resource.limit_exceeded_total` (counter),
+`escape.attempt_total` (counter — the load-bearing security
+signal), `sandbox.in_flight` (gauge),
+`reconciliation.swept_total` (counter).
+
+The operational telemetry stream (`mesh.dpg.*`) is distinct from
+the audit-event stream (`dpg.*` per `[FM-DPG-0012]`). The two
+flow to different sinks: operational OTLP for `mesh.dpg.*`; ACT
+event store for `dpg.*` audit.
+
+*Verification: Conformance-test* — the harness invokes
+representative DPG operations and asserts emission of the
+required span / metric / log records to the operational OTLP
+sink with the `mesh.dpg.*` namespace.
+
+### §5.6.1 DPG Conformance Profile
+
+The DPG pillar's substrate substitutability claim covers exactly
+the rows in this Conformance Profile. The **isolation-runtime
+seam's conformance is load-bearing**: the same adversarial
+containment battery (fork-bomb, unauthorized-egress,
+out-of-boundary-write, privilege-escalation, persistent-state)
+**shall** produce identical containment outcomes across every
+tested isolation runtime. A seam change that fails any tested
+profile does not merge.
+
+| Seam | Bound requirement(s) | Sovereign reference (version floor) | Supported alternatives | Test Set |
+|------|---------------------|-------------------------------------|------------------------|----------|
+| Isolation runtime | `[FM-DPG-0002]`, `[FM-DPG-0003]`, `[FM-DPG-0008]` | Podman 5+ rootless (Tier-1, fleet container runtime) | git worktrees + cgroups (Tier-2, lightweight floor + operational precedent), systemd-nspawn (Tier-1), gVisor (Tier-1, syscall interception), Firecracker microVM (Tier-0, separate kernel per execution), Kata Containers (Tier-0) | `dpg-isolation-runtime-v1` |
+| Base image (for container / microVM runtimes) | `[FM-DPG-0002]` (substrate floor) | UBI9-minimal | Wolfi, distroless, scratch-equivalent. N/A for the worktree substrate | `dpg-base-image-v1` |
+| Network egress control | `[FM-DPG-0002]` property 3, `[FM-DPG-0003]` | nftables-based egress proxy with default-deny + per-execution allowlist | Cilium, Calico, Envoy proxy — any substrate enforcing declarative per-execution egress allowlists | `dpg-network-egress-v1` |
+| Telemetry sink | `[FM-DPG-0014]` | OTLP-on-the-wire (any OTLP-compatible backend) | Grafana/Prometheus/Tempo, Azure Monitor, Datadog, OCI Monitoring | `dpg-telemetry-v1` |
+
+Out-of-set substrates **shall not** be claimed supported.
+Extending the profile requires the argued-case discipline per
+`[FM-INV-0003.2]` AND a conformance-suite extension running the
+full adversarial containment battery against the new substrate
+before merging. The discipline matters most on the isolation-
+runtime seam: an unvetted runtime is a security boundary.
 
 ### §5.7 CRB — Compute Resource Broker
 
