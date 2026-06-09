@@ -709,6 +709,17 @@ They are not part of the canon; this single spec is.
 
 # Part 2 — PCS (Platform Control System)
 
+> **STD status of this Part.** PCS is the **eighth pillar** per
+> `[FM-MCC-0011]` and lives in Standard **§6** (currently
+> Reserved). The numbered PCS requirements (`[FM-PCS-NNNN]`) will
+> land when §6 is written. This Handbook Part is the rationale and
+> design intent for what §6 will normatively specify. Cross-references
+> in this Part point at the *cross-pillar contracts PCS already binds
+> to* (FM-MCC, FM-PGE, FM-DPG, FM-AKB, FM-INV) — those bindings are
+> in force today even though §6 has not yet been filled. The §6
+> PCS pillar will codify the action-layer mechanisms this Part
+> describes.
+
 ## 2.1 What PCS is
 
 **PCS is the action layer of the mesh.** Other pillars supply *what
@@ -842,6 +853,18 @@ field — absent ≠ safe. PGE applies its floor regardless; divergence
 between plugin declaration and platform enforcement is logged to ACT
 as a CLCA signal.
 
+**Bound STD requirements.** The cardinal rule (PCS plugin as
+strict superset of vendor plugins) is the design intent that §6
+will codify as the PCS plugin-shape requirement; the analogous
+already-numbered surface is the MCC plugin contract per
+`[FM-MCC-0006]`. The platform-enforcement-floor paragraph above
+binds to `[FM-INV-0005]` (the floor is authoritative),
+`[FM-PGE-0010]` (PGE applies the floor regardless of declaration),
+`[FM-INV-0005.2]` (divergence between declaration and enforcement
+is auditable), and `[FM-PGE-0011]` (the `divergence_type`
+discriminator with `policy-block-mismatch` as the canonical subtype
+for this case — emitted by PGE per the discriminator table).
+
 ## 2.5 Plugin portability across surfaces
 
 The plugin author writes once; the PCS toolchain projects per-surface:
@@ -924,6 +947,19 @@ Delegating Tier 0 to vendor tooling means PCS gets vendor spec updates
 for free; no reimplementation. The harness earns the trust once;
 every conforming artifact inherits it.
 
+**Bound STD requirements.** The validation harness's Tier-1
+"PCS Core" hard gate is the surface §6 will normatively specify
+when filled. The harness's mandatory **execution-side validation
+gates** for executable artifacts are already numbered in the DPG
+pillar: `[FM-DPG-0004]` (four mandatory validation gates —
+Syntax + PGE + test-suite + resource-limit attestation) and
+`[FM-DPG-0005]` (PGE Gate-2 — PGE rule corpus executed inside
+the DPG ephemeral boundary as the second guardrail). The
+"validation harness earns trust once" framing maps to
+`[FM-DPG-0008]` substrate substitutability via Exit Test —
+identical containment outcomes across every conformance-claimed
+substrate.
+
 ## 2.8 The registry, marketplaces, BOMs
 
 **Mesh-internal, not public.** Each Mesh runs its own PCS registry.
@@ -979,6 +1015,13 @@ A customer installs from a BOM; upgrades happen by bumping the BOM
 version, pulling every constituent plugin atomically. Linux distro /
 `kubeadm` / Helm chart pattern.
 
+**Bound STD requirements.** Every artifact entering the registry
+passes through DPG validation for executable artifacts per
+`[FM-DPG-0009]` (Registry-bound executable validation) — the
+PCS-Daemon pre-promotion state invokes DPG; the Daemon shall not
+bypass DPG for executable workloads. This is the dev-to-production
+trust boundary applied to executables.
+
 ## 2.9 Substrate matrix × workflow — customization without forking
 
 Every large customer has bespoke substrate preferences (Oracle vs
@@ -1028,6 +1071,19 @@ incident-report-in-PagerDuty + post-mortem-in-Confluence +
 action-items-in-Jira + runbook-update-in-GitHub-wiki +
 prompt-tweak-from-whoever's-on-call.
 
+**Bound STD requirements.** AIRs are first-class AKB Tier-1 corpus
+per `[FM-AKB-0012]` — surfaced via the `[FM-AKB-0010]` infra-
+decision-side hooks at exactly the moments operational lessons
+should land. Security-class AIRs are categorically excluded from
+AKB ingest per `[FM-AKB-0012]` and route to the restricted-
+audience store out of AKB scope. The "incident → AIR → workflow
+change" loop's audit trail is the `pcs.policy.divergence` event
+class per `[FM-INV-0005.2]`; the CLCA-trigger derivation that
+escalates a divergence pattern to action is `[FM-PGE-0011]` (PGE
+emits `pcs.policy.divergence.clca-trigger` once a `divergence_type`
+count exceeds the operator-configured threshold for the deviation's
+canonical emitter).
+
 ## 2.11 Bootstrap — agent-as-installer
 
 PCS workflows manage the mesh; PCS runs on the mesh. The
@@ -1047,6 +1103,23 @@ everything is workflow execution: `vault-pki-bootstrap` →
 Pattern matches `kubeadm init` or `pacstrap` — one privileged
 bootstrap step gets you to normal-mode platform operations. Difference:
 no separate join-cluster binary. The agent is the binary.
+
+**Bound STD requirements.** The bootstrap ceremony itself is
+`[FM-INV-0004.4]` (mesh-init quorum-bootstrap — `N` independent
+identity holders, K-of-N Shamir shards, signed initial role
+assignments, ceremony attestation emitted to ACT). The ceremony
+event is emitted under the **genesis event class** per
+`[FM-INV-0004.5]`, which carves out the otherwise-circular
+attribution requirement so the founding event can land in ACT
+before IAM is operational. Subsequent `pillar-deploy:*` workflows
+fire under the standard `[FM-INV-0001]` / `[FM-INV-0002]` /
+`[FM-INV-0002.1]` discipline (every actor authenticates, every
+time; halt on unverifiable; bounded deadline at every external-
+ack point). The IAM-first load order for MCC plugin composition
+is `[FM-MCC-0005]`. The agent-out-of-secret-path principle is
+the invariant that gates the one human step (`vault operator
+init`); the corresponding frame-boundary enforcement on MCC
+plugin calls is `[FM-MCC-0009]`.
 
 ## 2.12 Mesh-CLI + MCC delivery shape
 
@@ -1075,6 +1148,21 @@ Governance rides Claude Code PreToolUse hooks — the seam already used
 by `subagent-guard.sh`. PGE/IAM enforcement at the hook layer. Tier-0
 profile = dev / low-stakes; destructive ops route through the governed
 MCC backend so the Judge gate intercepts before execution.
+
+**Bound STD requirements.** MCC's kernel/frame model is
+`[FM-MCC-0001]`; the single-endpoint property is `[FM-MCC-0002]`;
+the IAM auth hook on every call (including the human admin-UI
+authentication path through the same hook) is `[FM-MCC-0003]`
+with the synchronous Identity-context-version revalidation that
+closes the cache TOCTOU. The web-admin-UI operator surface
+discipline is `[FM-MCC-0007]`; the CLI-first / UI-second
+constraint is `[FM-MCC-0008]` (every admin UI action invokes a
+frame API operation also reachable directly via HTTP or MCP — the
+UI is documentation-by-example for the contract, never a
+parallel control surface). The Judge-gate hook (frame-level
+elevated confirmation with uniform UX, typed re-attestation,
+audit-attestable via the `mcc.judge_gate_confirm` event) is
+`[FM-MCC-0010]`.
 
 ---
 
