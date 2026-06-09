@@ -288,7 +288,7 @@ a capability that the underlying pillars do not already expose.
 
 *Verification: Conformance-test* — the validation harness rejects any
 plugin whose declared capability surface (`.pcs/plugin.pcs.json`
-policy block, per §6 and Appendix A) references a capability not
+policy block, per §6 and Appendix B) references a capability not
 present in the deployment's provisioned-capability registry.
 
 ##### `[FM-INV-0003.2]` Net-new capability requires argued-case plus quorum
@@ -303,8 +303,9 @@ An **argued case** for the purposes of this Standard is a written
 rationale satisfying all of the following:
 
 1. It is committed to a designated section of this Standard or to a
-   referenced amendment document (default location: Appendix E,
-   reserved for argued-case records, to be created in PR-B).
+   referenced amendment document (default location: Appendix F,
+   reserved for argued cases and deviations, to be created in
+   subsequent PRs).
 2. It answers the `[FM-INV-0003.3]` decision test affirmatively, with
    explicit identification of the consumer(s) and the operational need.
 3. It specifies the policy gates, identity scopes, audit emissions,
@@ -551,39 +552,27 @@ below, lives in IBX rather than in PCS scope because PCT is a
 #### `[FM-IBX-0001]` PCT nine-field contract
 
 Every message routed through IBX **shall** carry a Principal Control
-Token (PCT) with the following nine fields, divided into three groups:
-
-| Group | Field | Purpose |
-|-------|-------|---------|
-| Identity / work (1–3) | `principal-id` | Who sent the message (the identity behind the message) |
-| | `task` | What the recipient is asked to do |
-| | `background` | Context the recipient needs to do it |
-| Boundary axes (4–6) | `reach` | Scope — what the recipient may touch |
-| | `completion-criterion` | Success criteria for the work |
-| | `autonomy` | Authority bounds — what the recipient may decide without further approval |
-| Meta (7–9) | `pct-version` | Version of the PCT schema in use |
-| | `provenance` | Chain of identities and tooling that produced the PCT |
-| | `validity-window` | Earliest-effective and latest-effective timestamps |
-
-A message that does not carry all nine fields **shall** be rejected by
-IBX at the routing layer and **shall not** be delivered to its
-recipient.
+Token (PCT) conforming to the normative PCT schema defined in
+**Appendix A**. A message that does not carry all nine PCT fields per
+Appendix A **shall** be rejected by IBX at the routing layer and
+**shall not** be delivered to its recipient.
 
 *Verification: Conformance-test* — the harness submits messages with
-each field omitted in turn and asserts rejection in every case; submits
-a complete nine-field PCT and asserts successful routing.
+each Appendix-A field omitted in turn and asserts rejection in every
+case; submits a complete nine-field PCT and asserts successful
+routing.
 
 #### `[FM-IBX-0002]` PCT field-name stability
 
-The nine PCT field names defined in `[FM-IBX-0001]` **shall not** be
+The nine PCT field names defined in Appendix A **shall not** be
 renamed or removed in any `pct-v1.x` revision. Validation detail,
 field-value constraints, and deprecation-with-replacement semantics
 **may** be added in v1.x; field identity is immutable across the v1
 schema.
 
-*Verification: Inspection* — every PCT schema-version artifact in the
-deployment is reviewed against the v1.0 field list; any rename or
-removal is a non-conformance.
+*Verification: Static-check* — a schema-diff tool compares the
+deployed `pct-v1.x` schema against the v1.0 baseline (Appendix A) and
+asserts no field has been renamed or removed.
 
 #### `[FM-IBX-0003]` Server-enforced Judge gate for action-priority messages
 
@@ -641,9 +630,10 @@ full audit chain required by `[FM-INV-0001]`-class audit invariants
 and §7 operational requirements when landed; an UPDATE-in-place model
 discards the transition history.
 
-*Verification: Inspection* — the substrate DDL is reviewed for
-append-only event-row semantics; any UPDATE statement on canonical
-status state is a non-conformance.
+*Verification: Static-check* — the substrate DDL is analyzed
+programmatically (AST or grep over migrations) for UPDATE statements
+targeting the canonical status state; any such statement is a
+non-conformance.
 
 #### `[FM-IBX-0006]` Identity-vs-session distinction in PCT
 
@@ -723,19 +713,48 @@ poison queue) against each declared supported substrate.
 
 IBX **shall** consume verified-principal context from the IAM pillar
 (§5.2 when landed) at message-submission time. The PCT `principal-id`
-field **shall** be verifiable against the IAM Roster's identity
-records; an unverifiable `principal-id` **shall** cause the message
-to be rejected at submission per `[FM-INV-0002]` (Fail strict).
+field **shall** be cryptographically verifiable against the IAM
+Roster's identity records; an unverifiable `principal-id` **shall**
+cause the message to be rejected at submission per `[FM-INV-0002]`
+(Fail strict).
 
-In deployments where IAM is not yet operational (transitional brief-
-based identity), this requirement is satisfied by IBX recording the
-asserted identity and the substrate's audit trail; full
-cryptographic verification lands when IAM does.
+**Transitional deviation — sunset on IAM operational availability.**
+A deployment operating prior to the IAM pillar's operational
+availability (per §5.2 when landed) **may** record asserted-but-
+unverified identity in the substrate's audit trail. **This path is a
+recognized deviation, not satisfaction of this requirement.** A
+deployment operating under the transitional deviation **shall not**
+be claimed conformant to `[FM-IBX-0010]`; it is conformant to the
+deviation clause only, and **shall** transition to full conformance
+when IAM becomes operational.
 
-*Verification: Inspection (current) / Conformance-test (post-IAM)* —
-review of the identity-verification call path; once IAM is operational,
-the harness submits messages with valid and invalid `principal-id`
-values and asserts accept/reject.
+The transitional deviation **shall**:
+
+1. Be registered in the deployment's deviation registry (Appendix F)
+   with explicit sunset condition: "IAM operational per the
+   `[FM-IAM-NNNN]` requirement marking IAM operational state, to be
+   defined in §5.2."
+2. Emit a divergence event to ACT per `[FM-INV-0005.2]` for every
+   assertion-only identity claim, with attributes naming the
+   deviation and the asserted identity.
+3. Be reviewed at each major Standard release; deviation expiry
+   **shall** be enforced when IAM operational state is declared per
+   §5.2.
+
+This deviation is not a "satisfying path" — it is acknowledged
+operational reality with a clock. The `[FM-INV-0001]` no-bypass
+invariant is not relaxed; the deviation registry + divergence-event
+emission is how the platform tracks the bounded departure until the
+sunset condition is reached.
+
+*Verification (post-IAM): Conformance-test* — the harness submits
+messages with valid and invalid `principal-id` and asserts accept /
+reject per cryptographic verification against the IAM Roster.
+*Verification (deviation period): Inspection of deviation registry +
+Static-check of divergence-event emission rate* — for any deployment
+claiming the transitional path, the deviation registry entry is
+reviewed for presence + sunset condition; ACT is queried for the
+expected divergence-event emission per assertion-only identity claim.
 
 #### `[FM-IBX-0011]` Telemetry emission
 
@@ -769,14 +788,16 @@ is denied (fail-strict semantics).
 The IBX pillar's substrate substitutability claim covers exactly the
 rows in this Conformance Profile. Conformance is verified by passing
 the IBX multi-profile conformance suite against the listed
-implementations.
+implementations. The Test Set column names the test-set identifier
+the conformance harness runs against each seam — the harness
+auto-discovers which test set to execute per declared substrate.
 
-| Seam | Bound requirement(s) | Sovereign reference (version floor) | Supported alternatives |
-|------|---------------------|-------------------------------------|------------------------|
-| Routing-audit storage | `[FM-IBX-0008]` | PostgreSQL 17+ | Oracle 19+, MySQL 8+ |
-| Worker-pool claim queue | `[FM-IBX-0007]`, `[FM-IBX-0009]` | PostgreSQL 17+ | (none currently — OLAP unsuitable; alternatives require transactional claim semantics) |
-| Identity verification | `[FM-IBX-0010]` | Per IAM pillar (§5.2) | Whatever IAM declares conformant |
-| Telemetry sink | `[FM-IBX-0011]` | OTLP-on-the-wire | Any OTLP-compatible backend declared conformant by ACT (§5.4) |
+| Seam | Bound requirement(s) | Sovereign reference (version floor) | Supported alternatives | Test Set |
+|------|---------------------|-------------------------------------|------------------------|----------|
+| Routing-audit storage | `[FM-IBX-0008]` | PostgreSQL 17+ | Oracle 19+, MySQL 8+ | `ibx-routing-audit-v1` |
+| Worker-pool claim queue | `[FM-IBX-0007]`, `[FM-IBX-0009]` | PostgreSQL 17+ | (none currently — OLAP unsuitable; alternatives require transactional claim semantics) | `ibx-claim-queue-v1` |
+| Identity verification | `[FM-IBX-0010]` | Per IAM pillar (§5.2) | Whatever IAM declares conformant | `ibx-identity-v1` (post-IAM); `ibx-identity-deviation-v1` (transitional per `[FM-IBX-0010]` deviation clause) |
+| Telemetry sink | `[FM-IBX-0011]` | OTLP-on-the-wire | Any OTLP-compatible backend declared conformant by ACT (§5.4) | `ibx-telemetry-v1` |
 
 Out-of-set substrates **shall not** be claimed as supported under
 this profile. Extending the profile requires the argued-case
@@ -832,27 +853,87 @@ landed in subsequent PRs.*
 
 ---
 
-## Appendix A — Normative plugin manifest schema
+## Appendix A — PCT Schema (normative)
+
+The Principal Control Token (PCT) is the message-from-Principal-to-
+Singleton artifact every IBX message carries per `[FM-IBX-0001]`. The
+nine-field PCT v1 schema is defined here and is referenced from
+`[FM-IBX-0001]` (rejection-on-missing-field) and `[FM-IBX-0002]`
+(field-name stability across v1.x).
+
+### A.1 Field list — pct-v1
+
+| # | Field | Group | Type | Purpose |
+|---|-------|-------|------|---------|
+| 1 | `principal-id` | Identity / work | identifier (IAM-issued; see `[FM-IBX-0010]`) | Who sent the message (the identity behind the message) |
+| 2 | `task` | Identity / work | structured text | What the recipient is asked to do |
+| 3 | `background` | Identity / work | structured text | Context the recipient needs to do it |
+| 4 | `reach` | Boundary axes | scope set | What the recipient may touch (scope) |
+| 5 | `completion-criterion` | Boundary axes | structured text | Success criteria for the work |
+| 6 | `autonomy` | Boundary axes | authority specification | What the recipient may decide without further approval (authority bounds) |
+| 7 | `pct-version` | Meta | semver string | Version of the PCT schema in use (e.g., `pct-v1.0`) |
+| 8 | `provenance` | Meta | signed chain | Chain of identities and tooling that produced the PCT |
+| 9 | `validity-window` | Meta | `{not-before, not-after}` timestamps | Earliest-effective and latest-effective times |
+
+### A.2 Group semantics
+
+- **Identity / work (fields 1–3)** — who sent it, what they want
+  done, the background to do it
+- **Boundary axes (fields 4–6)** — three orthogonal constraints on
+  the work: `reach` (scope), `completion-criterion` (success criteria),
+  `autonomy` (authority bounds). Scope and authority bounds are
+  axially distinct: `reach` answers *what may I touch*; `autonomy`
+  answers *what may I decide without asking*. These **shall not** be
+  conflated in spec prose or tooling — `reach` ties to the IAM-scope
+  authorization seam, `autonomy` ties to the Judge-gate approval seam.
+- **Meta (fields 7–9)** — properties of the PCT itself, not its
+  content. Machine-validated structure.
+
+### A.3 Validation discipline
+
+A complete PCT v1 message has all nine fields populated. Per
+`[FM-IBX-0001]`, IBX rejects any message missing one or more fields
+at the routing layer. Per `[FM-IBX-0002]`, the field names defined
+here are immutable across `pct-v1.x` — field-value constraints,
+validation rules, and deprecation-with-replacement semantics **may**
+be added in v1.x but field identity **shall not** change.
+
+A future `pct-v2` schema, if introduced, **shall** be a separate
+appendix entry; consumers that build against `pct-v1` (e.g., the
+PCS-Daemon `pct-v1` consumer per §6 when landed) **shall** continue
+to receive `pct-v1` messages.
+
+## Appendix B — Normative plugin manifest schema
 
 *Reserved for the PCS plugin manifest JSON schema and the `policy:`
 block schema. Will be landed alongside §6.*
 
-## Appendix B — Normative namespace conventions
+## Appendix C — Normative namespace conventions
 
 *Reserved for the namespace coordinate format, prefix-reservation
 discipline, and tenant-onboarding requirements. Will be landed
 alongside §6.*
 
-## Appendix C — Normative cross-pillar binding matrix
+## Appendix D — Normative cross-pillar binding matrix
 
 *Reserved for the requirement-by-requirement mapping of how PCS workflow
 execution touches each pillar. Will be landed alongside §5 and §6.*
 
-## Appendix D — Non-normative regulatory crosswalk
+## Appendix E — Non-normative regulatory crosswalk
 
 *Reserved for the non-normative mapping of Fiducial Mesh requirement
 identifiers to external regulatory frameworks (NIST SP 800-53, HIPAA,
 FedRAMP, ICD 705, etc.). Will be landed alongside §7.*
+
+## Appendix F — Argued cases and deviations (reserved)
+
+*Reserved for the registry of argued cases per `[FM-INV-0003.2]` and
+recognized deviations per `[FM-IBX-0010]` and analogous deviation
+clauses in future pillar sections. Each entry will record: requirement
+ID, deviation or argued-case rationale, scope and sunset condition
+(for deviations), authoring identity, approval chain. Will be landed
+alongside §5 as deviation entries accumulate or per the first formal
+argued case.*
 
 ---
 
