@@ -125,6 +125,19 @@ substrate-matrix seams is a first-class property; conformance is
 verified by passing the multi-profile conformance run against the
 declared matrix rows.
 
+This Standard is **language-neutral.** It defines *behavior*, not
+the language an implementation is written in. A conforming
+implementation **may** be written in any language or framework;
+conformance is established solely by passing the multi-profile
+conformance run, which is blind to implementation language. The
+Standard specifies substrate *capabilities* where they are
+contract-relevant (e.g., transactional claim semantics,
+JSONB-equivalent query support, FIPS-validated cryptographic
+modules) and the *workload runtimes* a pillar must accept — but it
+**shall not** mandate the implementation language or framework of
+any pillar. Reference-implementation language choices live in the
+engineering-standards companion document, not in this Standard.
+
 This Standard targets **on-premises sovereign deployment**.
 Vendor-managed cloud substrate is **not in scope**; the architecture
 is air-gapped-ready and exfiltration-hostile by construction.
@@ -1628,7 +1641,6 @@ evidence trail.
 - `[FM-INV-0001]` (No bypass) and `[FM-INV-0002]` (Fail strict) apply — ACT emission failure is fail-strict (the upstream operation halts) per the per-pillar audit-emission requirements.
 - ACT consumes events emitted by every other pillar: `[FM-IBX-0012]` (IBX status transitions), `[FM-IAM-0013]` (IAM state-affecting operations), `[FM-PGE-0008]` (PGE decisions), `[FM-PGE-0011]` (`pcs.policy.divergence` events with `divergence_type` discriminator), and per-pillar audit requirements in future pillars (§§5.5–5.8).
 - ACT is queried by `[FM-IAM-0014]` Condition 4 for `divergence_type = "identity-by-brief"` events to verify the IAM operational-state sunset.
-- ACT runs all stack layers in **Python** per §4.3 language map (the prior "C# record layer / Python detect layer" framing in source material is retired; both layers are Python).
 
 #### `[FM-ACT-0001]` Append-only event store
 
@@ -2856,7 +2868,457 @@ runtime seam: an unvetted runtime is a security boundary.
 
 ### §5.7 CRB — Compute Resource Broker
 
-*Reserved for future PR.*
+**Scope.** CRB is the mesh's hardware-aware workload-dispatch
+pillar: every workload that requires specific compute resources
+(GPU, large unified memory, low-latency substrate access) is
+routed to a host capable of satisfying them. CRB owns *where to
+run*; DPG owns *how to isolate*. The pillar exists because most
+mesh work is **not** GPU-bound — agent reasoning, document
+workflows, audit, and DB analytics dominate the workload mix — so
+the bottleneck is *visibility into which workloads can run in
+parallel on existing compute*, not "not enough compute." CRB
+turns that visibility into a fleet-callable dispatch contract.
+
+**Dependencies.**
+
+- `[FM-INV-0001]` (No bypass) and `[FM-INV-0002]` (Fail strict) apply — dispatch decisions **shall not** be circumvented and **shall** fail strict on substrate unavailability.
+- CRB accepts dispatch requests as `action`-priority PCTs per the IBX message-shape contract; result PCTs return to the original requester via the standard IBX path. CRB is the **Reasoner archetype**, not the Worker archetype, and therefore **shall not** consume the IBX worker-pool claim queue.
+- CRB broker daemons, when built, hold IAM-issued principal-ids per `[FM-IAM-0006]` and `[FM-IAM-0011]`. The broker's identity is the authorizing principal for dispatch decisions; the broker **shall not** use operator or requester credentials.
+- CRB emits state-affecting events as `crb.*` records to ACT via the `[FM-ACT-0009]` ack contract and the `[FM-ACT-0004]` taxonomy.
+- CRB and DPG own orthogonal concerns (*where to run* vs *how to isolate*) but couple at decision time: a DPG-side isolation-tier constraint **shall** feed CRB's eligibility filter as an input dimension when a workload requires both pillars. Neither pillar **shall** subsume the other.
+- PGE applies content-level and resource-routing policy at the CRB dispatch chokepoint per `[FM-PGE-0005]` and `[FM-PGE-0007]`; CRB **shall not** carry its own policy corpus.
+
+#### `[FM-CRB-0001]` Three architecturally distinct components
+
+CRB **shall** be implemented as three architecturally distinct
+components:
+
+1. **Workload Classification Taxonomy** — the bounded enum of
+   workload classes per `[FM-CRB-0002]`. Workload-side semantic;
+   meaningful in itself before any dispatch.
+2. **Dispatch Policy** — the mapping from classification to
+   eligible target hosts per `[FM-CRB-0003]`. Fleet-side; per-
+   deployment.
+3. **Broker Daemon** — the service that applies classification +
+   policy to select a target and tracks the dispatch outcome. The
+   policy executor.
+
+Classification evolves independently of any specific fleet's
+policy; the policy adapts to new hardware without changing the
+taxonomy; the broker implementation swaps under the Exit Test per
+`[FM-CRB-0008]` without affecting either upstream concern. A
+monolithic implementation that fuses any two of these into a
+single component does not conform.
+
+*Verification: Inspection* — the implementation's component
+boundaries are reviewed against the classification / policy /
+daemon separation; classification is exercised independently of
+policy (a workload's class is a value, not a function of the
+fleet's hosts).
+
+#### `[FM-CRB-0002]` Workload classification taxonomy (bounded)
+
+The mesh-level workload classification taxonomy **shall** be a
+bounded enumeration. The Standard commits at minimum the
+following five classes; extension **shall** require an explicit
+curation event (same discipline as the `[FM-ACT-0004]` event-type
+taxonomy):
+
+- **`gpu_bound`** — workload requires GPU compute on a CUDA-class
+  or equivalent accelerator runtime per the Conformance Profile.
+- **`mps_bound`** — workload requires Apple MPS specifically (a
+  sub-class of accelerator-bound where the accelerator family is
+  Apple, not CUDA-class). Explicitly separated because the
+  `gpu_bound` runtime is not interchangeable with the MPS runtime
+  at the framework layer.
+- **`db_bound`** — workload requires direct database substrate
+  access with low-latency network path to the substrate.
+- **`reasoning_bound`** — workload is primarily agent reasoning
+  with minimal infrastructure dependency beyond a conforming
+  language runtime.
+- **`mixed`** — workload combines multiple classes; the
+  eligibility filter applies the **strictest constraint** among
+  the sub-class requirements.
+
+Every dispatch request **shall** declare its class. A dispatch
+request with an unknown class **shall** be rejected with
+`crb.dispatch_request_rejected` per `[FM-CRB-0012]`. Workload
+misclassification by the submitter is a content-level concern CRB
+cannot prevent structurally; broker behavior on subsequent
+re-dispatch is policy-side.
+
+*Verification: Conformance-test* — the harness submits dispatch
+requests of each enumerated class and asserts acceptance; submits
+an unknown class and asserts rejection with the corresponding
+audit event; attempts taxonomy extension without a curation event
+and asserts rejection.
+
+#### `[FM-CRB-0003]` Dispatch policy contract
+
+The dispatch policy **shall** be a pure function:
+`dispatch_policy(workload_class, workload_constraints) →
+eligible_host_list`. The contract:
+
+1. **Pure** — same class + same constraints **shall** produce
+   the same eligible-host list; no hidden state.
+2. **Bounded eligibility** — the eligibility check **shall** be
+   decidable in bounded time. Recursive policy resolution and
+   policy chains **shall not** be permitted.
+3. **Substrate-aware** — the policy **may** consult substrate
+   primitives (hardware inventory, network topology) but **shall
+   not** depend on broker-daemon implementation details.
+4. **Tiered fallback** — if no host satisfies the constraints,
+   the policy **shall** emit a `crb.policy_no_match` event per
+   `[FM-CRB-0012]` and the workload **shall** remain in queue
+   until a host is added or constraints relax. Silent fallback to
+   a non-matching host **shall not** be permitted.
+5. **Capacity-aware** — eligibility evaluation **shall** include
+   actual available capacity on the candidate host, not just type
+   match. A host whose accelerator is already allocated **shall
+   not** be returned as eligible.
+
+The mapping of classes to eligible hosts is **deployment-
+architecture**, not pillar contract; different fleets have
+different policies because they have different inventories. What
+the Standard binds is the function shape and the fallback
+discipline.
+
+*Verification: Conformance-test* — the harness exercises the
+policy function with repeated identical inputs and asserts
+identical outputs (purity); submits a workload with no eligible
+host and asserts `crb.policy_no_match` emission; verifies no
+dispatch to a non-matching host occurs; submits a workload to a
+typed-eligible-but-capacity-exhausted host and asserts the policy
+returns no match.
+
+#### `[FM-CRB-0004]` Hardware topology model
+
+CRB **shall** model the deployment's fleet as a typed inventory.
+Each host record **shall** carry at minimum: `host_id`,
+`host_class` (a bounded enum of `control`, `sage`, `forge`,
+`judge`, `worker`), `os` + version, `cpu`, `memory_bytes`,
+`accelerators` (list of `{type, model, memory_bytes, count}`
+records where `type` is drawn from the accelerator-runtime
+seam of the Conformance Profile), `network_interfaces` with
+topology context, `storage_classes` accessible from the host,
+`available_runtimes`, and per-host language-runtime paths.
+
+Inventory updates as hardware is added or removed; the schema
+does not. Inventory **shall** be a versioned, operator-reviewed
+artifact — the broker **shall** read from the latest committed
+inventory and **shall not** synthesize host records at runtime
+without an inventory entry.
+
+*Verification: Static-check + Conformance-test* — Static-check
+verifies the inventory schema; Conformance-test exercises a
+dispatch against an inventory missing a host the convention
+expects and asserts `crb.policy_no_match` rather than synthesis.
+
+#### `[FM-CRB-0005]` CRB broker identity
+
+The CRB broker daemon **shall** hold its own IAM-issued
+principal-id (job code: `crb-broker` or equivalent) per
+`[FM-IAM-0006]`. Brokers **shall not** use the operator's
+credentials, the requester's credentials, or any shared
+service-account credential.
+
+The broker's identity is what dispatch decisions are recorded as
+at the audit layer. When the broker emits dispatch instructions
+to remote hosts (e.g., via the substrate's job-submission
+primitive), the broker's identity is the authorizing principal —
+never the operator's.
+
+Authorization to invoke CRB **shall** be checked against the
+requester's principal-id at the chokepoint per `[FM-IAM-0011]`
+identity-context contract. The broker's own authentication at
+dispatch is governed by `[FM-INV-0001]` (every actor
+authenticates, every time) — the broker holds and presents its
+own principal-id on every dispatch decision; no implicit-trust
+shortcut applies. Workloads requiring scarce or high-tier
+resources **may** carry tighter job-code authorization
+requirements than routine `reasoning_bound` workloads. Per
+`[FM-IAM-0011]`, "not authorized" is terminal — the broker emits
+`crb.dispatch_request_rejected` and halts.
+
+*Verification: Conformance-test* — the harness verifies the
+broker's principal-id is distinct from the requester's and the
+operator's; submits a dispatch request from an unauthorized
+principal-id and asserts `crb.dispatch_request_rejected`;
+verifies dispatch-decision audit records carry the broker's
+identity, not the requester's.
+
+#### `[FM-CRB-0006]` Reasoner archetype — no worker-pool claim seam
+
+CRB **shall** be deployed as the Reasoner archetype: one or a
+small handful of broker sessions per deployment with broad
+authority over the dispatch surface. CRB **shall not** consume
+the IBX worker-pool claim-queue per `[FM-IBX-0007]` /
+`[FM-IBX-0009]`; dispatch requests reach the broker via direct
+addressing (`recipient=crb-broker`) under standard IBX
+semantics, not via competitive worker-pool claim.
+
+Per-broker-identity concurrency caps **may** be applied at the
+IAM layer; brokers **shall not** exceed their IAM-declared
+session concurrency cap.
+
+Deployments requiring broker high-availability **may** run
+leader-elected active/standby brokers; the leader holds the
+broker principal-id for dispatch authority. Active/active broker
+pools **shall not** be operated without explicit cross-broker
+coordination — uncoordinated parallel brokers would re-introduce
+the claim-queue contention that the Reasoner archetype
+classification rejects.
+
+*Verification: Inspection + Conformance-test* — Inspection
+verifies the broker addressing pattern (direct, not worker-pool);
+Conformance-test asserts that submitting a dispatch request to
+the worker-pool claim queue is not the conformant path; verifies
+broker sessions are bounded by the IAM concurrency cap.
+
+#### `[FM-CRB-0007]` Clean seam — no isolation, no validation, no content policy
+
+CRB **shall not** provision isolation boundaries, validate
+workload outputs, or enforce content-level policy. Specifically:
+
+- **Isolation** is DPG's concern per `[FM-DPG-0002]`. CRB
+  dispatches to a host; the workload runs on that host in
+  whatever environment DPG (if invoked) or the host itself
+  provides. CRB **shall not** add an isolation surface.
+- **Output validation** is DPG's concern per `[FM-DPG-0004]`
+  (four mandatory gates) or PGE's concern per `[FM-PGE-0005]`
+  (Gate-2 enforcement). CRB records dispatch outcomes; it
+  **shall not** validate them.
+- **Content-level policy** is PGE's concern per `[FM-PGE-0005]`.
+  CRB applies *resource-routing* policy at dispatch time; PGE
+  applies *content* policy at intent and execution. The two are
+  distinct.
+
+A future CRB implementation that adds isolation, validation, or
+content-policy surfaces is non-conforming.
+
+*Verification: Inspection* — code review on any CRB
+implementation rejects additions to the isolation, validation, or
+content-policy surface; the boundary is structural, not advisory.
+
+#### `[FM-CRB-0008]` Substrate substitutability via Exit Test
+
+CRB's substrate substitutability **shall** be defined as passing
+the multi-profile conformance run against the Conformance Profile
+seams per §5.7.1. The contract — classification taxonomy + policy
+function shape per `[FM-CRB-0003]` + inventory schema per
+`[FM-CRB-0004]` — **shall** hold across substrate change.
+
+The accelerator-runtime seam's substitutability is load-bearing:
+the taxonomy's `gpu_bound` is the **accelerator-compute
+capability**, not a CUDA lock-in. A conforming `gpu_bound`
+workload **shall** be satisfiable by any conforming accelerator
+runtime on an eligible host (CUDA, ROCm, Vulkan compute, oneAPI,
+Apple MPS for the `mps_bound` sub-class). Out-of-set runtimes
+**shall not** be claimed supported; extension requires the
+argued-case discipline per `[FM-INV-0003.2]` and a conformance-
+suite extension.
+
+The broker implementation **shall not** prematurely adopt
+distributed-scheduler machinery (Nomad / Slurm / Kubernetes)
+without substrate-substitutability validation against the test
+set.
+
+*Verification: Conformance-test* — the multi-profile harness
+runs the same dispatch battery (classification → expected
+eligible-host set, `policy_no_match` on no capacity) across every
+conformance-claimed scheduling backend; a `gpu_bound` workload
+**shall** dispatch and account correctly across ≥ 2 accelerator
+families on hosts that carry them.
+
+#### `[FM-CRB-0009]` DPG seam — isolation-tier as eligibility input
+
+When a workload requires both CRB and DPG, the DPG-side
+isolation-tier requirement **shall** feed CRB's eligibility
+filter as an input dimension. The dependency direction is
+DPG-isolation-requirement → CRB-eligibility-input — CRB never
+provisions isolation; DPG never routes by host class.
+
+Concretely: an execution requesting a Tier-0 isolation substrate
+(e.g., GPU-passthrough microVM per `[FM-DPG-0002]` properties +
+the Tier-0 substrate row of the DPG Conformance Profile) **shall
+constrain** the CRB eligibility filter to hosts whose
+`available_runtimes` and hardware properties satisfy the Tier-0
+substrate's host requirements. Symmetrically, the CRB-selected
+target host's available substrate set constrains the isolation
+tiers DPG can provision; a host without `/dev/kvm` excludes
+microVM-class isolation tiers.
+
+CRB **shall** treat isolation-tier satisfaction as an explicit
+validation step on the selected host, not as an implicit
+consequence of the eligibility filter. Before emitting
+`crb.dispatch_started`, the broker **shall** verify the selected
+host satisfies the workload's declared isolation-tier
+requirement; a host that passes the eligibility filter but fails
+the validation step (e.g., because the host's substrate set
+changed between policy evaluation and dispatch) **shall** cause
+the broker to re-evaluate eligibility or emit
+`crb.policy_no_match`. This makes the eligibility-filter
+assumption a checked invariant at the dispatch boundary, not a
+trust-the-filter shortcut.
+
+The composition is **at decision time**, not at the *concern*
+level: the two pillars compose per workload, neither subsumes
+the other.
+
+*Verification: Conformance-test* — the harness submits a
+workload requiring a Tier-0 DPG isolation substrate; asserts CRB
+filters to hosts that can run the substrate; asserts a host
+unable to run the substrate is rejected at eligibility; mutates
+the selected host's substrate set between eligibility evaluation
+and dispatch and asserts the explicit-validation step catches
+the divergence and emits `crb.policy_no_match` rather than
+proceeding; asserts the composition is logged in the dispatch-
+decision audit.
+
+#### `[FM-CRB-0010]` Operational-state transitional clause
+
+The CRB broker daemon is **design-stage at this Standard's
+publication**. The operational role today is played by operator
+and agent convention recorded in the deployment's standing
+documentation; the daemon is the build target. A deployment
+**may** operate under the convention pattern as a recognized
+**transitional deviation** until the broker daemon is built and
+declared operational.
+
+The transitional deviation **shall**:
+
+1. Be registered in Appendix F with explicit sunset condition:
+   "CRB broker daemon operational per `[FM-CRB-0001]` /
+   `[FM-CRB-0003]` / `[FM-CRB-0005]` — codified policy applied
+   to dispatch requests via IBX PCT, broker identity authorizing
+   decisions, `crb.*` audit emission to ACT."
+2. Emit a divergence event to ACT per `[FM-INV-0005.2]` with
+   `divergence_type = "crb-codified-by-convention"` per
+   `[FM-PGE-0011]` discriminator (canonical emitter: PGE, via the
+   policy that classifies convention-period dispatch as non-CRB-
+   daemon-conformant) for every dispatch decision made under the
+   convention.
+3. Be reviewed at each major Standard release; deviation expiry
+   **shall** be enforced when the broker daemon is declared
+   operational. Mirror of the `[FM-IBX-0010]` / `[FM-IAM-0014]` /
+   `[FM-PGE-0005]` Gate-2 / `[FM-DPG-0013]` transitional pattern.
+
+A deployment operating under the convention deviation **shall
+not** be claimed conformant to `[FM-CRB-0001]` / `[FM-CRB-0003]`
+/ `[FM-CRB-0005]` on the basis of convention — it is conformant
+to the deviation clause only.
+
+*Verification (operational): Conformance-test* — when the broker
+daemon is built, the multi-profile harness exercises the full
+dispatch lifecycle and asserts the `crb.*` event sequence is
+emitted per `[FM-CRB-0012]`.
+*Verification (deviation period): Inspection of deviation
+registry* — deviation entry present in Appendix F with sunset
+condition; divergence events emitted per item 2 above.
+
+#### `[FM-CRB-0011]` Convention-codification fidelity
+
+When the broker daemon is built, its initial dispatch policy
+**shall** match the deployment's codified-by-convention dispatch
+behavior at the moment of daemon activation. The deployment
+operator **shall** verify the parity (for each workload class
+the convention recognizes, the daemon's selected host **shall**
+match operator/agent convention) before the
+`[FM-CRB-0010]` transitional deviation is sunset.
+
+Subsequent policy evolution (capacity additions, new workload
+classes, host removals) follows the deployment-architecture
+governance for inventory + policy changes; surprise dispatch
+behavior on daemon activation is a non-conformance against this
+requirement, not a feature.
+
+*Verification: Conformance-test* — the harness exercises a
+parity battery: for each workload class in the deployment's
+convention, the daemon's selected host **shall** match the
+convention; a mismatch blocks deviation sunset.
+
+#### `[FM-CRB-0012]` Audit emission via ACT
+
+CRB **shall** emit the following `crb.*` events to ACT via the
+`[FM-ACT-0009]` ack contract, drawn from the `[FM-ACT-0004]`
+event-type taxonomy:
+
+- `crb.dispatch_requested` — emitted on dispatch request
+  acceptance after submission validation, before policy
+  evaluation.
+- `crb.policy_evaluated` — emitted on policy completion;
+  payload includes classification, constraint set, eligible-host
+  set, selected target.
+- `crb.dispatch_started` — emitted when the broker initiates
+  workload execution on the target host.
+- `crb.dispatch_completed` — emitted on workload completion;
+  payload includes outcome, resource usage, execution duration.
+- `crb.policy_no_match` — emitted when no host satisfies the
+  constraints; the workload remains in queue.
+- `crb.dispatch_request_rejected` — emitted on submission
+  refusal (authorization failure, malformed request, unknown
+  class).
+
+Per `[FM-ACT-0009]`, a dispatch **shall not** be considered
+complete until ACT acknowledges the corresponding
+`crb.dispatch_completed` (or terminal) event; lack-of-ack or
+negative-ack **shall** cause the operation to fail strict.
+
+Every dispatch **shall** have exactly one terminal event in ACT
+(`crb.dispatch_completed`, `crb.policy_no_match` upon queue
+exit, or `crb.dispatch_request_rejected`); a dispatch with no
+terminal event is a no-bypass violation per `[FM-INV-0001]`.
+
+*Verification: Conformance-test* — the harness exercises each
+event type on the corresponding event class; asserts the ACT ack
+contract is honored; asserts every dispatch has exactly one
+terminal event.
+
+#### `[FM-CRB-0013]` CRB telemetry emission
+
+CRB **shall** emit OTLP-format traces, metrics, and logs for its
+own operational observability. Span names **shall** follow the
+`mesh.crb.*` namespace (e.g., `mesh.crb.dispatch.request`,
+`mesh.crb.policy.evaluate`, `mesh.crb.dispatch.start`,
+`mesh.crb.dispatch.complete`).
+
+The required metric set **shall** include at minimum:
+`dispatch.latency_ms` (histogram),
+`dispatch.rate` (counter, labeled by outcome),
+`policy.no_match_total` (counter — capacity / inventory-gap
+signal), `host.utilization` (gauge, per-host per-class — the
+load-bearing fleet-balance signal),
+`queue.depth` (gauge, per workload class).
+
+The operational telemetry stream (`mesh.crb.*`) is distinct from
+the audit-event stream (`crb.*` per `[FM-CRB-0012]`). The two
+flow to different sinks: operational OTLP for `mesh.crb.*`; ACT
+event store for `crb.*` audit.
+
+*Verification: Conformance-test* — the harness invokes
+representative CRB operations and asserts emission of the
+required span / metric / log records to the operational OTLP
+sink with the `mesh.crb.*` namespace.
+
+### §5.7.1 CRB Conformance Profile
+
+The CRB pillar's substrate substitutability claim covers exactly
+the rows in this Conformance Profile. CRB is the Reasoner
+archetype and therefore has **no claim-queue substrate seam**
+(distinct from worker-pool pillars like IBX / DPG).
+
+| Seam | Bound requirement(s) | Sovereign reference (version floor) | Supported alternatives | Test Set |
+|------|---------------------|-------------------------------------|------------------------|----------|
+| Scheduling / dispatch backend | `[FM-CRB-0001]`, `[FM-CRB-0003]`, `[FM-CRB-0008]` | Custom mesh broker daemon over DAC routing + per-host runtime — design-stage; operational under the `[FM-CRB-0010]` deviation today | Nomad 1.7+, Slurm 23+, Kubernetes 1.29+ — broker becomes a job emitter / controller against the same CRB contract | `crb-dispatch-backend-v1` |
+| Accelerator runtime (`gpu_bound` / `mps_bound` target) | `[FM-CRB-0002]`, `[FM-CRB-0008]` | NVIDIA CUDA 12.x (`gpu_bound`) + Apple MPS (`mps_bound` sub-class) | ROCm 6+ (AMD), Vulkan compute, oneAPI (Intel) — each satisfying the accelerator-compute capability on a host that carries it | `crb-accelerator-runtime-v1` |
+| Telemetry sink | `[FM-CRB-0013]` | OTLP-on-the-wire (any OTLP-compatible backend) | Grafana/Prometheus/Tempo, Azure Monitor, Datadog, OCI Monitoring | `crb-telemetry-v1` |
+
+Out-of-set substrates **shall not** be claimed supported.
+Extending the profile requires the argued-case discipline per
+`[FM-INV-0003.2]` AND a conformance-suite extension running the
+full dispatch battery (classification → expected eligible-host
+set, `policy_no_match` on no capacity, accelerator-runtime
+accounting per family) against the new substrate before merging.
 
 ### §5.8 MCC — Mesh Control Center
 
