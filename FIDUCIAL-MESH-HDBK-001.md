@@ -5,7 +5,7 @@ status: draft
 version: v0.1
 date: 2026-06-09
 authors:
-  - watson
+  - "Fiducial Mesh Group"
 companion_to: FIDUCIAL-MESH-STD-001.md
 references:
   - FIDUCIAL-MESH-STD-001.md

@@ -4,3 +4,4 @@ build/
 *.toc
 *.out
 *.pdf
+.DS_Store
