@@ -1,21 +1,38 @@
 ---
-title: "Fiducial Mesh Specification"
+title: "FIDUCIAL-MESH-HDBK-001 — Fiducial Mesh Handbook"
+doc_type: handbook
 status: draft
 version: v0.1
-date: 2026-06-08
+date: 2026-06-09
 authors:
   - watson
+companion_to: FIDUCIAL-MESH-STD-001.md
 references:
+  - FIDUCIAL-MESH-STD-001.md
   - https://github.com/fiducial-mesh/devel/blob/main/spec-drafts/MANIFESTO.md
-  - https://github.com/fiducial-mesh/devel/blob/main/spec-drafts/MESH-SPEC.md
-  - https://github.com/fiducial-mesh/devel/blob/main/spec-drafts/IBX-SPEC.md
   - https://github.com/fiducial-mesh/devel/blob/main/spec-drafts/PILLAR-NAMES.md
 ---
 
-# Fiducial Mesh Specification
+# FIDUCIAL-MESH-HDBK-001 — Fiducial Mesh Handbook
 
-> Single-document specification for Fiducial Mesh. The mesh is described
-> end-to-end in this file; pillar files and design notes are folded in.
+> Companion handbook to `FIDUCIAL-MESH-STD-001`. This document carries
+> the rationale, philosophy, worked examples, and dialectical narrative
+> behind the mesh's normative requirements. **The STD is what gets
+> audited; this handbook is what gets read.**
+>
+> Per the STD/HDBK separation: **this handbook cites STD requirement IDs
+> by number; it never restates them.** Where this handbook discusses
+> `[FM-INV-0001]` (no-bypass), the normative statement lives in
+> STD-001 §4.1; this handbook explains the reasoning, the precedent,
+> the operational consequence — not the requirement itself. Two documents
+> that cross-restate drift; one source of truth prevents that.
+>
+> **Migration note:** this document was renamed from `FIDUCIAL-MESH-SPEC.md`
+> on 2026-06-09 as part of the STD/HDBK restructure. Existing chapter
+> content remains operative for material not yet migrated into STD-001;
+> chapters are being reorganized into proper handbook structure (intro,
+> rationale per invariant, dogfood story, dialectical narrative, worked
+> examples) in subsequent commits.
 
 ## Table of Contents
 
