@@ -486,6 +486,37 @@ initialization (parallel to `vault operator init`). From that point on,
 quorum-gated operations — including modifications to quorum
 membership itself — require existing quorum.
 
+**Platform enforcement floor is authoritative and independent of plugin
+self-declaration.** A plugin's `.pcs/plugin.pcs.json` policy block
+(§2.4) may *declare* the operations it considers `judge_gated` or
+`quorum_required`, but the **platform's enforcement is not bounded by
+the declaration.** PGE's judge-gate and §1.7.3's quorum-class apply to
+every operation the platform classifies as catastrophic-class,
+regardless of whether the plugin declares it. **Absence of declaration
+is not absence of constraint.** Three corollaries follow:
+
+- **Default-deny on declaration omission.** A plugin that does not
+  declare a `judge_gates` or `quorum_required` field does not thereby
+  acquire permission to perform those operations without the platform's
+  gates. Absent ≠ safe; absent = unspecified, and the platform applies
+  its floor.
+- **Divergence is a signal.** When a plugin's declared policy diverges
+  from the platform's enforcement (plugin claims an op needs no judge
+  gate; platform enforces one anyway), the divergence is logged to ACT
+  as a discrete audit event. The plugin author and the operator both
+  receive the signal; over time, repeated divergence is a CLCA
+  trigger.
+- **Granularity covers all dangerous operations.** Catastrophic-class
+  is the headline list (§1.7.3); judge-gating and quorum-enforcement
+  cover the broader surface of state-affecting operations PGE policy
+  classifies as requiring approval — not just the named catastrophic
+  set.
+
+This is capability-minimization (§1.7.2) applied recursively to the
+policy substrate itself: the plugin's declaration is a *hint to
+authors and consumers*, not an *enforcement contract*. The platform
+floor cannot be opted out of by omission, weakening, or silence.
+
 ---
 
 ## 1.8 How to read the rest of this spec
@@ -647,6 +678,14 @@ audit; one place to deny. The pattern is borrowed from OpenAI Codex's
 serves capability minimization better than a surface split across PGE
 policy + DPG sandbox config + plugin manifest. Concrete schema lives
 in Appendix E.
+
+**The `policy:` block is a declaration, not an enforcement contract.**
+Per §1.7.3, the platform enforcement floor is authoritative and
+independent of plugin self-declaration. A plugin cannot opt out of
+judge-gates or quorum-class controls by omitting the corresponding
+field — absent ≠ safe. PGE applies its floor regardless; divergence
+between plugin declaration and platform enforcement is logged to ACT
+as a CLCA signal.
 
 ## 2.5 Plugin portability across surfaces
 
@@ -1008,19 +1047,13 @@ via standard interfaces. Publishing rights to namespaces are
 IAM-scoped — only the prefix-reservation signing identity can publish
 under that namespace.
 
-**FIPS-Day-1 discipline (substrate requirement for regulated
-deployments).** When the target deployment includes regulated regimes
-that require FIPS-validated cryptography (FedRAMP-High, IL5/IL6,
-HIPAA-hardened, DoD/SCIF — see §4.8), the IAM substrate must run in
-**FIPS-validated mode from initial provisioning**. Vault PKI, TLS
-endpoints, signing engines, and the credential authority must all use
-FIPS 140-3 (or 140-2 where transitional) validated cryptographic
-modules. FIPS-mode cannot be retrofitted onto a substrate that grew up
-non-FIPS; the validated crypto path must be the substrate's default
-from `vault operator init` onward. This is a substrate-implementation
-discipline, not a policy overlay — the overlay encodes the NIST
-controls; the crypto primitives underneath have to be FIPS by
-construction.
+**FIPS-Day-1 discipline.** For deployments targeting FIPS-regulated
+regimes, the IAM substrate (Vault PKI, TLS endpoints, signing engines,
+credential authority) must run FIPS-validated mode from initial
+provisioning. **Canonical statement of the requirement and its
+rationale lives at §4.2.** This is a substrate-implementation
+discipline, not a policy overlay — the validated crypto path must be
+the substrate's default from `vault operator init` onward.
 
 ## 3.5 PGE — Policy Guardrail Engine
 
