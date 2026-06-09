@@ -6,10 +6,10 @@ date: 2026-06-08
 authors:
   - watson
 references:
-  - planning/MANIFESTO.md
-  - planning/MESH-SPEC.md
-  - planning/IBX-SPEC.md
-  - planning/PILLAR-NAMES.md
+  - https://github.com/fiducial-mesh/devel/blob/main/spec-drafts/MANIFESTO.md
+  - https://github.com/fiducial-mesh/devel/blob/main/spec-drafts/MESH-SPEC.md
+  - https://github.com/fiducial-mesh/devel/blob/main/spec-drafts/IBX-SPEC.md
+  - https://github.com/fiducial-mesh/devel/blob/main/spec-drafts/PILLAR-NAMES.md
 ---
 
 # Fiducial Mesh Specification
@@ -50,7 +50,7 @@ The substrate pillars PCS orchestrates. Each pillar gets a section
 explaining what it does, its substrate matrix (the seam contract —
 customer chooses among supported substrates), its telemetry contract,
 and how PCS reaches into it via plugins. Order (canonical short codes
-per `planning/PILLAR-NAMES.md`): **IBX** (Inbox Exchange — message
+per `https://github.com/fiducial-mesh/devel/blob/main/spec-drafts/PILLAR-NAMES.md`): **IBX** (Inbox Exchange — message
 routing), **AKB** (Agent Knowledge Base — memory), **ACT** (Agent
 Cognitive Telemetry — observation), **IAM** (Identity & Access —
 foundational), **PGE** (Policy Guardrail Engine — deterministic
@@ -82,7 +82,7 @@ Reference material: glossary, language map per pillar, conformance
 criteria, the five mesh-internal namespaces (deployment / configuration /
 operations / administration / diagnostics), the PCS plugin manifest
 reference, cross-pillar binding matrix, and citation list back to the
-working notes (which remain in `planning/` and `devel/spec-drafts/`
+working notes (which remain in `https://github.com/fiducial-mesh/devel/blob/main/spec-drafts/` and `devel/spec-drafts/`
 for provenance).
 
 ---
@@ -272,7 +272,7 @@ The language map per pillar is enumerated in Appendix B.
 ## 1.6 The eight pillars + four planes
 
 The mesh organizes eight pillars into four planes (see
-`planning/diagrams/mesh_architecture_with_identity_and_arca.svg` for
+`https://github.com/fiducial-mesh/devel/blob/main/spec-drafts/diagrams/mesh_architecture_with_identity_and_arca.svg` for
 the visual contract):
 
 ```
@@ -371,7 +371,7 @@ theme:
 
 **Working notes preserved for provenance** — design dialogue, AIR
 reports, draft material that produced this spec — remain in
-`planning/` and `devel/spec-drafts/` in the spec and devel repos
+`https://github.com/fiducial-mesh/devel/blob/main/spec-drafts/` and `devel/spec-drafts/` in the spec and devel repos
 respectively. They are not part of the canon; this single spec is.
 
 ---
@@ -745,7 +745,7 @@ that's why PCT lives in IBX rather than expanding PCS scope.
 
 **Status**: POC-in-production today (`agent-inbox-mcp` server +
 `inbox-ui` Wails desktop app + `messages.inbox` ClickHouse table).
-Formal spec at `planning/IBX-SPEC.md`.
+Formal spec at `https://github.com/fiducial-mesh/devel/blob/main/spec-drafts/IBX-SPEC.md`.
 
 **Substrate matrix:**
 
@@ -772,7 +772,7 @@ substrate-trap-aware retrieval prevents the vector substrate (physics-
 blind) from surfacing dead-end content as candidate solutions.
 
 **Status**: built at `KI7MT/akb`; DDL + ingest + akb-mcp server +
-Tier-0 generator green. Formal spec at `planning/AKB-SPEC.md`.
+Tier-0 generator green. Formal spec at `https://github.com/fiducial-mesh/devel/blob/main/spec-drafts/AKB-SPEC.md`.
 
 **Substrate matrix:**
 
@@ -796,7 +796,7 @@ nothing flows back out except via curator review. ACT is what makes
 non-repudiation, per-session forensics, regulatory compliance, and the
 dialectical-engine evidence trail mechanically possible.
 
-**Status**: spec validated at `planning/ACT-SPEC.md`; reference
+**Status**: spec validated at `https://github.com/fiducial-mesh/devel/blob/main/spec-drafts/ACT-SPEC.md`; reference
 implementation pending.
 
 **Substrate matrix:**
@@ -832,7 +832,7 @@ the mesh moves agents away from.
 lifecycle audit, MCP surface, principal-type stamp, mint, suspend /
 resume / terminate, authz-context read contract for PGE, partial-mint
 reconciliation, 20/20 tests green). ARCA not yet built. Formal spec
-at `planning/IAM-CORE-SPEC.md`.
+at `https://github.com/fiducial-mesh/devel/blob/main/spec-drafts/IAM-CORE-SPEC.md`.
 
 **Substrate matrix:**
 
@@ -1220,7 +1220,7 @@ canon.
 
 ## Appendix C — Conformance criteria
 
-Per `planning/PILLAR-SPEC-TEMPLATE.md` v1.1, every pillar spec
+Per `https://github.com/fiducial-mesh/devel/blob/main/spec-drafts/PILLAR-SPEC-TEMPLATE.md` v1.1, every pillar spec
 satisfies six non-negotiables. PCS plugins inherit the analogous
 discipline through the tiered validation harness (§2.7).
 
@@ -1342,7 +1342,7 @@ How PCS workflow execution touches each pillar:
 Design dialogue, AIR reports, draft material that produced this spec
 remain in:
 
-- `fiducial-mesh/spec/planning/` — the working drafts and design notes
+- `fiducial-mesh/devel/spec-drafts/` — the working drafts and design notes
   in the spec repo (kept for provenance; not part of the canon)
 - `fiducial-mesh/devel/spec-drafts/` — the devel repo's spec-drafts
   area (when populated)
@@ -1351,19 +1351,19 @@ Notable design-trajectory documents:
 
 | Document | What it captured |
 |----------|------------------|
-| `planning/MANIFESTO.md` | Design drivers from operational practice |
-| `planning/DESIGN-PHILOSOPHY.md` | The capability/constraint duality |
-| `planning/TECHNICAL-OVERVIEW.md` | External-facing architecture summary |
-| `planning/IDENTITY-PILLAR-DESIGN.md` | IAM foundational design |
-| `planning/CONCURRENCY-AND-ARCHETYPES.md` | Worker/reasoner/quorum archetypes |
-| `planning/PCS-PLATFORM-REDESIGN-NOTES.md` | The 2026-06-08 PCS redesign conclusions doc |
-| `planning/LANGUAGE-POLICY-AND-CANON-CLEANUP-2026-06-08.md` | The consolidated language-policy + C#-purge + categorization plan |
+| `https://github.com/fiducial-mesh/devel/blob/main/spec-drafts/MANIFESTO.md` | Design drivers from operational practice |
+| `https://github.com/fiducial-mesh/devel/blob/main/spec-drafts/DESIGN-PHILOSOPHY.md` | The capability/constraint duality |
+| `https://github.com/fiducial-mesh/devel/blob/main/spec-drafts/TECHNICAL-OVERVIEW.md` | External-facing architecture summary |
+| `https://github.com/fiducial-mesh/devel/blob/main/spec-drafts/IDENTITY-PILLAR-DESIGN.md` | IAM foundational design |
+| `https://github.com/fiducial-mesh/devel/blob/main/spec-drafts/CONCURRENCY-AND-ARCHETYPES.md` | Worker/reasoner/quorum archetypes |
+| `https://github.com/fiducial-mesh/devel/blob/main/spec-drafts/PCS-PLATFORM-REDESIGN-NOTES.md` | The 2026-06-08 PCS redesign conclusions doc |
+| `https://github.com/fiducial-mesh/devel/blob/main/spec-drafts/LANGUAGE-POLICY-AND-CANON-CLEANUP-2026-06-08.md` | The consolidated language-policy + C#-purge + categorization plan |
 | Per-pillar specs (`IBX-SPEC.md`, `IAM-CORE-SPEC.md`, `ACT-SPEC.md`, `PGE-SPEC.md`, `CRB-SPEC.md`, `DPG-SPEC.md`, `AKB-SPEC.md`, `MCC-SPEC.md`) | Full pillar detail; this consolidated spec folds the load-bearing material in |
 
 ---
 
 *End of Fiducial Mesh Specification v0.1.*
 
-Working notes preserved in `planning/` for provenance. The canonical
+Working notes preserved in `https://github.com/fiducial-mesh/devel/blob/main/spec-drafts/` for provenance. The canonical
 spec is this single document. As pillars evolve, this spec is updated
 in place — same single-doc shape, versioned in git.
