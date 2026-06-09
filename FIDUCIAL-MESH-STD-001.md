@@ -298,6 +298,49 @@ default to "allow." When in doubt, the platform **shall** halt.
 fail-strict condition (unreachable IAM, unverifiable credential,
 ambiguous authorization) and asserts halt-not-proceed.
 
+##### `[FM-INV-0002.1]` Fail-strict deadline
+
+Every fail-strict point that depends on an external acknowledgment
+(IAM identity-context lookup, ACT emission-confirmation per
+`[FM-ACT-0009]`, PGE policy decision per `[FM-PGE-0008]`, any other
+cross-pillar verification that may not return in bounded time)
+**shall** be governed by a **fail-strict deadline** — a positive
+duration beyond which absence-of-ack is treated as negative-ack and
+the operation halts per `[FM-INV-0002]`.
+
+The deadline **shall** be operator-configurable per deployment with
+a documented default. Each requirement that invokes "the fail-strict
+deadline" anchors here.
+
+**Worker-pool safety constraint.** The fail-strict deadline **shall
+be strictly shorter** than the minimum worker-pool lease /
+visibility-timeout window any conformant pillar exposes — including
+but not limited to `[FM-IBX-0009]` claim-queue substrate lease and
+the worker-pool lease windows of any `[FM-IBX-0007]`-consuming pillar
+(DPG runners per `[FM-DPG-0007]`, future pillar workers). This
+constraint prevents the failure mode in which an upstream operation
+holds a worker-pool claim past the lease window while waiting for an
+external ack: the lease expires, the message is re-claimed by another
+worker, and the original ack-wait races the new execution producing
+duplicate work. Idempotency keys at the message layer guard the
+terminal-status transition but **do not** guard against the duplicate
+execution path; the deadline constraint is what makes the duplicate
+execution structurally impossible.
+
+A deployment whose declared deadline is greater than or equal to the
+minimum worker-pool lease window is non-conforming. Implementations
+**should** publish the resolved (deadline, min-lease-window) pair at
+deployment-attestation time per the §F.3 registry integrity
+requirements.
+
+*Verification: Static-check + Conformance-test* — Static-check
+verifies the deployment configuration declares a deadline strictly
+less than the minimum worker-pool lease window; Conformance-test
+exercises an external-ack point with injected delay greater than the
+deadline and asserts the operation halts (and that no duplicate
+execution occurs); exercises with delay just less than the deadline
+and asserts the operation completes normally.
+
 ### §4.2 Capability provisioning as primary defense
 
 #### `[FM-INV-0003]` Capability provisioning is the primary defense
@@ -412,10 +455,48 @@ configured window, all collected attestations **shall** expire and the
 quorum process **shall** restart. Stale attestations **shall not** be
 retained for later use beyond their declared window.
 
+**Time model + clock-skew tolerance.** Attestation timestamps span
+N independent identity holders on N independent hosts / HSMs;
+expiry evaluation **shall** therefore be governed by an explicit
+time model:
+
+1. Timestamps **shall** be issued against an **authenticated time
+   source** the deployment declares (e.g., a Roughtime or NTS-
+   authenticated network time service; the local HSM clock when
+   the holder operates from a hardware token). Wall-clock-only
+   attestation without a documented authenticated time source is
+   non-conforming for catastrophic-class operations.
+2. Expiry evaluation **shall** be performed at the **verifier
+   side** (the apply-side gate aggregating the K-of-N
+   attestations), not at the attester side; this prevents an
+   attester with a fast clock from emitting attestations that
+   appear pre-expired at the verifier.
+3. The verifier **shall** apply an **operator-configurable skew
+   tolerance** (default: 30 seconds) when comparing attester-
+   stamped expiry to verifier wall-clock. An attestation whose
+   declared expiry is within the tolerance window of verifier
+   wall-clock **shall** be treated as valid; expiry outside the
+   tolerance window is honored.
+4. Emergency revocation per `[FM-INV-0004.1]` (the fast-path
+   apply / lower threshold for revoke) **shall not** be blocked by
+   clock-skew misclassification — when the verifier observes an
+   apparent expiry that would block emergency revocation, the
+   skew tolerance applies asymmetrically (larger window on the
+   revoke side, default: 5 minutes) to keep emergency revocation
+   unblocked even under sustained skew.
+
+A deployment **shall** publish its declared time source + skew
+tolerance values as part of its attestation per the §F.3 registry
+integrity requirements.
+
 *Verification: Conformance-test* — the harness submits an attestation,
 advances clock past the window without reaching K-of-N, and asserts
 all attestations have expired and the operation cannot apply with the
-expired attestation set.
+expired attestation set; **injects clock skew at the attester side
+within the tolerance window and asserts the attestation is honored;
+injects skew exceeding the tolerance and asserts the attestation is
+rejected; exercises emergency revocation under sustained skew and
+asserts the asymmetric tolerance keeps the revoke path open**.
 
 ##### `[FM-INV-0004.3]` Role-typed quorum membership
 
@@ -466,7 +547,8 @@ all of the following:
 4. **The ceremony itself is a recorded ACT audit event** — timestamp,
    N value, K threshold, holder identity fingerprints (not shards),
    role assignments, and a ceremony attestation signed by each holder
-   are emitted to the ACT pillar as a single immutable record.
+   are emitted to the ACT pillar as a single immutable record, under
+   the **genesis event class** defined in `[FM-INV-0004.5]`.
 5. **From ceremony completion onward**, all subsequent modifications
    to quorum membership — including addition, removal, replacement,
    or rotation of members — **shall** themselves require existing
@@ -475,6 +557,74 @@ all of the following:
 *Verification: Inspection* — mesh-init record in ACT is reviewed for
 all five ceremony elements; absence of any element invalidates the
 bootstrap and requires re-ceremony.
+
+##### `[FM-INV-0004.5]` Genesis event class — bootstrap exemption from IAM-attributed audit
+
+A bounded set of **genesis events** **shall** be permitted to land in
+ACT without satisfying `[FM-ACT-0003]` IAM-`principal-id` attribution.
+The genesis-event class exists exclusively to make the mesh-init
+quorum-bootstrap ceremony per `[FM-INV-0004.4]` and the equivalent
+IAM-init ceremony (the initial ARCA root + Roster seeding) emittable
+to ACT without a circular dependency on the very identity system
+those ceremonies bring into existence.
+
+A genesis event **shall**:
+
+1. Carry an `event_class = "genesis"` attribute distinct from the
+   `[FM-ACT-0004]` event-type taxonomy's runtime event classes.
+2. Carry a `genesis_subtype` enumerated from a closed list defined
+   here: `mesh-init-quorum-bootstrap` (per `[FM-INV-0004.4]`),
+   `iam-init-arca-root` (initial ARCA root certificate ceremony),
+   `iam-init-roster-seed` (initial Roster substrate seeding bringing
+   IAM to operational state per `[FM-IAM-0014]`). Extension to this
+   closed list requires the argued-case discipline per
+   `[FM-INV-0003.2]` and is itself catastrophic-class per
+   `[FM-INV-0004]`.
+3. Be attested by **holder identity fingerprints** rather than IAM
+   principal-ids — the same K-of-N attestation that established the
+   ceremony per `[FM-INV-0004.4]` items 1–3.
+4. Seed the per-session cryptographic chain per `[FM-ACT-0005]` —
+   the first runtime session of any pillar after genesis
+   **shall** chain-link its initial event to the corresponding
+   genesis event's hash, making the genesis record the chain's
+   verifiable root anchor.
+5. Be the **only** ACT events permitted to bypass `[FM-ACT-0003]`
+   attribution. Once any genesis ceremony per item 2 completes,
+   subsequent events of that ceremony's class **shall not** be
+   emittable — the genesis class is one-shot per `genesis_subtype`
+   per deployment lifetime. A second `mesh-init-quorum-bootstrap`
+   event in the same deployment is non-conforming.
+6. Be classified catastrophic-class per `[FM-INV-0004]` — a re-
+   issuance ceremony for a previously-emitted genesis subtype (e.g.,
+   re-bootstrapping the IAM root after a compromise) **shall** itself
+   require K-of-N quorum per the existing membership, and the new
+   ceremony's event carries a `supersedes_genesis` reference to the
+   prior genesis record. Consumers querying "current genesis" for a
+   given `genesis_subtype` **shall** resolve to the **head of the
+   supersedes chain** (the most-recent genesis event for that subtype
+   with no further `supersedes_genesis` reference pointing to it);
+   superseded genesis events remain in ACT for audit but **shall
+   not** be honored as current. Replay/downgrade attacks against
+   the head resolution are blocked by item 6's quorum-gating of the
+   re-issuance ceremony itself — a forged supersede cannot be
+   appended without K-of-N attestation.
+
+ACT requirements that otherwise demand IAM-`principal-id` attribution
+or full chain-link predecessors (`[FM-ACT-0001]`, `[FM-ACT-0003]`,
+`[FM-ACT-0005]`, `[FM-ACT-0009]`) **shall** read this sub-clause as
+the sole carve-out — the carve-out is closed under the three
+enumerated subtypes and does not extend to any other class of event.
+
+*Verification: Inspection of mesh-init record + Conformance-test
+of post-init chain seeding* — Inspection verifies the genesis
+events for each enumerated subtype carry the holder-fingerprint
+attestation and are present in ACT before any IAM-attributed
+event; Conformance-test exercises the first runtime session after
+genesis and asserts its chain initial event references the
+genesis event's hash as predecessor; attempts to emit a second
+`mesh-init-quorum-bootstrap` event in the same deployment and
+asserts rejection; verifies any other class of unattributed
+event submission is rejected.
 
 ### §4.4 Platform enforcement floor
 
@@ -949,6 +1099,29 @@ any new actions; in-flight actions **shall** be evaluated per the
 Fail-strict invariant — under the suspended state the platform halts
 the principal's operations.
 
+**Worker-pool semantics on suspend.** When a suspended principal-id
+holds in-flight claims against a worker-pool per `[FM-IBX-0007]` /
+`[FM-IBX-0009]` (e.g., DPG runners per `[FM-DPG-0007]`, future
+worker pillars), "halt the principal's operations" is **claim-
+draining**, not claim-aborting: in-flight claims **shall** be
+permitted to run to their next safe checkpoint (existing
+mid-action-safe termination semantics per `[FM-IBX-0007]`) and
+**shall** emit their terminal audit events before claim release.
+**New claims shall not be acquired**; the suspend takes effect at
+the next claim-acquisition boundary. The per-session distinction
+per `[FM-IBX-0006]` is preserved — suspend halts *new* sessions
+of the principal, while existing sessions complete their current
+claim and then terminate without re-claiming.
+
+This rule prevents the failure mode in which suspend on a
+worker-pool identity aborts in-flight claims, which then re-enter
+the pool whose only conformant claimant is now suspended,
+producing a poison-queue from a deliberately reversible suspend.
+A poison-queue produced by claim-abort would persist past resume
+and may require operator-side intervention to drain — that's an
+irreversible-effect-from-reversible-operation pattern this rule
+explicitly prevents.
+
 Suspension **shall** be writable only by an identity holding the
 `iam.principal.suspend` scope; resume by an identity holding
 `iam.principal.resume`. The two scopes **may** be held by the same
@@ -958,7 +1131,12 @@ segregation-of-duties policy.
 *Verification: Conformance-test* — the harness exercises suspend on
 an active principal, asserts subsequent authentication attempts halt;
 exercises resume, asserts authentication succeeds again; verifies
-scope-required writes succeed only with the correct credential.
+scope-required writes succeed only with the correct credential;
+**exercises suspend on a worker-pool principal-id with in-flight
+claims and asserts (a) the in-flight claims complete and emit
+terminal audit events, (b) no new claims are acquired after suspend,
+(c) the pool's claim queue does not enter a poison-queue state, and
+(d) resume restores claim acquisition normally**.
 
 #### `[FM-IAM-0005]` Identity revocation — terminate
 
@@ -1216,16 +1394,28 @@ accepted:
   exercises `[FM-IAM-0007]` and `[FM-IAM-0008]` Conformance-tests
   and asserts both pass.
 - **Condition 4** (no principal on brief alone): the harness queries
-  ACT for active `pcs.policy.divergence` events of the
-  identity-by-brief class (per `[FM-INV-0005.2]` and the
-  `[FM-IBX-0010]` deviation emission), measured over the prior
-  operator-configured observation window (default: 7 days). **Zero
-  active divergence events of this class** is the mechanical
-  satisfaction of Condition 4; any non-zero count blocks
-  operational-state declaration. This is self-consistent: the
-  deviation registers its own divergence events; the operational-
-  state requirement uses the absence of those events as its sunset
-  signal.
+  ACT for active `pcs.policy.divergence` events satisfying **all
+  three** filter criteria — (a) `divergence_type =
+  "identity-by-brief"` **exactly** (not merely the
+  `pcs.policy.divergence` event class, which multiplexes seven
+  active `divergence_type` subtypes per the `[FM-PGE-0011]`
+  discriminator table); (b) emitted by the **canonical emitter
+  IBX** per `[FM-PGE-0011]`'s canonical-emitter rule (records from
+  other pillars are corroborative-only, not authoritative for this
+  query); (c) **active** (not yet sunset per the deviation's
+  Appendix F entry per §F.2 `status = active`). The query is
+  measured over the prior operator-configured observation window
+  (default: 7 days). **Zero events satisfying all three filters**
+  is the mechanical satisfaction of Condition 4; any non-zero
+  count blocks operational-state declaration. The class-level
+  filter (`event_type = pcs.policy.divergence` without the
+  `divergence_type` discriminator) is **not** the correct query —
+  using it traps the deployment in non-operational state forever
+  because sibling deviations (e.g., `gate-2-supplemental-only`,
+  `detect-layer-not-operational`) emit into the same event class
+  at steady state during their own deviation windows and would
+  otherwise hold the count non-zero independently of the
+  identity-by-brief signal this requirement actually depends on.
 
 Attestation layer (additive to Conformance-test): operational-state
 declaration **shall** additionally carry a written attestation by
@@ -1547,6 +1737,7 @@ when emitted by its canonical pillar:
 | `subagent-worktree-precursor` | **PGE (per `[FM-DPG-0013]` transitional clause)** | Workload uses the subagent-worktree pattern as a precursor; full DPG ephemeral-isolation contract not satisfied |
 | `crb-codified-by-convention` | **PGE (per `[FM-CRB-0010]` transitional clause)** | Dispatch decision made under operator/agent convention; CRB broker daemon not yet operational |
 | `mcc-partial-load` | **PGE (per `[FM-MCC-0012]` transitional clause)** | Dispatch targets a pillar not yet loaded into MCC as a plugin |
+| `akb-fail-open-on-irreversible-hook` | **AKB (per `[FM-AKB-0011]` infra-decision-side escalation)** | AKB retrieval failed-open on a `[FM-AKB-0010]` domain-2 hook (`git push`, `gh pr`, deploy, substrate config) — the irreversible-step moment a suppressed warning is most load-bearing |
 | (future subtypes) | Their respective canonical emitter pillar | Per the requirement that introduces the subtype |
 
 **Pattern note.** PGE is the canonical emitter for substrate-policy and
@@ -1556,6 +1747,41 @@ owns identity-state divergences (`identity-by-brief`). The pattern is
 IBX emits when the divergence is observable from a message-routing
 decision*. Future subtypes **shall** be assigned to the pillar whose
 decision surface first observes the divergence.
+
+**Fallback emitter — canonical emitter unloaded during deviation
+window.** A subset of `divergence_type` subtypes track exactly the
+deviation classes during which their canonical emitter may not be
+loaded — most notably `mcc-partial-load` per `[FM-MCC-0012]`, which
+explicitly contemplates a deployment where PGE itself has not yet
+been loaded into MCC as a plugin. To prevent the failure mode in
+which the divergence tracking a partial-load state is itself silently
+not emitted because its canonical emitter is part of the unloaded
+set, the **MCC frame** per `[FM-MCC-0001]` **shall** serve as
+**fallback emitter** for any `divergence_type` whose canonical
+emitter is unloaded during the deviation window. Specifically:
+
+- For `mcc-partial-load`, `gate-2-supplemental-only`,
+  `subagent-worktree-precursor`, `crb-codified-by-convention`, and
+  `detect-layer-not-operational`: when PGE is not loaded as an MCC
+  plugin and a dispatch / decision satisfying the divergence
+  condition is routed through MCC, the **MCC frame shall emit the
+  divergence event in PGE's stead**, marking the event
+  `emitter_role = "fallback"` and `originally_canonical = "PGE"`.
+- Fallback-emitted events satisfy `[FM-INV-0005.2]` audit
+  requirements identically to canonical-emitter events. Downstream
+  consumers (e.g., `[FM-IAM-0014]` Condition 4) **shall** treat
+  fallback-emitted events as equivalent to canonical-emitter events
+  for query purposes, with `emitter_role` available as an
+  observability attribute.
+- Once the canonical emitter (PGE) loads into MCC per the
+  `[FM-MCC-0006]` plugin contract, emission authority for the
+  subtype **shall** revert to PGE; the MCC frame **shall not**
+  continue to emit the subtype once PGE is loaded.
+
+The fallback emitter is bounded to deviation windows in which the
+canonical emitter is, by the very deviation being tracked,
+provably unloaded. Fallback emission **shall not** be exercised
+for any other reason.
 
 Other pillars **may** emit corroborative records of an out-of-subtype
 event for cross-pillar observability, but the canonical emitter for
@@ -1686,6 +1912,7 @@ evidence trail.
 - `[FM-INV-0001]` (No bypass) and `[FM-INV-0002]` (Fail strict) apply — ACT emission failure is fail-strict (the upstream operation halts) per the per-pillar audit-emission requirements.
 - ACT consumes events emitted by every other pillar: `[FM-IBX-0012]` (IBX status transitions), `[FM-IAM-0013]` (IAM state-affecting operations), `[FM-PGE-0008]` (PGE decisions), `[FM-PGE-0011]` (`pcs.policy.divergence` events with `divergence_type` discriminator), and per-pillar audit requirements in future pillars (§§5.5–5.8).
 - ACT is queried by `[FM-IAM-0014]` Condition 4 for `divergence_type = "identity-by-brief"` events to verify the IAM operational-state sunset.
+- ACT honors the **genesis event carve-out** per `[FM-INV-0004.5]` — the bounded class of mesh-init and IAM-init ceremony events that bypass `[FM-ACT-0003]` IAM-attribution exclusively for the purpose of bringing the identity system into existence; outside of this closed carve-out, no unattributed events are accepted.
 
 #### `[FM-ACT-0001]` Append-only event store
 
@@ -1756,10 +1983,23 @@ sessions of the same identity continue operating per
 `[FM-IAM-0004]`. Without session granularity, the only response
 unit is "the whole identity."
 
+**Genesis-event carve-out.** Events of the genesis class per
+`[FM-INV-0004.5]` are the sole exception to this attribution
+requirement — by construction they exist to bring the IAM
+`principal-id` system into existence and therefore cannot reference
+it. Genesis events carry holder-fingerprint attestation per
+`[FM-INV-0004.5]` item 3 in place of the `principal-id` /
+session-id pair. No other class of event **shall** be permitted to
+land in ACT without the full `principal-id` + session-id
+attribution.
+
 *Verification: Conformance-test* — the harness invokes operations
 from multiple sessions of the same identity and asserts each event
 in ACT carries distinct session identifiers; asserts session
-identifiers persist with their events through the storage layer.
+identifiers persist with their events through the storage layer;
+asserts every non-genesis event in the store carries a
+`principal-id`; asserts a non-genesis event submitted without
+attribution is rejected.
 
 #### `[FM-ACT-0004]` Event-type taxonomy
 
@@ -1799,11 +2039,39 @@ count or wall-clock interval); checkpoints aggregate the chain hash
 across the prior session window and **shall** be independently
 verifiable from substrate state without trust in ACT's runtime.
 
+**Genesis-event chain seeding.** The first runtime session of any
+pillar after mesh init **shall** chain-link its initial event to
+the corresponding genesis event's hash per `[FM-INV-0004.5]` item
+4 — the genesis event is the verifiable root anchor of the chain.
+This is the sole permitted predecessor that is itself
+unattributed; subsequent links require full attribution per
+`[FM-ACT-0003]`. A chain that does not trace back to a genesis-
+event anchor for its initial link is non-conforming.
+
+**Retention-boundary re-anchoring.** When the `[FM-ACT-0011]`
+retention-expiration ceremony removes a chain predecessor, the
+ceremony's own `act.retention.expired` event **shall** serve as
+the **new anchor** for survivor events whose immediate predecessor
+was expired. The `act.retention.expired` event itself **shall**
+record the hash of the most-recent surviving chain-checkpoint at
+the expiration boundary, so the chain remains independently
+verifiable up-to and from the boundary with a documented
+discontinuity at the boundary record. Survivor events **shall not**
+rewrite their hash-link fields in place; the re-anchoring is
+expressed by the chain-verification routine treating
+`act.retention.expired` events as valid predecessors with the
+boundary semantics. The same re-anchoring discipline applies at
+the `[FM-ACT-0010]` cold-storage tier boundary when implemented.
+
 *Verification: Static-check + Conformance-test* — Static-check
 verifies hash-chain field presence in the event schema; the harness
 constructs a tampered event in storage (e.g., by direct substrate
 write outside the ACT API) and asserts chain re-verification detects
-the tampering at the next checkpoint.
+the tampering at the next checkpoint; verifies the first runtime
+event after genesis chain-links to the genesis hash; exercises the
+`[FM-ACT-0011]` ceremony on a chain-bearing session and asserts
+chain re-verification across the expiration boundary passes via the
+`act.retention.expired` re-anchor.
 
 #### `[FM-ACT-0006]` Hash algorithm policy
 
@@ -2324,11 +2592,58 @@ operations (promote, curate, ingest, bootstrap, tier0-build)
 **shall** fail strict per `[FM-INV-0002]` — silent state mutation
 on substrate failure is non-conforming.
 
+**Infra-decision-side fail-open escalation.** A fail-open
+retrieval triggered by an `[FM-AKB-0010]` **infra-decision-side**
+hook (domain 2: `git push`, `gh pr create` / `gh pr review`,
+deploy commands, substrate config edits — the irreversible-step
+hooks) is structurally distinguishable from a fail-open
+retrieval triggered by an explicit `akb_query` or a code-author-
+side hook (domain 1: edits, commits, plugin invocations). The
+infra-decision-side fail-open occurs at the exact moment a
+known-dead-end warning or AIR would be most load-bearing, and an
+adversary who can induce fail-open (degrading the embedding
+service, partitioning the substrate) at that moment silently
+suppresses the warning. A `status` field returned to the agent
+is necessary but not sufficient against this attack — nothing in
+the per-call contract requires the agent to escalate on a
+non-empty status.
+
+To close the suppression-oracle path, every fail-open retrieval
+triggered by an `[FM-AKB-0010]` domain-2 hook **shall**:
+
+1. Emit a `pcs.policy.divergence` event to ACT per
+   `[FM-INV-0005.2]` with `divergence_type = "akb-fail-open-on-
+   irreversible-hook"` per `[FM-PGE-0011]` discriminator
+   (canonical emitter: AKB, in line with the pattern note's
+   "first observes the divergence" rule — AKB observes the
+   fail-open synchronously). The event payload **shall** include
+   the triggering hook kind, the principal-id, and the
+   unavailability cause from the `status` field.
+2. Be classified by PGE policy as a **soft gate** on the
+   irreversible action — the operator (or an operator-
+   configurable agent policy) **shall** acknowledge the fail-open
+   before the action proceeds. The default operator policy
+   **shall** require explicit acknowledgement; a deployment that
+   permits silent proceed under fail-open **shall** be classified
+   as operating under a recognized deviation requiring its own
+   Appendix F entry per §F.2.
+
+Routine `akb_query` calls and `[FM-AKB-0010]` domain-1 (code-
+author-side) hook fail-opens remain governed by the base
+fail-open behavior in the prior paragraphs — no escalation, no
+divergence event, no soft gate. Scoping the escalation to
+domain 2 keeps the cost of fail-open proportional to the
+reversibility cost of the action it precedes.
+
 *Verification: Conformance-test* — the harness induces retrieval
 substrate unavailability and asserts queries return empty results
 with a non-empty status field; induces state-affecting-path
 unavailability and asserts the operation fails strict per
-`[FM-INV-0002]`.
+`[FM-INV-0002]`; **induces fail-open at an `[FM-AKB-0010]`
+domain-2 hook trigger and asserts the divergence event is emitted
+to ACT with the correct `divergence_type` AND that the
+irreversible action is gated pending acknowledgement under the
+default operator policy**.
 
 #### `[FM-AKB-0012]` AIRs as Tier-1 corpus; security AIRs excluded
 
@@ -2494,7 +2809,21 @@ DPG-conformant and **shall not** be claimed supported.
 1. **Single-use creation and destruction.** The boundary is
    created for one execution, used, and destroyed. No state
    persists across executions in the substrate; two consecutive
-   executions in the same runner see fresh boundaries.
+   executions in the same runner see fresh boundaries. **Device
+   memory on any accelerator the execution touched** (e.g., GPU
+   VRAM exposed to the execution per `[FM-DPG-0010]` CUDA-class
+   workloads on `gpu_bound` / `mps_bound` hosts per
+   `[FM-CRB-0009]`) **shall** be explicitly scrubbed at boundary
+   teardown — uncleared accelerator memory is gross state
+   persistence, not a micro-arch side channel, and is therefore
+   in scope at the contract layer. For cross-trust-tier workloads
+   sharing a physical accelerator across executions of different
+   tenants or trust levels, a Tier-0 substrate (separate-kernel
+   per execution, e.g., GPU-passthrough microVM) **shall** be
+   selected per `[FM-CRB-0009]`'s isolation-tier-as-eligibility-
+   input contract; the accelerator-memory scrub requirement does
+   not by itself satisfy cross-tenant isolation guarantees that
+   require kernel-level separation.
 2. **Filesystem isolation.** The boundary has its own filesystem
    view. Reads from outside the boundary are permitted only via
    explicit input declarations in the execution request; writes
@@ -2529,8 +2858,13 @@ Conformance Profile.
 *Verification: Conformance-test* — the harness runs the adversarial
 containment battery (fork-bomb containment, unauthorized-egress
 containment, out-of-boundary-write containment, privilege-escalation
-containment, persistent-state containment) against every
-conformance-claimed substrate; asserts every attempt is contained.
+containment, persistent-state containment, **accelerator-memory
+residue containment**) against every conformance-claimed substrate;
+asserts every attempt is contained. The accelerator-memory residue
+test runs an execution that writes a marker pattern to GPU VRAM,
+tears down the boundary, runs a second execution on the same
+physical accelerator, and asserts the marker pattern is not
+readable in the second execution's address space.
 
 #### `[FM-DPG-0003]` Single attested return channel
 
@@ -3498,20 +3832,44 @@ equivalent).
 
 The IAM auth-hook implementation **shall** be backed by a
 session-validation cache to bound per-call latency. The cache
-entry **shall not** outlive the IAM-declared session lifetime,
-and **shall** be invalidated by IAM revocation events per
-`[FM-IAM-0005]` — a `suspend` or `terminate` against the
-session's principal-id **shall** evict the corresponding cache
-entry before the next authenticated call lands. The cache is a
-latency optimization, not an extension mechanism for the IAM
-authorization decision.
+entry **shall not** outlive the IAM-declared session lifetime.
+The cache is a latency optimization, not an extension mechanism
+for the IAM authorization decision.
+
+**Identity-context-version revalidation (TOCTOU defense).** Each
+cache entry **shall** carry the `Identity-context version` (field
+6 of the identity context per `[FM-IAM-0011]`) of the
+principal-id at the moment the entry was populated. On every
+cache hit, the frame **shall** synchronously compare the cached
+version against the current `Identity-context version` for the
+principal-id as held by IAM; if the versions differ, the cache
+entry **shall** be evicted and the call **shall** re-authenticate
+through the full IAM auth hook before dispatch. `[FM-IAM-0005]`
+revocation operations (suspend / resume / terminate) increment
+the version for the affected principal-id per `[FM-IAM-0011]`
+items 3 + 6; the per-call version revalidation makes the cache
+entry's freshness a **synchronous check**, not an async guarantee
+against an inherently async revocation propagation channel.
+
+A previous wording of this requirement — "shall be invalidated by
+IAM revocation events… shall evict the corresponding cache entry
+before the next authenticated call lands" — described an
+unachievable happens-before guarantee against the async
+revocation channel; the per-call version check replaces that
+async-evict pattern with a synchronous-revalidate pattern that
+is implementable as written.
 
 *Verification: Conformance-test* — the harness submits calls
 with missing / invalid / denied credentials and asserts halt at
 the frame boundary with the corresponding auth-denied event;
 asserts a successful call reaches the plugin handler with a
 populated authenticated context; verifies the cache layer does not
-extend session lifetime past the IAM-declared bound.
+extend session lifetime past the IAM-declared bound; **races a
+revocation against a cached-valid entry** — terminates a
+principal-id at T0, submits a call from the same principal-id at
+T0 + ε before any async propagation could complete, and asserts
+the version-revalidation evicts the cache entry and the call is
+denied at the frame boundary.
 
 #### `[FM-MCC-0004]` Centralized substrate handles
 
