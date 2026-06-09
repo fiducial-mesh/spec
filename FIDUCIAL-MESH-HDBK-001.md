@@ -120,11 +120,24 @@ whole.
 It is built for deployment on highly secure, on-premises customer
 infrastructure. Its purpose is to orchestrate, secure, and govern complex
 collaborations among multi-agent AI workforces while ensuring absolute
-data sovereignty and deterministic process control. The architecture is
-**air-gapped ready and exfiltration hostile** by construction, not by
-configuration — sovereignty is not just *where* the workloads run, it is
-whether the architecture can be operated without trust-bearing paths to
-a counterparty.
+data sovereignty and deterministic process control. **The mesh's own
+pillars** are **air-gapped ready and exfiltration hostile** by
+construction, not by configuration — pillar runtimes open no outbound
+paths the operator did not provision. Sovereignty is not just *where*
+the workloads run; it is whether the architecture can be operated
+without trust-bearing paths to a counterparty.
+
+The **agent-runtime / reasoning-model substrate** is a separate seam
+(§1.5.1) — vendor-hosted reasoning (Claude Code, Codex) is the
+operator's declared exception today, governed as a recognized
+deviation with the data-flow consequence stated explicitly. A
+genuinely air-gapped deployment runs sovereign local inference for
+the reasoning runtime; the lab already runs the doer-tier local fleet
+(Newton on 9975, Daina on the GPU host, Melody on M3). The "no
+outbound path" claim above is **about the mesh's pillars**, not about
+the agent-runtime substrate; conflating the two is the first thing a
+hostile auditor reads for, and the HDBK names the gap explicitly
+rather than glossing it.
 
 ## 1.2 The problem the mesh solves
 
@@ -362,6 +375,65 @@ C#-spine.
 
 The language map per pillar is enumerated in Appendix B.
 
+## 1.5.1 Model / reasoning-runtime substrate
+
+Language policy (§1.5) covers the substrate the *pillars* are written
+in. There is a separate, equally load-bearing substrate seam: the
+**reasoning-runtime** — the inference engine the agents themselves
+run on. This seam is parallel to the pillar's persistent-store seam
+or secret-store seam, and customers choose it the same way.
+
+**The honest current state.** The lab and most operational mesh
+sessions today route reasoning through **vendor-hosted models**
+(Claude Code, Codex). For those sessions, **prompts and working
+context — by definition the most sensitive content the mesh handles
+at session time — leave the sovereign boundary and reach the
+vendor**. The §1.1 air-gap claim covers the *mesh's pillars*; it
+does **not** cover the reasoning-runtime substrate. Saying so plainly
+is the honest baseline a regulated deployment evaluates against.
+
+**The sovereign reference.** The intended sovereign substrate for
+the reasoning runtime is **local inference** — a model that runs
+inside the customer's trust boundary, with no callback. The lab
+already operates the **doer-tier local fleet** (Newton on 9975, Daina
+on the GPU host, Melody on M3) as the sovereign reference for the
+doer agents; the escalation-tier (the cloud Opus / Codex agents that
+do this design work) remains vendor-hosted under a recognized
+deviation. A fully air-gapped deployment runs sovereign local
+inference across both tiers; the lab's split is itself the
+worked example of the transitional state.
+
+**The vendor-hosted reasoning-runtime is a recognized deviation,
+not the contract.** A deployment that operates with any vendor-
+hosted reasoning is **operating under a deviation** that **shall**:
+
+1. Be registered in Appendix F per §F.2 of the Standard with an
+   explicit sunset condition naming the operational point at which
+   the deployment migrates to local inference for that workload
+   class.
+2. Document the **data-flow consequence** — what content reaches the
+   vendor, under whose identity, with what retention, and what the
+   vendor's stated data-handling commitments are.
+3. Be reviewed at each major Standard release; deviation expiry
+   **shall** be enforced when the local-inference substrate is
+   declared operational for the affected workload class.
+
+A Standard-side requirement formalizing the **model substrate seam**
++ the divergence_type for vendor-hosted reasoning is queued as a
+companion STD change (it is not yet in the STD; this Handbook
+section is the rationale that the STD requirement will codify when
+landed). Until it lands, the deviation discipline above is the
+HDBK-level honest baseline; readers should not infer that the absence
+of a numbered requirement means the seam isn't real.
+
+**Why this matters more than language policy.** Language policy is
+implementation choice — the conformance test set is language-blind.
+The reasoning-runtime substrate is a *data-flow* choice; vendor-
+hosted reasoning IS data egress, regardless of how careful the
+prompt-engineering is. Hostile auditor day-one: *"You said
+air-gapped. Where does the model run?"* — and the honest answer is
+the one above.
+
 ## 1.6 The eight pillars + four planes
 
 The mesh organizes eight pillars into four planes (see
@@ -519,8 +591,12 @@ the capability out, not the policy in.
 
 The mesh already follows this principle implicitly at every pillar:
 
-- **Air-gap by construction** (§1.1) — we don't policy "agent can't
-  make outbound calls"; the outbound network path doesn't exist.
+- **Air-gap by construction** (§1.1) — the mesh's own pillars open
+  no outbound paths the operator did not provision; the policy
+  "agent can't make outbound calls" isn't needed because the path
+  isn't there to take. The reasoning-runtime substrate (§1.5.1) is
+  a separate seam handled by its own deviation discipline, not by
+  the pillar-side air-gap.
 - **C# purged from the canon** (§1.5) — we don't policy "no C# in
   production"; C# isn't provisioned as a target language.
 - **DPG ephemeral isolation** (§3.7) — we don't policy "execution
@@ -1139,11 +1215,17 @@ system. We ride the vendor's harness + R&D. Net-new is the plugin
 | MCC-UI | JS/TS SPA dashboard — observe, trigger known-good, approve gated ops (Judge surface), read AIR + telemetry. **No LLM loop in the browser.** |
 | MCC backend | Conventional Python web/orchestration backend. **NOT an AI system.** |
 
-**The AI gets built ZERO times for MCC.** Everything intelligent
-happens in the CLI surface where Claude Code or Codex is already
-running. MCC is a control surface over already-existing capabilities,
-not a new place to put intelligence. The existing Wails `inbox-ui`
-(Judge approve/reject app) is the MCC-UI approval-gate pane in embryo.
+**The AI gets built ZERO times for MCC.** Reasoning happens in the
+CLI surface where Claude Code or Codex is already running — which
+means today, for most operational sessions, that reasoning runs on
+the **vendor-hosted reasoning-runtime substrate** per the §1.5.1
+deviation discipline. MCC is a control surface over already-existing
+capabilities, not a new place to put intelligence. The existing
+Wails `inbox-ui` (Judge approve/reject app) is the MCC-UI
+approval-gate pane in embryo. *Migration to sovereign local
+inference for the doer tier is in progress per §1.5.1; the
+escalation tier remains vendor-hosted under the recognized
+deviation.*
 
 Governance rides Claude Code PreToolUse hooks — the seam already used
 by `subagent-guard.sh`. PGE/IAM enforcement at the hook layer. Tier-0
