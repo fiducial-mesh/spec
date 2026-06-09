@@ -210,6 +210,53 @@ is not replicating human governance — it is governing entities that are
 *more* capable than humans in exactly the dimensions where human limits
 were quietly doing safety work.
 
+### 1.3.1 Operating principle — *build to a spec, not spec to a build*
+
+The duality describes *what* the mesh constructs. The operating
+discipline that produces it is one sentence:
+
+> **Build to a spec, not spec to a build.**
+
+The naive failure mode in platform engineering is the inverse:
+implementation ships first, documentation is reverse-engineered from
+it, and that "spec" exists only to describe what the build already
+does. The resulting document is description, not contract — it has no
+authority to constrain a different implementation, no falsifiable
+claims a third party can verify, and no defense against drift because
+every change to the build is allowed to mutate the spec to match.
+
+The mesh inverts this. The Standard (`FIDUCIAL-MESH-STD-001`) is
+authored as authority: requirements precede implementation,
+implementations conform to requirements, and divergence between an
+implementation and the Standard is either fixed in the implementation
+or registered as a recognized deviation in Appendix F per §F.2 — never
+absorbed silently into a revised spec.
+
+The discipline has three operational consequences:
+
+- **The Verification line on every numbered requirement is the
+  blueprint for the conformance harness.** A build that passes the
+  per-requirement Verification tests is spec-conformant; a build that
+  doesn't is spec-divergent and produces either a rebuild target or an
+  argued-case / deviation entry. The harness is what makes the motto
+  more than aspiration.
+- **The Standard moves first.** When a new pattern is needed (a new
+  pillar, a new deviation class, a substrate matrix extension), the
+  spec changes first — through the argued-case discipline per
+  `[FM-INV-0003.2]` for capability extensions, or through the
+  catastrophic-class quorum path per `[FM-INV-0004]` for changes to
+  the floor. Then implementations catch up.
+- **Deviation machinery is honest, not absorptive.** When a
+  deployment cannot meet a requirement (yet), the transitional clauses
+  (`[FM-IBX-0010]`, `[FM-IAM-0014]`, `[FM-PGE-0005]` Gate-2,
+  `[FM-ACT-0008]`, `[FM-DPG-0013]`, `[FM-CRB-0010]`,
+  `[FM-MCC-0012]`) document the gap with a sunset condition and
+  divergence-event emission. The deviation does not redefine the
+  requirement; it acknowledges the gap until the gap closes.
+
+This is the discipline that turns the capability/constraint duality
+into a contract a customer can hold the project to.
+
 ## 1.4 The agentic workforce — identity as the foundation
 
 The duality above is realized through one organizing principle: **the
@@ -249,9 +296,38 @@ principals within it. To an auditor: **the AI is held to the same
 standard of identity, authorization, and auditability you already hold
 your employees to.**
 
+**Bound STD requirements.** The HR mapping is realized through the
+IAM pillar's numbered contract: ARCA as offline issuance authority
+per `[FM-IAM-0001]`; per-agent identity birth + lifecycle per
+`[FM-IAM-0003]` and `[FM-IAM-0003.1]` (identity-permanent /
+authority-mutable separation); Vault in-boundary signing per
+`[FM-IAM-0006]` (the private-key "DNA" that never leaves the
+boundary); the Roster as personnel file per `[FM-IAM-0007]`;
+suspend / resume / terminate as offboarding per `[FM-IAM-0004]` and
+`[FM-IAM-0005]`; the principal-type stamp per `[FM-IAM-0010]`; and
+the identity-context contract per `[FM-IAM-0011]` (IAM provides
+verified context; PGE makes the decision). The two non-negotiable
+invariants — *no bypass* and *fail strict* — are `[FM-INV-0001]`
+and `[FM-INV-0002]`; the fail-strict deadline anchored to every
+external-ack point is `[FM-INV-0002.1]`. IAM operational-state
+declaration (when the deployment exits the identity-by-brief
+transitional deviation) is `[FM-IAM-0014]`.
+
 ## 1.5 Language policy
 
 Open-source first. Sovereign by construction. Pragmatism over preference.
+
+> **STD/HDBK boundary.** The Standard is **language-neutral at the
+> contract layer** per `[FM-STD §1]` — pillar requirements shall not
+> mandate the implementation language or framework of any pillar; the
+> conformance test sets are language-blind, and a conforming
+> implementation may be written in any language. **This Handbook
+> section is the project's reference-implementation choice**, not a
+> conformance requirement. A customer who insists on a different
+> language stack implements the same numbered Standard requirements
+> in their stack and is conformant on the same terms. The text below
+> documents what *we* build to, not what *every* conforming
+> implementation must build to.
 
 **Python is the default.** Every pillar, every MCP server, every plugin
 that doesn't have an argued reason to deviate is built in Python. The
@@ -318,11 +394,12 @@ the visual contract):
 sovereign to the deploying organization, and never in the action path.
 Its only role is to mint identities and step out. **ARCA** (Agentic
 Root CA) is its only component — the per-organization root of trust for
-agent identity. The dotted-line separation is a deliberate security
-property, not tidiness: because ARCA is never in the action path, it
-can be kept offline, and an offline authority cannot be attacked over
-the network during operation. Runtime verification is local (signature
-+ trust chain), never a callback.
+agent identity per `[FM-IAM-0002]` (per-organization ARCA sovereignty).
+The dotted-line separation is a deliberate security property, not
+tidiness: because ARCA is never in the action path, it can be kept
+offline, and an offline authority cannot be attacked over the network
+during operation. Runtime verification is local (signature + trust
+chain), never a callback.
 
 **The Control Plane** is the authoritative governing body of the mesh.
 Six elements:
@@ -334,7 +411,7 @@ Six elements:
 | **PGE** | deterministic policy enforcement. Double-guardrail — gates intent before IBX, gates execution inside DPG. |
 | **CRB** | hardware-aware workload broker. Routes between unified-memory hosts and compute-host GPUs. |
 | **IBX** | the message hub. Every Control-Plane pillar and the Judge gate route to Workforce *through* IBX. |
-| **Judge (human)** | the human-in-the-loop approval gate for `action` / `urgent` priority messages. First-class architectural element. |
+| **Judge (human)** | the human-in-the-loop approval gate for `action` / `urgent` priority messages — server-enforced at the IBX submission chokepoint per `[FM-IBX-0003]` (the gate cannot be opted out of by the message sender). First-class architectural element. |
 
 **The Compute Plane** is where agent work executes:
 
@@ -365,6 +442,19 @@ IBX or AKB runs correctly on its own — PCS reaches into each pillar via
 its published interface (skills, MCP, hooks) and orchestrates from
 outside. `pip install <pillar>` works with no PCS present.
 
+**Bound STD requirements.** The pillar enumeration is the
+8-pillar invariant per `[FM-MCC-0011]`: IBX (§5.1), IAM (§5.2),
+PGE (§5.3), ACT (§5.4), AKB (§5.5), DPG (§5.6), CRB (§5.7), PCS
+(§6). MCC (§5.8) is the **host frame**, not a ninth pillar. The
+Issuance Plane's offline-ARCA / runtime-IAM separation is
+`[FM-IAM-0001]`. PCS-as-action-layer-managing-every-pillar is the
+MCC kernel/frame model per `[FM-MCC-0001]` (frame hosts pillars as
+loadable modules) + `[FM-MCC-0004]` (centralized substrate handles)
++ `[FM-MCC-0005]` (IAM-first load order) — and the
+zero-coupled-to-PCS / standalone-installable property is preserved
+because pillars remain conformant against their own §5.x
+requirements independent of MCC composition.
+
 ## 1.7 Foundational invariants
 
 Three invariants govern every pillar and every workflow in the mesh.
@@ -386,6 +476,29 @@ denied. When in doubt, stop.
 
 These two clauses cannot be relaxed by policy. They are the load-bearing
 floor every other guarantee in the mesh stands on.
+
+**The "no bootstrap path that runs before identity is up" line has a
+deliberate, bounded exception**: the **genesis event class** per
+`[FM-INV-0004.5]` permits exactly three subtypes
+(`mesh-init-quorum-bootstrap`, `iam-init-arca-root`,
+`iam-init-roster-seed`) to land in ACT without IAM-`principal-id`
+attribution, using holder-fingerprint attestation instead. The
+carve-out exists because the identity system cannot bootstrap itself
+under the unmodified rule — the founding ceremony has to create the
+attribution chain it would otherwise need to reference. The carve-out
+is closed (no other class qualifies), one-shot per subtype per
+deployment lifetime, and re-issuance is catastrophic-class.
+
+**Bound STD requirements.** No-bypass is `[FM-INV-0001]`; fail-strict
+is `[FM-INV-0002]`; the fail-strict *deadline* anchored to every
+external-ack point is `[FM-INV-0002.1]` (operator-configurable; shall
+be strictly shorter than the minimum worker-pool lease window per
+`[FM-IBX-0009]` so a lagging ack cannot race the lease and produce
+duplicate execution). The genesis-event carve-out is
+`[FM-INV-0004.5]`. ACT honors the carve-out per `[FM-ACT-0003]`'s
+Genesis-event carve-out section + `[FM-ACT-0005]`'s Genesis-event
+chain seeding section; every other event-emission path requires
+full attribution.
 
 ### 1.7.2 Capability provisioning as primary defense
 
@@ -420,9 +533,9 @@ The mesh already follows this principle implicitly at every pillar:
 - **No-callbacks runtime verification** (§1.2) — we don't policy
   "don't phone home"; there is no phone-home substrate.
 
-**The test for new architectural decisions.** When a new capability is
-proposed, the first question is: *"Do we want anyone — anywhere, ever
-— to be able to do this?"*
+**The test for new architectural decisions** per `[FM-INV-0003.3]`.
+When a new capability is proposed, the first question is: *"Do we
+want anyone — anywhere, ever — to be able to do this?"*
 
 - If no: don't provision it. Policy can't make it safer than not existing.
 - If yes: policy gates who can do it, under what conditions, with what audit.
@@ -449,6 +562,12 @@ capability requires the argued-case + quorum path.** Concretely:
 This invariant inverts the "feature-then-policy" default that produces
 most enterprise breaches. Mesh's first line of defense at every pillar
 is the absence of the capability, not the presence of the policy.
+
+**Bound STD requirements.** Capability-provisioning-as-primary-defense
+is `[FM-INV-0003]`. The extensions-compose-within-the-provisioned-
+surface rule is `[FM-INV-0003.1]`. Net-new capability requires the
+argued-case + quorum path per `[FM-INV-0003.2]`; the argued-case
+entry schema is §F.1 of the Standard's normative Appendix F.
 
 ### 1.7.3 Quorum authority for catastrophic-class capabilities
 
@@ -512,27 +631,47 @@ every operation the platform classifies as catastrophic-class,
 regardless of whether the plugin declares it. **Absence of declaration
 is not absence of constraint.** Three corollaries follow:
 
-- **Default-deny on declaration omission.** A plugin that does not
-  declare a `judge_gates` or `quorum_required` field does not thereby
-  acquire permission to perform those operations without the platform's
-  gates. Absent ≠ safe; absent = unspecified, and the platform applies
-  its floor.
+- **Default-deny on declaration omission** per `[FM-INV-0005.1]`.
+  A plugin that does not declare a `judge_gates` or `quorum_required`
+  field does not thereby acquire permission to perform those operations
+  without the platform's gates. Absent ≠ safe; absent = unspecified,
+  and the platform applies its floor.
 - **Divergence is a signal.** When a plugin's declared policy diverges
   from the platform's enforcement (plugin claims an op needs no judge
   gate; platform enforces one anyway), the divergence is logged to ACT
   as a discrete audit event. The plugin author and the operator both
   receive the signal; over time, repeated divergence is a CLCA
   trigger.
-- **Granularity covers all dangerous operations.** Catastrophic-class
-  is the headline list (§1.7.3); judge-gating and quorum-enforcement
-  cover the broader surface of state-affecting operations PGE policy
-  classifies as requiring approval — not just the named catastrophic
-  set.
+- **Granularity covers all dangerous operations** per
+  `[FM-INV-0005.3]`. Catastrophic-class is the headline list (§1.7.3);
+  judge-gating and quorum-enforcement cover the broader surface of
+  state-affecting operations PGE policy classifies as requiring
+  approval — not just the named catastrophic set.
 
 This is capability-minimization (§1.7.2) applied recursively to the
 policy substrate itself: the plugin's declaration is a *hint to
 authors and consumers*, not an *enforcement contract*. The platform
 floor cannot be opted out of by omission, weakening, or silence.
+
+**Bound STD requirements.** Catastrophic-class quorum authority is
+`[FM-INV-0004]`, decomposed as: asymmetric apply-vs-revoke thresholds
+per `[FM-INV-0004.1]`; time-bounded attestation windows with the
+clock-skew tolerance discipline (authenticated time source, verifier-
+side expiry evaluation, asymmetric larger tolerance on the revoke
+path) per `[FM-INV-0004.2]`; role-typed quorum membership per
+`[FM-INV-0004.3]`; bootstrap at mesh init per `[FM-INV-0004.4]`; and
+the genesis event class that makes mesh-init emittable to ACT
+without a circular dependency on the identity system it brings into
+existence per `[FM-INV-0004.5]`. The platform-enforcement-floor
+discipline (the "declaration is a hint, not a contract" paragraph)
+is `[FM-INV-0005]` (the floor is authoritative), `[FM-INV-0005.2]`
+(divergence between declaration and enforcement is auditable),
+`[FM-PGE-0005]` (the double-guardrail — IBX intent gate + DPG
+execution gate), `[FM-PGE-0010]` (PGE applies the floor regardless
+of plugin self-declaration), and `[FM-PGE-0011]` (`divergence_type`
+discriminator + the 8 active subtypes registered in its
+canonical-emitter table, including `policy-block-mismatch` which
+covers the divergence-as-signal pattern).
 
 ---
 
@@ -570,6 +709,17 @@ They are not part of the canon; this single spec is.
 ---
 
 # Part 2 — PCS (Platform Control System)
+
+> **STD status of this Part.** PCS is the **eighth pillar** per
+> `[FM-MCC-0011]` and lives in Standard **§6** (currently
+> Reserved). The numbered PCS requirements (`[FM-PCS-NNNN]`) will
+> land when §6 is written. This Handbook Part is the rationale and
+> design intent for what §6 will normatively specify. Cross-references
+> in this Part point at the *cross-pillar contracts PCS already binds
+> to* (FM-MCC, FM-PGE, FM-DPG, FM-AKB, FM-INV) — those bindings are
+> in force today even though §6 has not yet been filled. The §6
+> PCS pillar will codify the action-layer mechanisms this Part
+> describes.
 
 ## 2.1 What PCS is
 
@@ -704,6 +854,18 @@ field — absent ≠ safe. PGE applies its floor regardless; divergence
 between plugin declaration and platform enforcement is logged to ACT
 as a CLCA signal.
 
+**Bound STD requirements.** The cardinal rule (PCS plugin as
+strict superset of vendor plugins) is the design intent that §6
+will codify as the PCS plugin-shape requirement; the analogous
+already-numbered surface is the MCC plugin contract per
+`[FM-MCC-0006]`. The platform-enforcement-floor paragraph above
+binds to `[FM-INV-0005]` (the floor is authoritative),
+`[FM-PGE-0010]` (PGE applies the floor regardless of declaration),
+`[FM-INV-0005.2]` (divergence between declaration and enforcement
+is auditable), and `[FM-PGE-0011]` (the `divergence_type`
+discriminator with `policy-block-mismatch` as the canonical subtype
+for this case — emitted by PGE per the discriminator table).
+
 ## 2.5 Plugin portability across surfaces
 
 The plugin author writes once; the PCS toolchain projects per-surface:
@@ -786,6 +948,19 @@ Delegating Tier 0 to vendor tooling means PCS gets vendor spec updates
 for free; no reimplementation. The harness earns the trust once;
 every conforming artifact inherits it.
 
+**Bound STD requirements.** The validation harness's Tier-1
+"PCS Core" hard gate is the surface §6 will normatively specify
+when filled. The harness's mandatory **execution-side validation
+gates** for executable artifacts are already numbered in the DPG
+pillar: `[FM-DPG-0004]` (four mandatory validation gates —
+Syntax + PGE + test-suite + resource-limit attestation) and
+`[FM-DPG-0005]` (PGE Gate-2 — PGE rule corpus executed inside
+the DPG ephemeral boundary as the second guardrail). The
+"validation harness earns trust once" framing maps to
+`[FM-DPG-0008]` substrate substitutability via Exit Test —
+identical containment outcomes across every conformance-claimed
+substrate.
+
 ## 2.8 The registry, marketplaces, BOMs
 
 **Mesh-internal, not public.** Each Mesh runs its own PCS registry.
@@ -841,6 +1016,13 @@ A customer installs from a BOM; upgrades happen by bumping the BOM
 version, pulling every constituent plugin atomically. Linux distro /
 `kubeadm` / Helm chart pattern.
 
+**Bound STD requirements.** Every artifact entering the registry
+passes through DPG validation for executable artifacts per
+`[FM-DPG-0009]` (Registry-bound executable validation) — the
+PCS-Daemon pre-promotion state invokes DPG; the Daemon shall not
+bypass DPG for executable workloads. This is the dev-to-production
+trust boundary applied to executables.
+
 ## 2.9 Substrate matrix × workflow — customization without forking
 
 Every large customer has bespoke substrate preferences (Oracle vs
@@ -890,6 +1072,19 @@ incident-report-in-PagerDuty + post-mortem-in-Confluence +
 action-items-in-Jira + runbook-update-in-GitHub-wiki +
 prompt-tweak-from-whoever's-on-call.
 
+**Bound STD requirements.** AIRs are first-class AKB Tier-1 corpus
+per `[FM-AKB-0012]` — surfaced via the `[FM-AKB-0010]` infra-
+decision-side hooks at exactly the moments operational lessons
+should land. Security-class AIRs are categorically excluded from
+AKB ingest per `[FM-AKB-0012]` and route to the restricted-
+audience store out of AKB scope. The "incident → AIR → workflow
+change" loop's audit trail is the `pcs.policy.divergence` event
+class per `[FM-INV-0005.2]`; the CLCA-trigger derivation that
+escalates a divergence pattern to action is `[FM-PGE-0011]` (PGE
+emits `pcs.policy.divergence.clca-trigger` once a `divergence_type`
+count exceeds the operator-configured threshold for the deviation's
+canonical emitter).
+
 ## 2.11 Bootstrap — agent-as-installer
 
 PCS workflows manage the mesh; PCS runs on the mesh. The
@@ -909,6 +1104,23 @@ everything is workflow execution: `vault-pki-bootstrap` →
 Pattern matches `kubeadm init` or `pacstrap` — one privileged
 bootstrap step gets you to normal-mode platform operations. Difference:
 no separate join-cluster binary. The agent is the binary.
+
+**Bound STD requirements.** The bootstrap ceremony itself is
+`[FM-INV-0004.4]` (mesh-init quorum-bootstrap — `N` independent
+identity holders, K-of-N Shamir shards, signed initial role
+assignments, ceremony attestation emitted to ACT). The ceremony
+event is emitted under the **genesis event class** per
+`[FM-INV-0004.5]`, which carves out the otherwise-circular
+attribution requirement so the founding event can land in ACT
+before IAM is operational. Subsequent `pillar-deploy:*` workflows
+fire under the standard `[FM-INV-0001]` / `[FM-INV-0002]` /
+`[FM-INV-0002.1]` discipline (every actor authenticates, every
+time; halt on unverifiable; bounded deadline at every external-
+ack point). The IAM-first load order for MCC plugin composition
+is `[FM-MCC-0005]`. The agent-out-of-secret-path principle is
+the invariant that gates the one human step (`vault operator
+init`); the corresponding frame-boundary enforcement on MCC
+plugin calls is `[FM-MCC-0009]`.
 
 ## 2.12 Mesh-CLI + MCC delivery shape
 
@@ -938,6 +1150,21 @@ by `subagent-guard.sh`. PGE/IAM enforcement at the hook layer. Tier-0
 profile = dev / low-stakes; destructive ops route through the governed
 MCC backend so the Judge gate intercepts before execution.
 
+**Bound STD requirements.** MCC's kernel/frame model is
+`[FM-MCC-0001]`; the single-endpoint property is `[FM-MCC-0002]`;
+the IAM auth hook on every call (including the human admin-UI
+authentication path through the same hook) is `[FM-MCC-0003]`
+with the synchronous Identity-context-version revalidation that
+closes the cache TOCTOU. The web-admin-UI operator surface
+discipline is `[FM-MCC-0007]`; the CLI-first / UI-second
+constraint is `[FM-MCC-0008]` (every admin UI action invokes a
+frame API operation also reachable directly via HTTP or MCP — the
+UI is documentation-by-example for the contract, never a
+parallel control surface). The Judge-gate hook (frame-level
+elevated confirmation with uniform UX, typed re-attestation,
+audit-attestable via the `mcc.judge_gate_confirm` event) is
+`[FM-MCC-0010]`.
+
 ---
 
 # Part 3 — The Pillars
@@ -946,8 +1173,13 @@ Eight pillars. PCS reaches each via its published interface (skills,
 MCP tools, hooks) — pillars stay zero-coupled, standalone-installable,
 and substrate-pluggable. Each section names the substrate matrix (the
 seam contract — customer chooses among supported substrates) and what
-PCS workflows do with the pillar. Detail beyond what's here lives in
-each pillar's individual spec (referenced).
+PCS workflows do with the pillar. The **normative spec** for each
+pillar lives in STD-001 §5.x (per-pillar numbered requirements +
+Conformance Profile). The substrate matrices in this Part are
+**illustrative**; the authoritative substitutability claim per
+pillar is the STD's **§5.x.1 Conformance Profile** with its Test
+Set column. Where this Handbook substrate matrix and the STD
+Conformance Profile differ, the STD is authoritative.
 
 ## 3.1 IBX — Inbox Exchange
 
@@ -959,7 +1191,9 @@ that's why PCT lives in IBX rather than expanding PCS scope.
 
 **Status**: POC-in-production today (`agent-inbox-mcp` server +
 `inbox-ui` Wails desktop app + `messages.inbox` ClickHouse table).
-Formal spec at `https://github.com/fiducial-mesh/devel/blob/main/spec-drafts/IBX-SPEC.md`.
+**Normative spec**: STD-001 §5.1 (12 requirements + Conformance
+Profile). Authoring drafts retained in `devel/spec-drafts/IBX-SPEC.md`
+as historical reference.
 
 **Substrate matrix:**
 
@@ -976,6 +1210,21 @@ approval gates are first-class PCS workflow primitives — a `judge-gate`
 hook can be declared on any workflow step that needs explicit approval
 before proceeding.
 
+**Bound STD requirements.** PCT nine-field contract =
+`[FM-IBX-0001]`; PCT field-name stability =
+`[FM-IBX-0002]`; server-enforced Judge gate for action-priority
+messages = `[FM-IBX-0003]`; message status workflow =
+`[FM-IBX-0004]`; append-mostly substrate = `[FM-IBX-0005]`;
+identity-vs-session distinction in PCT = `[FM-IBX-0006]`;
+worker-pool dispatch semantics = `[FM-IBX-0007]`; routing-audit
+storage seam = `[FM-IBX-0008]`; claim-queue substrate seam
+(transactional SKIP-LOCKED) = `[FM-IBX-0009]`; status-transition
+audit emission via the `[FM-ACT-0009]` ack contract =
+`[FM-IBX-0012]`; mesh.ibx.* telemetry emission =
+`[FM-IBX-0011]`. The identity-by-brief transitional deviation
+(the recognized gap until IAM operational) = `[FM-IBX-0010]` —
+sunsets via `[FM-IAM-0014]`.
+
 ## 3.2 AKB — Agent Knowledge Base
 
 Role-projected, tier-stratified knowledge retrieval. Agents query AKB
@@ -986,7 +1235,9 @@ substrate-trap-aware retrieval prevents the vector substrate (physics-
 blind) from surfacing dead-end content as candidate solutions.
 
 **Status**: built at `KI7MT/akb`; DDL + ingest + akb-mcp server +
-Tier-0 generator green. Formal spec at `https://github.com/fiducial-mesh/devel/blob/main/spec-drafts/AKB-SPEC.md`.
+Tier-0 generator green. **Normative spec**: STD-001 §5.5
+(14 requirements + Conformance Profile). Authoring draft retained
+in `devel/spec-drafts/AKB-SPEC.md` as historical reference.
 
 **Substrate matrix:**
 
@@ -1001,6 +1252,24 @@ server for retrieval-augmented context; CLCA workflows write AIR
 documents and lessons-learned back into AKB through curator-gated
 ingestion plugins.
 
+**Bound STD requirements.** Two-tier delivery (Tier 0 bounded prior
++ Tier 1 gradient-gated injection) = `[FM-AKB-0001]`; the 1024-byte
+Tier-0 hard cap = `[FM-AKB-0002]`; Tier-0 source provenance
+(deployable snapshot only from merged-`main`; Bar-B-gated source
+edits) = `[FM-AKB-0003]`; substrate-trap deterministic pre-filter
+before vector similarity = `[FM-AKB-0004]`; role projection at
+retrieval = `[FM-AKB-0005]`; self-review exemption =
+`[FM-AKB-0006]`; cross-role per-document cap = `[FM-AKB-0007]`;
+stratified promotion gates (Bar A/B/C/Physics-C) = `[FM-AKB-0008]`;
+bootstrap pre-write gate ≥20 chunks = `[FM-AKB-0009]`; hook trigger
+domains (code-author + infra-decision) = `[FM-AKB-0010]`; fail-open
+on retrieval with infra-decision-side escalation (the new
+`akb-fail-open-on-irreversible-hook` divergence_type) =
+`[FM-AKB-0011]`; AIRs as Tier-1 corpus with security-class
+exclusion = `[FM-AKB-0012]`; ACT audit emission via the
+`[FM-ACT-0009]` ack contract = `[FM-AKB-0013]`; mesh.akb.*
+operational telemetry = `[FM-AKB-0014]`.
+
 ## 3.3 ACT — Agent Cognitive Telemetry
 
 The immutable, locally-hosted audit ledger. Every reasoning span,
@@ -1010,8 +1279,10 @@ nothing flows back out except via curator review. ACT is what makes
 non-repudiation, per-session forensics, regulatory compliance, and the
 dialectical-engine evidence trail mechanically possible.
 
-**Status**: spec validated at `https://github.com/fiducial-mesh/devel/blob/main/spec-drafts/ACT-SPEC.md`; reference
-implementation pending.
+**Status**: **Normative spec**: STD-001 §5.4 (12 requirements +
+Conformance Profile). Reference implementation pending. Authoring
+draft retained in `devel/spec-drafts/ACT-SPEC.md` as historical
+reference.
 
 **Substrate matrix:**
 
@@ -1026,6 +1297,25 @@ to ACT via the standard OTLP exporter — this is how the AIR/CLCA loop
 in §2.10 sources its incident-detection signal. ACT is a passive
 emitter from PCS's perspective; PCS workflows don't read from ACT
 directly (that's MCC-UI and human operators).
+
+**Bound STD requirements.** Append-only event store with carve-out
+for retention-expiration ceremony only = `[FM-ACT-0001]`;
+unidirectional cognitive-event emission = `[FM-ACT-0002]`;
+session-granular attribution with genesis-event carve-out =
+`[FM-ACT-0003]`; the event-type taxonomy = `[FM-ACT-0004]`;
+per-session cryptographic chaining with genesis chain seeding and
+retention-boundary re-anchoring = `[FM-ACT-0005]`; hash algorithm
+policy (SHA-256 sovereign reference, FIPS-validated when §4.2
+FIPS-Day-1 applies) = `[FM-ACT-0006]`; three-consumer-class
+access pattern (Compliance / Detection / CLCA) = `[FM-ACT-0007]`;
+Detect Layer transitional clause (with the new
+`detect-layer-not-operational` divergence_type emission) =
+`[FM-ACT-0008]`; the load-bearing **emission-confirmation
+contract** every state-affecting pillar depends on (emit →
+durable commit → ack → proceed; idempotent on `emission_id`) =
+`[FM-ACT-0009]`; cold-storage tier deferred = `[FM-ACT-0010]`;
+retention controls per regulatory regime = `[FM-ACT-0011]`;
+mesh.act.* operational telemetry = `[FM-ACT-0012]`.
 
 ## 3.4 IAM — Identity & Access Management
 
@@ -1045,8 +1335,13 @@ the mesh moves agents away from.
 **Status**: code-complete at lab `iam-1` (Phase 1 done — Roster,
 lifecycle audit, MCP surface, principal-type stamp, mint, suspend /
 resume / terminate, authz-context read contract for PGE, partial-mint
-reconciliation, 20/20 tests green). ARCA not yet built. Formal spec
-at `https://github.com/fiducial-mesh/devel/blob/main/spec-drafts/IAM-CORE-SPEC.md`.
+reconciliation, 20/20 tests green). ARCA not yet built. Deployment
+operates under the `identity-by-brief` transitional deviation
+per `[FM-IAM-0014]` + `[FM-IBX-0010]` until ARCA + Vault signing
+are operational across the deployment. **Normative spec**: STD-001
+§5.2 (14 requirements + Conformance Profile). Authoring drafts
+retained in `devel/spec-drafts/IAM-CORE-SPEC.md` /
+`IAM-INCREMENT-2.md` as historical reference.
 
 **Substrate matrix:**
 
@@ -1072,6 +1367,22 @@ rationale lives at §4.2.** This is a substrate-implementation
 discipline, not a policy overlay — the validated crypto path must be
 the substrate's default from `vault operator init` onward.
 
+**Bound STD requirements.** Offline-ARCA separation =
+`[FM-IAM-0001]`; identity issuance + lifecycle =
+`[FM-IAM-0003]` + `[FM-IAM-0003.1]`; suspend / resume (with
+worker-pool claim-draining semantics) = `[FM-IAM-0004]`;
+revocation / termination = `[FM-IAM-0005]`; Vault in-boundary
+signing = `[FM-IAM-0006]`; Roster = `[FM-IAM-0007]`; Publish
+pipeline = `[FM-IAM-0008]`; IdP federation = `[FM-IAM-0009]`;
+principal-type stamp = `[FM-IAM-0010]`; identity-context contract
+for PGE consumers (six-element context including the monotonic
+Identity-context version field that powers MCC-0003 cache
+revalidation) = `[FM-IAM-0011]`; mesh.iam.* telemetry =
+`[FM-IAM-0012]`; state-affecting-operation audit emission via the
+`[FM-ACT-0009]` ack contract = `[FM-IAM-0013]`; operational-state
+declaration = `[FM-IAM-0014]` (the four-condition gate that
+sunsets the identity-by-brief deviation).
+
 ## 3.5 PGE — Policy Guardrail Engine
 
 Deterministic, owned, auditable policy enforcement. PGE is the mesh's
@@ -1094,6 +1405,28 @@ in the plugin manifest. PGE evaluation runs at hook fire time; deny
 verdicts halt the workflow step before execution. The
 `subagent-guard.sh` PreToolUse hook in the lab today is the precedent
 implementation pattern.
+
+**Status**: **Normative spec**: STD-001 §5.3 (14 requirements +
+Conformance Profile). Authoring drafts retained in
+`devel/spec-drafts/PGE-SPEC.md` as historical reference.
+
+**Bound STD requirements.** Deterministic evaluation = `[FM-PGE-0001]`
++ `[FM-PGE-0002]`; rule corpus storage with the two-stratum split =
+`[FM-PGE-0003]` (Stratum 1 non-negotiable) + `[FM-PGE-0004]`
+(Stratum 2 patterns); the **double-guardrail enforcement** (Gate 1
+intent at IBX submission + Gate 2 execution at DPG ephemeral
+boundary) = `[FM-PGE-0005]` (sunsets when `[FM-DPG-0005]` is
+operational); no-vendor-mediated-bypass = `[FM-PGE-0006]`;
+PreToolUse hook surface = `[FM-PGE-0007]`; per-decision audit
+emission via the `[FM-ACT-0009]` ack contract = `[FM-PGE-0008]`;
+catastrophic-class quorum gating = `[FM-PGE-0009]`; platform
+enforcement floor independent of plugin self-declaration =
+`[FM-PGE-0010]`; the **`divergence_type` discriminator system**
+with 8 active subtypes + canonical-emitter assignment rule +
+fallback-emitter rule for unloaded emitters = `[FM-PGE-0011]`;
+policy overlay consumption = `[FM-PGE-0012]`; per-surface
+enforcement = `[FM-PGE-0013]`; mesh.pge.* telemetry =
+`[FM-PGE-0014]`.
 
 ## 3.6 CRB — Compute Resource Broker
 
@@ -1118,6 +1451,34 @@ Go's concurrency + GC fit the workload class Python doesn't).
 declare resource requirements (GPU, memory, CPU) as workflow
 parameters; CRB resolves placement at dispatch time. PCS does not
 build a parallel scheduler — CRB owns the placement decision.
+
+**Status**: **Normative spec**: STD-001 §5.7 (13 requirements +
+Conformance Profile). Broker daemon design-stage — deployment
+operates under the `crb-codified-by-convention` transitional
+deviation per `[FM-CRB-0010]` until the broker is built. Authoring
+draft retained in `devel/spec-drafts/CRB-SPEC.md` as historical
+reference.
+
+**Bound STD requirements.** Three architecturally distinct
+components (Classification + Dispatch Policy + Broker Daemon) =
+`[FM-CRB-0001]`; bounded classification taxonomy (`gpu_bound`,
+`mps_bound`, `db_bound`, `reasoning_bound`, `mixed`) =
+`[FM-CRB-0002]`; dispatch policy as pure function with bounded
+eligibility / tiered fallback / capacity-aware = `[FM-CRB-0003]`;
+hardware topology model = `[FM-CRB-0004]`; broker identity =
+`[FM-CRB-0005]` (with FM-INV-0001 cross-ref for authentication-
+at-dispatch); Reasoner archetype — no worker-pool claim seam =
+`[FM-CRB-0006]`; clean seam — no isolation / no validation / no
+content policy = `[FM-CRB-0007]`; substrate substitutability via
+Exit Test with accelerator-runtime as a *capability* not a
+CUDA-lock-in = `[FM-CRB-0008]`; DPG seam — isolation-tier as
+eligibility input with **explicit pre-dispatch revalidation**
+closing the eligibility-vs-dispatch TOCTOU = `[FM-CRB-0009]`;
+operational-state transitional clause = `[FM-CRB-0010]`;
+convention-codification fidelity (parity battery gating sunset) =
+`[FM-CRB-0011]`; crb.* audit emission via the `[FM-ACT-0009]`
+ack contract = `[FM-CRB-0012]`; mesh.crb.* telemetry =
+`[FM-CRB-0013]`.
 
 ## 3.7 DPG — Deterministic Proving Ground
 
@@ -1148,6 +1509,36 @@ via the DPG driver MCP; results return through the attested channel
 to the calling workflow. PGE execution-side gates run inside DPG
 before the code touches anything.
 
+**Status**: **Normative spec**: STD-001 §5.6 (14 requirements +
+Conformance Profile). Design-stage — deployments operate under the
+`subagent-worktree-precursor` transitional deviation per
+`[FM-DPG-0013]` until the generalized DPG runner is built. The
+`subagent-guard.sh` PreToolUse hook and the `isolation: "worktree"`
+subagent pattern are the operational precedent.
+
+**Bound STD requirements.** Three architecturally distinct
+components (Runner + Boundary + Gates) = `[FM-DPG-0001]`; the
+five non-negotiable ephemeral-isolation properties (single-use,
+filesystem isolation, network default-deny, resource limits,
+process+identity isolation) **with explicit accelerator-VRAM
+scrub at teardown** = `[FM-DPG-0002]`; single attested return
+channel with `boundary_audit_summary` = `[FM-DPG-0003]`; four
+mandatory validation gates (Syntax + PGE + test-suite + resource-
+limit attestation) = `[FM-DPG-0004]`; PGE Gate-2 enforcement (the
+sunset for the `[FM-PGE-0005]` Gate-2 transitional clause) =
+`[FM-DPG-0005]`; DPG runner identity = `[FM-DPG-0006]`; worker-
+pool dispatch via `[FM-IBX-0007]` / `[FM-IBX-0009]` =
+`[FM-DPG-0007]`; substrate substitutability via Exit Test with
+tier-graded isolation runtimes = `[FM-DPG-0008]`; Registry-bound
+executable validation (dev-to-production trust boundary) =
+`[FM-DPG-0009]`; deterministic execution with declared determinism
+level = `[FM-DPG-0010]`; reconciliation sweep for lost completions
+(fact-of-loss recovery via `lost_completion_recovered`) =
+`[FM-DPG-0011]`; dpg.* audit emission via the `[FM-ACT-0009]`
+ack contract = `[FM-DPG-0012]`; subagent-worktree precursor
+transitional clause = `[FM-DPG-0013]`; mesh.dpg.* telemetry =
+`[FM-DPG-0014]`.
+
 ## 3.8 MCC — Mesh Control Center
 
 The operator UI binding the whole mesh together. **Three surfaces, no
@@ -1176,6 +1567,30 @@ PCS doesn't "reach" MCC-TUI; PCS plugins ARE what makes a Claude Code
 session into MCC-TUI. MCC-UI consumes PCS workflow definitions to
 build trigger panes, reads execution state from the registry, and
 gates approval-required workflow steps through the Judge surface.
+
+**Status**: **Normative spec**: STD-001 §5.8 (14 requirements +
+Conformance Profile — note MCC is the **host frame**, not a
+ninth pillar, per `[FM-MCC-0011]`). Backend BUILT on iam-1
+(Python FastAPI + web UI, Vault TLS); deployment operates under
+the `mcc-partial-load` transitional deviation per `[FM-MCC-0012]`
+until all eight pillars are loaded as plugins.
+
+**Bound STD requirements.** Pluggable host-frame model =
+`[FM-MCC-0001]`; single endpoint = `[FM-MCC-0002]`; IAM auth hook
+on every call with synchronous Identity-context-version
+revalidation (the TOCTOU defense) = `[FM-MCC-0003]`; centralized
+substrate handles via dependency injection = `[FM-MCC-0004]`;
+IAM-first load order (frame fails closed if IAM cannot load) =
+`[FM-MCC-0005]`; minimum-viable plugin contract = `[FM-MCC-0006]`;
+operator surface as web admin UI = `[FM-MCC-0007]`; CLI-first /
+UI-second discipline = `[FM-MCC-0008]`; agent-out-of-secret-path
+enforcement at the frame boundary = `[FM-MCC-0009]`; Judge-gate
+hook with uniform typed re-attestation = `[FM-MCC-0010]`;
+eight-pillars-MCC-is-host invariant = `[FM-MCC-0011]`;
+operational-state transitional clause = `[FM-MCC-0012]`; mcc.*
+audit emission via the `[FM-ACT-0009]` ack contract =
+`[FM-MCC-0013]`; mesh.mcc.* operational telemetry (frame's own,
+distinct from per-plugin pass-through) = `[FM-MCC-0014]`.
 
 ---
 
@@ -1252,7 +1667,36 @@ work, non-FIPS crypto modules must not be provisioned at all — the
 overlay encodes the NIST controls, the substrate provides the validated
 primitives.
 
+**Bound STD requirements.** The security framework's bullet list
+maps directly to numbered STD requirements: credentials in Vault =
+`[FM-IAM-0006]` (in-boundary signing) + the IAM Conformance
+Profile's secret-store seam; no-injection-surfaces is a §0.5
+Static-check discipline applied across every pillar; HTTPS/TLS
+only is the substrate-pluggable contract every pillar's
+Conformance Profile names; audit-emission-as-build-standard is the
+per-pillar audit requirement bound to the `[FM-ACT-0009]`
+emission-confirmation contract (FM-IBX-0012, FM-IAM-0013,
+FM-PGE-0008, FM-AKB-0013, FM-DPG-0012, FM-CRB-0012, FM-MCC-0013);
+no-bypass + fail-strict = `[FM-INV-0001]` + `[FM-INV-0002]` +
+`[FM-INV-0002.1]` deadline; PreToolUse hooks gating destructive
+ops = `[FM-PGE-0007]` (PreToolUse hook surface) + `[FM-PGE-0005]`
+double-guardrail with Gate-2 via `[FM-DPG-0005]`. Two-person
+GH-native review and tag-push-triggers-publish are PCS / §6
+release-gate concerns (§6 reserved). FIPS-Day-1 substrate
+discipline binds to the Tier-0 substrate selection in the IAM
+Conformance Profile per `[FM-IAM-0006]` and to the FIPS-validated
+hash algorithm per `[FM-ACT-0006]`; capability-minimization-applied-
+to-FIPS-mode is the `[FM-INV-0003]` discipline applied at substrate
+provisioning.
+
 ## 4.3 Delivery and packaging
+
+> **STD/HDBK boundary reminder (per §1.5).** The Standard is
+> language-neutral at the contract layer per `[FM-STD §1]`. The
+> language map below is the project's **reference-implementation
+> choice**, not a conformance requirement. A customer choosing
+> a different stack for any pillar remains conformant on the same
+> terms (passing the per-pillar Conformance Profile test set).
 
 Language map (canonical reference in Appendix B):
 
@@ -1321,6 +1765,15 @@ the path is: argue the case → pillar maintainers add it to the matrix
 → ship in the next mesh release → customer's workflow now has a
 supported binding to point at. The argued-deviation discipline (§1.5)
 is the same shape applied to substrate choices.
+
+**Bound STD requirements.** The argued-case path for adding a new
+substrate to a pillar's Conformance Profile is `[FM-INV-0003.2]`
+(net-new capability requires argued-case + the multi-profile
+conformance run proving the new substrate passes the pillar's
+test set). The Appendix F entry schema for the argued-case
+submission is §F.1 of STD-001. The customer-tenant-namespace
+discipline (`<customer-x>:<workflow>:<version>`) belongs to the
+§6 PCS namespace + registry contract (currently Reserved).
 
 ## 4.6 Agents own deployment, installation, config, maintenance
 
@@ -1408,6 +1861,15 @@ Reference material. Tables and lookup, not narrative.
 
 ## Appendix A — Glossary
 
+> **STD cross-reference.** Acronyms with a numbered-pillar binding
+> (ACT, AIR, AKB, ARCA, BOM, CLCA, CRB, DPG, IAM, IBX, MCC, MCP,
+> PCS, PCT, PGE, etc.) are also defined in STD-001 §3.1 — the
+> Standard's definitions are authoritative. This Handbook glossary
+> adds **narrative-only terms** not in the Standard (Cardinal rule,
+> DAC, Default manifest, Dogfood, Free target, Plugin-loadout,
+> Role-loadout, Tenant namespace, Tested variation, Workflow as
+> rationale-shape).
+
 | Term | Meaning |
 |------|---------|
 | **AIR** | After-Incident Report — blameless post-mortem stored in AKB |
@@ -1431,6 +1893,16 @@ Reference material. Tables and lookup, not narrative.
 
 ## Appendix B — Language map
 
+> **STD/HDBK boundary.** The Standard is **language-neutral at
+> the contract layer** per STD-001 §1; pillar requirements shall
+> not mandate an implementation language. This Appendix documents
+> the **project's reference-implementation choice** — what *we*
+> build to. A customer using a different language for any pillar
+> remains conformant on the same terms (passing the per-pillar
+> Conformance Profile test set per STD §0.4 + §5.x.1). The C#
+> exclusion below is a project-level reference-implementation
+> choice, not a Standard requirement.
+
 Canonical per-pillar language assignment. Python is the default;
 non-Python deviations are argued explicitly. C# is purged from the
 canon.
@@ -1439,8 +1911,8 @@ canon.
 |----------------|----------|-------|
 | IBX | Python | Default |
 | AKB | Python | Default |
-| ACT — Detect Layer | Python | Default |
-| ACT — Record Layer | Python | (was C# per old CD2; flipped) |
+| ACT — Detect Layer | Python | Default; transitional deviation per `[FM-ACT-0008]` until operational |
+| ACT — Record Layer | Python | Default |
 | IAM | Python | Default; watch for argued deviation in PKI / AD area |
 | PGE | Python | Default |
 | CRB | **Go** | Sanctioned — hot concurrent broker |
@@ -1455,25 +1927,51 @@ canon.
 
 ## Appendix C — Conformance criteria
 
-Per `https://github.com/fiducial-mesh/devel/blob/main/spec-drafts/PILLAR-SPEC-TEMPLATE.md` v1.1, every pillar spec
-satisfies six non-negotiables. PCS plugins inherit the analogous
-discipline through the tiered validation harness (§2.7).
+> **STD anchor.** The **authoritative** conformance criteria for
+> each pillar are the per-pillar **Conformance Profile** in STD-001
+> §5.x.1, exercised against the §0.4 verification methods and the
+> per-requirement Verification lines (`Conformance-test` /
+> `Inspection` / `Static-check`). The six non-negotiables below are
+> a **narrative summary** of the cross-cutting acceptance criteria
+> every pillar inherits — they map directly to numbered STD
+> requirements. PCS plugins inherit the analogous discipline
+> through the tiered validation harness (§2.7); the §6 PCS plugin
+> requirements (Reserved) will codify the harness as numbered
+> requirements when filled.
 
-**Pillar-spec acceptance criteria (six non-negotiables):**
+**Pillar-spec acceptance criteria (six non-negotiables) with STD bindings:**
 
-1. **Secure** — credential handling, no injection surface, HTTPS-only,
-   parameterized SQL, input validation, rate limiting
+1. **Secure** — credential handling per `[FM-IAM-0006]` Vault
+   in-boundary signing; no injection surface (§0.5 Static-check);
+   HTTPS-only per each pillar's Conformance Profile transport seam;
+   parameterized SQL; input validation; rate limiting.
 2. **Instrumented-by-default** — OTLP traces + metrics per the
-   pillar's telemetry contract
+   per-pillar telemetry requirement (`[FM-IBX-*]`, `[FM-IAM-0012]`,
+   `[FM-PGE-0014]`, `[FM-ACT-0012]`, `[FM-AKB-0014]`,
+   `[FM-DPG-0014]`, `[FM-CRB-0013]`, `[FM-MCC-0014]`); each pillar
+   names its `mesh.<pillar>.*` namespace.
 3. **JSON logs** — structured JSON to stderr with required keys
    (`timestamp`, `level`, `message`, `service.name`, `service.version`,
-   `trace_id`, `span_id`, `identity`, `session`)
+   `trace_id`, `span_id`, `identity`, `session`); part of each
+   pillar's telemetry requirement.
 4. **CLI-first, UI-second** — every management function runnable on
-   CLI/API before any UI exists; MCC is a thin client of the CLI/API
-5. **Audit emission** — accountability events for every state-affecting
-   operation (per IAM / ACT contract)
-6. **RHEL-compatible build / runtime substrate** — Rocky 9.7+ / Alma
-   9.7+ / RHEL 9.7+ / UBI 9.7+ only in v0.1; no `ubuntu-latest`
+   CLI/API before any UI exists per `[FM-MCC-0008]` (UI is a strict
+   subset of frame API; the UI is documentation-by-example for the
+   contract, never a parallel control surface).
+5. **Audit emission** — accountability events for every state-
+   affecting operation, bound to the `[FM-ACT-0009]` emission-
+   confirmation contract (`[FM-IBX-0012]`, `[FM-IAM-0013]`,
+   `[FM-PGE-0008]`, `[FM-AKB-0013]`, `[FM-DPG-0012]`,
+   `[FM-CRB-0012]`, `[FM-MCC-0013]`); the operation shall not be
+   considered complete until ACT acknowledges the emission per the
+   ack sequence; lack-of-ack or negative-ack causes fail-strict per
+   `[FM-INV-0002]` / `[FM-INV-0002.1]`.
+6. **RHEL-compatible build / runtime substrate** — Rocky 9.7+ /
+   Alma 9.7+ / RHEL 9.7+ / UBI 9.7+ only in v0.1; no
+   `ubuntu-latest`. This is a project-level reference-implementation
+   choice per the STD/HDBK boundary (§1.5); the Standard is
+   substrate-pluggable per STD §1 — a customer's regulated build
+   substrate stays substrate-pluggable on the same terms.
 
 **PCS plugin validation harness (tiered, per §2.7):**
 
@@ -1620,47 +2118,62 @@ validation harness. Operators and compliance auditors read the
 
 ## Appendix F — Cross-pillar binding matrix
 
+> **STD anchor.** This Handbook appendix is the **narrative
+> companion** to STD-001 **Appendix D — Normative cross-pillar
+> binding matrix** (currently Reserved; will be filled as the
+> §6 PCS plugin requirements land). Where STD Appendix D becomes
+> the requirement-by-requirement mapping, this Handbook table is
+> the workflow-moment view of the same composition. The STD
+> Appendix D, when filled, is authoritative.
+
 How PCS workflow execution touches each pillar:
 
-| Workflow moment | Pillars engaged |
-|-----------------|----------------|
-| Operator triggers a workflow via agent | IBX (request lands), IAM (who's asking, what's authorized) |
-| Workflow execution begins | DPG (sandbox provisioned), IAM (run-as identity bound) |
-| Workflow consults a runbook / skill | AKB (read context, lessons learned), PGE (allowed?) |
-| Workflow emits events | ACT (telemetry captured), IBX (cross-agent coordination msgs) |
-| Workflow completes | ACT (final state), AKB (outcomes stored), IBX (notify dependent agents) |
-| Incident occurs during execution | ACT → AIR drafted → AKB → CLCA → new workflow version → registry |
-| Workflow version evolves | IAM (publish auth), PGE (policy gates), registry update |
-| Operator reviews the whole story | MCC (UI surfaces all of it) |
-| Workload placement | CRB (hardware-aware dispatch) |
+| Workflow moment | Pillars engaged + STD bindings |
+|-----------------|--------------------------------|
+| Operator triggers a workflow via agent | IBX (request lands) per `[FM-IBX-0007]` worker-pool dispatch; IAM (who's asking, what's authorized) per `[FM-IAM-0011]` identity-context |
+| Workflow execution begins | DPG (sandbox provisioned) per `[FM-DPG-0002]` five ephemeral-isolation properties; IAM (run-as identity bound) per `[FM-DPG-0006]` runner identity |
+| Workflow consults a runbook / skill | AKB (read context, lessons learned) per `[FM-AKB-0001]` two-tier delivery + `[FM-AKB-0004]` substrate-trap pre-filter; PGE (allowed?) per `[FM-PGE-0005]` double-guardrail |
+| Workflow emits events | ACT (telemetry captured) per `[FM-ACT-0009]` ack contract; IBX (cross-agent coordination msgs) per the §5.1 message-shape |
+| Workflow completes | ACT (final state) per `[FM-ACT-0009]`; AKB (outcomes stored) per `[FM-AKB-0008]` promotion gates; IBX (notify dependent agents) |
+| Incident occurs during execution | ACT → AIR drafted → AKB per `[FM-AKB-0012]` AIRs as Tier-1 corpus → CLCA per `[FM-PGE-0011]` divergence-derivation → new workflow version → registry per `[FM-DPG-0009]` Registry-bound validation |
+| Workflow version evolves | IAM (publish auth) per `[FM-IAM-0008]` Publish pipeline; PGE (policy gates) per `[FM-PGE-0005]` + `[FM-PGE-0010]`; registry update |
+| Operator reviews the whole story | MCC (UI surfaces all of it) per `[FM-MCC-0007]` web admin UI + `[FM-MCC-0008]` UI-strict-subset-of-API |
+| Workload placement | CRB (hardware-aware dispatch) per `[FM-CRB-0003]` policy contract + `[FM-CRB-0009]` isolation-tier eligibility-input with explicit pre-dispatch validation |
 
 ## Appendix G — Working notes (provenance)
 
-Design dialogue, AIR reports, draft material that produced this spec
-remain in:
+Design dialogue, AIR reports, draft material that produced this
+Handbook and the companion STD-001 remain in `fiducial-mesh/devel/
+spec-drafts/` (kept for provenance; not part of the canon — the
+canon is STD-001 + this HDBK).
 
-- `fiducial-mesh/devel/spec-drafts/` — the working drafts and design notes
-  in the spec repo (kept for provenance; not part of the canon)
-- `fiducial-mesh/devel/spec-drafts/` — the devel repo's spec-drafts
-  area (when populated)
+**The per-pillar spec drafts** (`IBX-SPEC.md`, `IAM-CORE-SPEC.md`,
+`ACT-SPEC.md`, `PGE-SPEC.md`, `CRB-SPEC.md`, `DPG-SPEC.md`,
+`AKB-SPEC.md`, `MCC-SPEC.md`) **are superseded** by the
+corresponding STD-001 §5.x sections; they are retained as
+historical reference for the trajectory but are no longer the
+authoritative pillar specs. The current canonical pillar spec for
+each is its STD-001 §5.x section + §5.x.1 Conformance Profile.
 
-Notable design-trajectory documents:
+Notable design-trajectory documents (all in `devel/spec-drafts/`;
+all superseded by the current canon but retained for provenance):
 
 | Document | What it captured |
 |----------|------------------|
-| `https://github.com/fiducial-mesh/devel/blob/main/spec-drafts/MANIFESTO.md` | Design drivers from operational practice |
-| `https://github.com/fiducial-mesh/devel/blob/main/spec-drafts/DESIGN-PHILOSOPHY.md` | The capability/constraint duality |
-| `https://github.com/fiducial-mesh/devel/blob/main/spec-drafts/TECHNICAL-OVERVIEW.md` | External-facing architecture summary |
-| `https://github.com/fiducial-mesh/devel/blob/main/spec-drafts/IDENTITY-PILLAR-DESIGN.md` | IAM foundational design |
-| `https://github.com/fiducial-mesh/devel/blob/main/spec-drafts/CONCURRENCY-AND-ARCHETYPES.md` | Worker/reasoner/quorum archetypes |
-| `https://github.com/fiducial-mesh/devel/blob/main/spec-drafts/PCS-PLATFORM-REDESIGN-NOTES.md` | The 2026-06-08 PCS redesign conclusions doc |
-| `https://github.com/fiducial-mesh/devel/blob/main/spec-drafts/LANGUAGE-POLICY-AND-CANON-CLEANUP-2026-06-08.md` | The consolidated language-policy + C#-purge + categorization plan |
-| Per-pillar specs (`IBX-SPEC.md`, `IAM-CORE-SPEC.md`, `ACT-SPEC.md`, `PGE-SPEC.md`, `CRB-SPEC.md`, `DPG-SPEC.md`, `AKB-SPEC.md`, `MCC-SPEC.md`) | Full pillar detail; this consolidated spec folds the load-bearing material in |
+| `MANIFESTO.md` | Design drivers from operational practice |
+| `DESIGN-PHILOSOPHY.md` | The capability/constraint duality |
+| `TECHNICAL-OVERVIEW.md` | External-facing architecture summary |
+| `IDENTITY-PILLAR-DESIGN.md` | IAM foundational design |
+| `CONCURRENCY-AND-ARCHETYPES.md` | Worker / Reasoner / Quorum-Voter archetypes (now bound to per-pillar §5.x) |
+| `PCS-PLATFORM-REDESIGN-NOTES.md` | The 2026-06-08 PCS redesign conclusions doc (input to §6 PCS, reserved) |
+| `LANGUAGE-POLICY-AND-CANON-CLEANUP-2026-06-08.md` | The consolidated language-policy + C#-purge + categorization plan (now reflected in STD §1 language-neutral clause + HDBK §1.5 / Appendix B) |
+| Per-pillar drafts (8 files above) | Full pillar detail; superseded by STD-001 §5.x sections (12–14 numbered requirements + Conformance Profile per pillar) |
 
 ---
 
-*End of Fiducial Mesh Specification v0.1.*
+*End of Fiducial Mesh Handbook v0.1.*
 
-Working notes preserved in `https://github.com/fiducial-mesh/devel/blob/main/spec-drafts/` for provenance. The canonical
-spec is this single document. As pillars evolve, this spec is updated
-in place — same single-doc shape, versioned in git.
+The Handbook is the rationale / worked-example / narrative
+companion to the normative Standard (`FIDUCIAL-MESH-STD-001`).
+The Standard is authoritative; this Handbook is read-against-it.
+Working notes preserved in `devel/spec-drafts/` for provenance.
