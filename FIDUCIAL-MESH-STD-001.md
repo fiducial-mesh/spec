@@ -806,8 +806,360 @@ proving the new substrate passes the IBX test suite.
 
 ### §5.2 IAM — Identity & Access Management
 
-*Reserved for future PR. Foundational pillar; per
-`[FM-INV-0001]`/`[FM-INV-0002]` Tier-0 invariants. Required by `[FM-IBX-0010]`.*
+**Scope.** IAM is the foundational pillar — the root of trust every
+other pillar's authorization, isolation, audit, segregation-of-duties,
+and human-approval guarantee is downstream of. IAM is specified to
+Tier-0 rigor; a flaw in IAM is not a local defect but a flaw in every
+guarantee above it. IAM consists of four services (ARCA, Vault,
+Roster, Publish pipeline) across two planes (Issuance Plane above the
+dotted line; Control Plane runtime).
+
+**Dependencies.**
+
+- `[FM-INV-0001]` (No bypass) and `[FM-INV-0002]` (Fail strict) apply to all IAM operations at Tier-0 rigor; they **cannot be relaxed** by any IAM-level policy.
+- `[FM-INV-0005]` (Platform enforcement floor authoritative) binds — IAM does not honor plugin self-declared identity claims that contradict its own verification.
+- FIPS-Day-1 substrate discipline per §4.2 applies — Vault PKI, TLS endpoints, and signing engines run FIPS-validated mode from initial provisioning for FIPS-regulated deployments.
+- IAM is consumed by IBX (§5.1) per `[FM-IBX-0010]`, PGE (§5.3) per the authorization-context contract `[FM-IAM-0011]`, and every other pillar's audit emission.
+
+**Transitional posture (universal across IAM requirements):** IAM
+ships in stages. Until `[FM-IAM-0014]` (IAM operational-state
+declaration) is met, a deployment **may** operate the deviation
+described in `[FM-IAM-0014]` (identity-by-brief) — a recognized
+deviation, **not** satisfaction of `[FM-IAM-0003]` through
+`[FM-IAM-0006]`. The same deviation-registry + divergence-event
+discipline used by `[FM-IBX-0010]` applies; see Appendix F.
+
+#### `[FM-IAM-0001]` Issuance-runtime separation (dotted line)
+
+The Issuance Plane (ARCA) and the Control Plane (Vault, Roster, IAM
+runtime services) **shall** be structurally separated. ARCA **shall
+not** be reachable from runtime services during normal operation; the
+runtime **shall not** call back to ARCA for verification. Identity
+verification at runtime **shall** be local — performed against a
+trust chain that includes ARCA's public certificate(s) but does not
+require network access to ARCA itself.
+
+This separation is what permits ARCA to be operated offline. The
+contract this Standard commits is that the runtime cannot reach ARCA
+during normal operation; ARCA's physical location, custody chain,
+and ceremony for touch-events are deployment items.
+
+*Verification: Conformance-test* — the harness asserts that runtime
+identity verification succeeds with ARCA unreachable (offline / no
+network route); asserts that no runtime code path attempts to reach
+ARCA outside the documented birth and re-attestation events
+(`[FM-IAM-0003]`).
+
+#### `[FM-IAM-0002]` Per-organization ARCA sovereignty
+
+Each deploying organization **shall** operate its own ARCA. The mesh
+**shall not** ship a vendor-operated or vendor-rooted CA serving
+multiple customer deployments. There **shall not** exist a "Fiducial
+Mesh root" above any customer's ARCA; identity in each deployment is
+sovereign to the organization.
+
+*Verification: Inspection* — review of the ARCA trust chain shows the
+root is held by the deploying organization, not by a vendor or by a
+shared upstream root.
+
+#### `[FM-IAM-0003]` Identity issuance — birth and lifecycle entry
+
+Every principal (agent, human, service) in the mesh **shall** be
+issued an identity by ARCA through the Publish pipeline
+(`[FM-IAM-0008]`). The issuance ceremony **shall** produce:
+
+1. A keypair, with the **private key stored in Vault** under the
+   in-boundary-signing contract (`[FM-IAM-0006]`); the private key
+   **shall not** be transferred in plaintext outside the Vault
+   boundary at any point during or after issuance.
+2. A **birth certificate** — an ARCA-signed binding of the public-key
+   fingerprint to the principal's `principal-id`, the issuance
+   timestamp, and the principal-type stamp (`[FM-IAM-0010]`).
+3. An entry in the **Roster** (`[FM-IAM-0007]`) recording the
+   non-secret identity fields and the initial job-code / role
+   assignment.
+
+##### `[FM-IAM-0003.1]` Identity-permanent / authority-mutable separation
+
+The `principal-id` and public-key fingerprint **shall** be **immutable**
+for the lifetime of the identity — they are the *who*. The job-code,
+role, brief, and authorization-scope assignments **shall** be
+**mutable** through the lifecycle operations (`[FM-IAM-0004]`,
+`[FM-IAM-0005]`) — they are the *what is currently authorized*. The
+two **shall not** be conflated; an identity that is suspended or whose
+role changes retains the same fingerprint.
+
+*Verification: Inspection (current) / Conformance-test (post-IAM-operational)*
+— review of the issuance code path verifies the three-component
+output; once operational, the harness exercises issuance and asserts
+keypair-in-Vault + birth-cert-signed-by-ARCA + Roster-entry-present
+with correct identity-permanent / authority-mutable field separation.
+
+#### `[FM-IAM-0004]` Identity lifecycle — suspend / resume
+
+A principal's identity **may** be transitioned between `active`,
+`suspended`, and `active`-again states without revoking the underlying
+credential. A suspended identity **shall not** be able to authenticate
+any new actions; in-flight actions **shall** be evaluated per the
+Fail-strict invariant — under the suspended state the platform halts
+the principal's operations.
+
+Suspension **shall** be writable only by an identity holding the
+`iam.principal.suspend` scope; resume by an identity holding
+`iam.principal.resume`. The two scopes **may** be held by the same
+role per the operator's IAM role catalog, or split per
+segregation-of-duties policy.
+
+*Verification: Conformance-test* — the harness exercises suspend on
+an active principal, asserts subsequent authentication attempts halt;
+exercises resume, asserts authentication succeeds again; verifies
+scope-required writes succeed only with the correct credential.
+
+#### `[FM-IAM-0005]` Identity revocation — terminate
+
+A principal's identity **may** be terminated permanently. Termination
+**shall**:
+
+1. Revoke the principal's credentials via the Vault revocation
+   primitive (`[FM-IAM-0006]`).
+2. Mark the Roster entry as `terminated` with the termination
+   timestamp and reason; the entry **shall not** be deleted (audit
+   chain preservation).
+3. Distribute the revocation through the mesh's revocation
+   propagation channel so that all consumers verify the principal's
+   credential against the post-revocation trust state.
+
+A terminated identity's `principal-id` and fingerprint **shall not**
+be reissued or reused; termination is permanent for the namespace.
+
+Termination is a catastrophic-class action when applied to a class of
+identities (mass revocation) per `[FM-INV-0004]`; per-principal
+termination requires the `iam.principal.terminate` scope, which
+**may** be subject to additional governance (e.g., quorum) per the
+operator's IAM policy.
+
+*Verification: Conformance-test* — the harness exercises termination,
+asserts subsequent authentication denied, Roster entry preserved with
+terminated state, revocation propagated to downstream consumers.
+
+#### `[FM-IAM-0006]` Vault — in-boundary signing
+
+The Vault service **shall** provide in-boundary signing — private
+keys held by Vault **shall not** be exported outside the Vault trust
+boundary in plaintext at any point. Signing operations **shall** be
+performed inside Vault (or its delegated HSM); only signatures (not
+keys) **shall** leave the boundary.
+
+Tier-graded discipline:
+
+- **Tier-0** (high-assurance / FIPS / DoD-SCIF deployments per §4.2):
+  hardware-backed dual-control signing — HSM (e.g., PKCS#11) with
+  attested non-exfiltration; no software-only mode permitted.
+- **Tier-2** (commercial / lab default): software single-operator
+  signing acceptable; in-boundary contract still applies.
+
+*Verification: Conformance-test* — the harness attempts to export a
+private key via every documented Vault API; asserts every attempt
+fails. For Tier-0, additionally asserts the signing engine is
+HSM-backed via Vault's reported configuration.
+
+#### `[FM-IAM-0007]` Roster contract — non-secret identity store
+
+The Roster **shall** store the non-secret identity record for every
+principal: `principal-id`, public-key fingerprint, principal-type
+(`[FM-IAM-0010]`), job-code, role, brief, status (active / suspended
+/ terminated), and any operator-defined non-secret attributes.
+
+The Roster **shall not** store secret material — private keys,
+credentials, or tokens belong in Vault (`[FM-IAM-0006]`).
+
+The Roster **shall** be broadly readable to any authenticated
+principal in the mesh — Roster reads are not gated by need-to-know
+restrictions for non-secret fields; identity attribution requires
+visibility. **Write access** to the Roster **shall** be restricted to
+the Publish pipeline (`[FM-IAM-0008]`); no other path **shall**
+modify Roster records.
+
+*Verification: Inspection of substrate ACLs + Conformance-test* —
+review of the Roster substrate configuration verifies read-broad +
+write-restricted-to-Publish-pipeline-identity; harness attempts to
+write directly via non-Publish credentials and asserts denial.
+
+#### `[FM-IAM-0008]` Publish pipeline — single privileged onboarding path
+
+There **shall** exist exactly one privileged onboarding actor — the
+Publish pipeline — that can write a new principal's identity into
+Vault (private key) and Roster (identity record). The Publish
+pipeline **shall**:
+
+1. Receive a birth certificate signed by ARCA (`[FM-IAM-0003]`).
+2. Store the private key in Vault under the in-boundary contract
+   (`[FM-IAM-0006]`).
+3. Record the Roster entry with all required fields per
+   `[FM-IAM-0007]`.
+4. Emit a single immutable audit event (per `[FM-IAM-0013]`) recording
+   the issuance.
+
+No other path **shall** create principals. Bypass attempts (direct
+Vault writes, direct Roster writes by non-Publish identities) **shall**
+be denied by the substrates' ACLs and **shall** emit a divergence
+event per `[FM-INV-0005.2]`.
+
+*Verification: Conformance-test* — the harness submits issuance
+requests through the Publish pipeline and asserts the three-component
+state is produced atomically; submits a direct Vault or Roster write
+bypassing Publish and asserts denial + divergence-event emission.
+
+#### `[FM-IAM-0009]` Pluggable IdP federation interface
+
+IAM **shall** expose a pluggable federation adapter interface that
+allows the deployment's existing identity provider (Active Directory,
+LDAP, OIDC, SAML, PIV-CAC for federal environments) to participate as
+an authentication source for human principals. The adapter contract
+**shall** include: identity-assertion verification, claim mapping
+into the Roster's principal-id space, MFA / policy enforcement on the
+IdP side surfaced through verification metadata.
+
+Agent principals **shall not** authenticate through the IdP
+federation path; agents authenticate via ARCA-issued credentials per
+`[FM-IAM-0003]`. The IdP federation surface is for human principals
+and (optionally) service principals.
+
+*Verification: Inspection + Conformance-test* — review of the IdP
+adapter interface against the four contract elements; the harness
+exercises one supported IdP type (LDAP minimum for sovereign-ref
+verification) and asserts successful federation including claim
+mapping.
+
+#### `[FM-IAM-0010]` Principal-type stamp
+
+Every principal's Roster entry **shall** carry a principal-type stamp
+with one of the values: `agent`, `human`, `service`. The stamp
+**shall** be set at issuance (`[FM-IAM-0003]`) and **shall** be
+immutable — a principal's type does not change for the lifetime of
+the identity.
+
+The principal-type **shall** be available to downstream consumers
+(PGE for policy decisions, ACT for audit attribution, IBX for
+routing) without requiring re-verification against IAM.
+
+*Verification: Static-check + Conformance-test* — Static-check of
+issuance code asserts every issuance path sets the stamp; harness
+attempts to mutate principal-type post-issuance and asserts denial.
+
+#### `[FM-IAM-0011]` Authorization-context contract for PGE consumers
+
+IAM **shall** expose an authorization-context resolution contract to
+PGE (§5.3) and other policy-consuming pillars: given
+`(principal-id, job_code, action, resource)`, return an
+`allow | deny` decision with the deciding policy version recorded for
+audit. Resolution **shall** be deterministic — the same input
+**shall** produce the same output absent intervening
+policy-version changes — and **shall** support policy versioning so
+that audit can attribute decisions to the policy version in force at
+decision time.
+
+This is the seam at which PGE policy enforcement consumes IAM
+identity context.
+
+*Verification: Conformance-test* — the harness issues authorization
+queries with known principal/job-code/action/resource tuples against
+known policies and asserts the expected allow/deny outcomes plus
+correct policy-version attribution.
+
+#### `[FM-IAM-0012]` Telemetry emission
+
+IAM **shall** emit OTLP-format traces, metrics, and logs per the
+mesh-wide telemetry discipline. Span names **shall** follow the
+`mesh.iam.*` namespace per the per-pillar telemetry contract;
+required attributes **shall** include `principal-id`, `session`,
+`trace_id`, `span_id`, plus event-specific fields (operation,
+target-principal, scope, decision).
+
+*Verification: Conformance-test* — the harness invokes representative
+IAM operations and asserts emission of expected span / metric / log
+records to a test OTLP sink, with required attributes present.
+
+#### `[FM-IAM-0013]` Audit emission per state-affecting operation
+
+Every IAM state-affecting operation (issuance, suspend, resume,
+terminate, role change, scope grant, scope revoke) **shall** emit an
+audit-class event to ACT (§5.4 when landed) carrying the acting
+identity, target identity, operation, from-state, to-state, deciding
+policy version, timestamp, and trace/span correlation IDs. Audit
+emission failure **shall** be treated as fail-strict per
+`[FM-INV-0002]` — the operation itself **shall not** be applied if
+its audit emission cannot be confirmed.
+
+*Verification: Conformance-test* — the harness exercises each
+state-affecting operation and asserts audit emission with required
+fields; induces audit-sink unavailability and asserts the operation
+is denied (fail-strict semantics).
+
+#### `[FM-IAM-0014]` IAM operational-state declaration
+
+A deployment's IAM pillar is declared **operational** for the purpose
+of this Standard when **all** of the following hold:
+
+1. **ARCA is built and signing** intermediate CAs per `[FM-IAM-0001]`
+   (issuance-runtime separation operational; offline-root posture in
+   place).
+2. **Vault is online with in-boundary signing** per `[FM-IAM-0006]`
+   at the deployment's declared tier (Tier-0 HSM-backed for
+   FIPS / DoD; Tier-2 software for commercial).
+3. **Roster is online + writable only via the Publish pipeline** per
+   `[FM-IAM-0007]` + `[FM-IAM-0008]`.
+4. **Cryptographic identity verification path is exercising real
+   signatures** for every principal in the deployment — no
+   `principal-id` is satisfied by brief-assertion alone.
+
+Until all four conditions hold, the deployment operates under the
+**identity-by-brief transitional deviation**: a recognized deviation,
+not satisfaction of `[FM-IAM-0003]` through `[FM-IAM-0006]`. The
+deviation **shall**:
+
+1. Be registered in Appendix F deviation registry with explicit
+   sunset condition: "this requirement's four conditions all hold."
+2. Emit divergence events to ACT per `[FM-INV-0005.2]` for every
+   identity claim under the deviation.
+3. Be reviewed at each major Standard release; deviation expiry
+   **shall** be enforced when the four conditions hold.
+
+This is the requirement that sunsets the `[FM-IBX-0010]` transitional
+deviation (and any analogous deviations in other pillars). When
+`[FM-IAM-0014]` is satisfied, those deviations expire.
+
+*Verification: Inspection* — the four conditions are evaluated
+against the deployment's IAM build state; operational-state
+declaration requires written attestation by the deployment's
+ARCA-custody role + the IAM-administration role, recorded in ACT.
+
+### §5.2.1 IAM Conformance Profile
+
+The IAM pillar's substrate substitutability claim covers exactly the
+rows in this Conformance Profile. Conformance is verified by passing
+the IAM multi-profile conformance suite against the listed
+implementations — once IAM is built per `[FM-IAM-0014]`.
+
+| Seam | Bound requirement(s) | Sovereign reference (version floor) | Supported alternatives | Test Set |
+|------|---------------------|-------------------------------------|------------------------|----------|
+| ARCA — offline issuance | `[FM-IAM-0001]`, `[FM-IAM-0002]`, `[FM-IAM-0003]` | smallstep CA (offline mode) — pending Tier-0 ceremony ratification | HashiCorp Vault PKI (offline-mode), AWS Private CA, Azure Key Vault HSM-backed CA, custom OpenSSL offline stack | `iam-arca-v1` |
+| Vault — credential store + in-boundary signing | `[FM-IAM-0006]`, `[FM-IAM-0008]` | HashiCorp Vault (Tier-0 with PKCS#11 HSM; Tier-2 soft-mode) | Azure Key Vault (HSM Tier-0), AWS KMS + Secrets Manager (CloudHSM Tier-0), OCI Vault (dedicated HSM), Thales CipherTrust Manager, standalone PKCS#11 HSM on-prem | `iam-vault-v1` |
+| Roster — identity store | `[FM-IAM-0007]`, `[FM-IAM-0008]`, `[FM-IAM-0010]` | Standalone Roster adapter (lab starting point) | Active Directory, LDAP / OpenLDAP, Microsoft Entra ID, Keycloak, AWS Cognito, Auth0, custom JSON-on-disk with Publish-pipeline write discipline | `iam-roster-v1` |
+| IdP federation | `[FM-IAM-0009]` | Lab Roster (single-adapter starting point, AD-shaped) | LDAP, AD (on-prem), Microsoft Entra ID with Conditional Access, OIDC providers (Okta, Auth0, Google Workspace), PIV-CAC, AWS IAM Identity Center | `iam-idp-v1` |
+| Authorization-context lookup (PGE seam) | `[FM-IAM-0011]` | In-pillar job-code resolver (lab Roster reads policy directly) | Open Policy Agent (OPA) with Rego, Casbin, AWS IAM, Azure RBAC, custom rules engine | `iam-authz-v1` |
+| Telemetry sink | `[FM-IAM-0012]` | OTLP-on-the-wire (any OTLP-compatible backend per ACT §5.4) | Grafana/Prometheus/Tempo, Azure Monitor, Datadog, OCI Monitoring, AWS CloudWatch (with OTLP adapter) | `iam-telemetry-v1` |
+
+Out-of-set substrates **shall not** be claimed supported. Extending
+the profile requires the argued-case discipline per `[FM-INV-0003.2]`
+and a multi-profile conformance run proving the new substrate passes
+the IAM test suite.
+
+**Transitional deployments** (pre-`[FM-IAM-0014]`) run the
+`iam-deviation-v1` test set instead of the operational conformance
+suite — verifying deviation-registry presence and divergence-event
+emission per the IAM transitional deviation clause in
+`[FM-IAM-0014]`.
 
 ### §5.3 PGE — Policy Guardrail Engine
 
