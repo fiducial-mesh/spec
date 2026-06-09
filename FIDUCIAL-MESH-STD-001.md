@@ -101,21 +101,6 @@ STD/HDBK companion pattern). It does **not** adopt:
 - Cancellation and supersession procedures specific to federal-agency
   standards processes
 
-This Standard is also **language- and framework-neutral** at the
-contract layer: pillar requirements and appendices **shall not**
-specify the implementation language or framework an implementer
-**shall** use. The conformance test sets are written to be blind to
-implementation language by construction — an implementation that
-passes a pillar's test set is conformant whether written in Python,
-Go, Rust, C#, Java, or any other host language. Reference-
-implementation choices (the project's own pillar implementations and
-language preferences) live in the engineering-standards companion
-documentation, not in this Standard. Languages **may** appear in
-this Standard only as a *supported workload runtime* (per a pillar's
-declared capability, e.g., DPG accepting Python / CUDA / Bash
-workloads) — that is a capability statement about the substrate, not
-an implementation mandate.
-
 Changes to this Standard follow the Fiducial Mesh GH-native PR
 convention: author-review-merge by the project's two-person review
 discipline, with Judge as the merge gate.
@@ -139,6 +124,19 @@ backend products **shall** be used. Customer choice across the
 substrate-matrix seams is a first-class property; conformance is
 verified by passing the multi-profile conformance run against the
 declared matrix rows.
+
+This Standard is **language-neutral.** It defines *behavior*, not
+the language an implementation is written in. A conforming
+implementation **may** be written in any language or framework;
+conformance is established solely by passing the multi-profile
+conformance run, which is blind to implementation language. The
+Standard specifies substrate *capabilities* where they are
+contract-relevant (e.g., transactional claim semantics,
+JSONB-equivalent query support, FIPS-validated cryptographic
+modules) and the *workload runtimes* a pillar must accept — but it
+**shall not** mandate the implementation language or framework of
+any pillar. Reference-implementation language choices live in the
+engineering-standards companion document, not in this Standard.
 
 This Standard targets **on-premises sovereign deployment**.
 Vendor-managed cloud substrate is **not in scope**; the architecture
