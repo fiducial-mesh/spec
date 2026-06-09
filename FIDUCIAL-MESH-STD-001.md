@@ -112,11 +112,13 @@ discipline, with Judge as the merge gate.
 This Standard defines the normative platform-level requirements
 Fiducial Mesh implementations **shall** satisfy. It covers the
 foundational invariants every pillar inherits, the cross-pillar
-contracts (PCS plugin and workflow shape, validation harness tiers,
-registry behavior, substrate-matrix conformance discipline), the
-per-pillar requirements (IBX, AKB, ACT, IAM, PGE, CRB, DPG, MCC), and
-the operational disciplines (security framework, delivery and
-packaging substrate, AIR/CLCA continuous-improvement loop).
+contracts (validation harness tiers, registry behavior,
+substrate-matrix conformance discipline), the per-pillar
+requirements for the **eight pillars** (IBX, IAM, PGE, ACT, AKB,
+DPG, CRB in §§5.1–5.7; PCS in §6) plus the **MCC host frame**
+(§5.8) that hosts them, and the operational disciplines (security
+framework, delivery and packaging substrate, AIR/CLCA continuous-
+improvement loop).
 
 This Standard is **substrate-pluggable**: it defines what
 implementations and deployments **shall** do, not what specific
@@ -195,7 +197,7 @@ specified herein.
 | HDBK | Handbook (NASA document type) |
 | IAM | Identity and Access Management (pillar) |
 | IBX | Inbox Exchange (pillar) |
-| MCC | Mesh Control Center (pillar) |
+| MCC | Mesh Control Center (host frame; **not** a pillar — see `[FM-MCC-0011]`) |
 | MCP | Model Context Protocol |
 | PCS | Platform Control System (pillar) |
 | PCT | Principal Control Token |
@@ -3322,7 +3324,493 @@ accounting per family) against the new substrate before merging.
 
 ### §5.8 MCC — Mesh Control Center
 
-*Reserved for future PR.*
+**Scope.** MCC is the mesh's **pluggable host-frame** and human
+operator surface. The fleet and human users point at *one*
+endpoint — MCC — which authenticates every call, dispatches to the
+right pillar plugin, and returns through one canonical response
+path. MCC is the central locus for substrate handles (database
+pool, secret-store client, identity-provider federation, telemetry
+sink), the IAM auth hook (every request is authenticated against
+the IAM plugin before reaching another plugin), and the operator
+surface (web admin UI; not CLI for routine operations). The
+eight pillars (IBX, IAM, PGE, ACT, AKB, DPG, CRB per §§5.1–5.7;
+PCS per §6) are **loadable modules** that live inside MCC; MCC is
+the structural host they run on. **Pillar count stays at eight**
+per `[FM-MCC-0011]` — MCC is not a ninth pillar but the host the
+eight pillar contracts live inside.
+
+**Dependencies.**
+
+- `[FM-INV-0001]` (No bypass) and `[FM-INV-0002]` (Fail strict) apply — every plugin call **shall** traverse the IAM auth hook and the frame's dispatch path; bypassing MCC to reach a plugin directly is non-conforming.
+- MCC consumes IAM as plugin #1 per `[FM-IAM-0001]` / `[FM-IAM-0006]` / `[FM-IAM-0011]`; IAM **shall** load before any other plugin can serve requests per `[FM-MCC-0005]`.
+- MCC emits state-affecting frame operations as `mcc.*` events to ACT via the `[FM-ACT-0009]` ack contract and the `[FM-ACT-0004]` taxonomy.
+- MCC **shall not** carry business logic, policy enforcement, identity verification, or audit storage — those live in their respective plugin pillars (PGE / IAM / ACT). The frame hosts them; the frame does not subsume them.
+
+#### `[FM-MCC-0001]` Pluggable host-frame model
+
+MCC **shall** be implemented as a **kernel/frame** that hosts the
+mesh pillar contracts as **loadable modules** (plugins). The frame
+**shall** provide the following capabilities to every loaded
+plugin:
+
+1. **Transport** — one HTTP server and one MCP transport, both
+   routing inbound calls to plugin handlers.
+2. **Authenticated context** — every plugin call carries an
+   authenticated principal-id + role + permissions, populated by
+   the IAM auth hook per `[FM-MCC-0003]` before the plugin sees
+   the call.
+3. **Substrate handles** — the database pool, secret-store
+   client, identity-provider federation handle, and telemetry
+   sink are held by the frame per `[FM-MCC-0004]` and surfaced to
+   plugins by dependency-injection or equivalent registry.
+4. **Configuration** — per-plugin config sections exposed via
+   the frame's config registry; plugins declare config schema at
+   registration.
+5. **Telemetry sink** — a single OTLP sink the frame collects
+   spans / metrics / logs into per `[FM-MCC-0014]`.
+6. **Plugin registry** — other loaded plugins are discoverable
+   by name; cross-plugin calls go through the registry, not
+   direct connections.
+7. **Judge-gate hook** — a frame-level elevated-confirmation
+   hook per `[FM-MCC-0010]`.
+8. **Lifecycle** — frame loads plugins at startup, calls their
+   initialization, holds them through runtime, and calls their
+   shutdown at termination.
+
+A microservice mesh (each pillar deployed as its own network
+service) is **not** conformant to this requirement — substrate
+credentials scattered across N services and an auth surface forked
+across N services both violate the kernel/frame model's
+centralization invariants.
+
+A pillar implementation that does not plug into MCC **shall not**
+be claimed a deployable Fiducial Mesh pillar; it is a spec-only
+artifact until it satisfies the plugin contract per
+`[FM-MCC-0006]`.
+
+*Verification: Inspection + Conformance-test* — Inspection
+verifies the frame holds the substrate handles + auth hook +
+dispatch + telemetry sink + config registry as enumerated;
+Conformance-test exercises a plugin call through the full stack
+(transport → auth → dispatch → plugin handler → response).
+
+#### `[FM-MCC-0002]` Single endpoint
+
+The fleet (agents) and human users **shall** point at exactly one
+network address — MCC. Per-pillar endpoints (one MCP server per
+pillar, one HTTP server per pillar, etc.) **shall not** exist in
+the deployed system; they **may** exist at the build/test level
+as plugin entry points the frame composes.
+
+Routing within MCC: every inbound call **shall** carry a target
+identifier (the tool name in MCP semantics; the URL path in HTTP
+semantics) that names the plugin and the operation. MCC's frame
+**shall** dispatch to the loaded plugin matching the identifier.
+
+The customer deployment is **one URL** the customer points their
+fleet at. Per-customer substrate (their database, their identity
+provider, their secret store) is configured at the MCC frame
+level. Pillars **shall** be blind to which substrate they are
+running against — they consume handles per `[FM-MCC-0004]`, not
+connection strings.
+
+*Verification: Conformance-test* — the harness verifies the
+deployed system exposes exactly one externally-reachable address;
+asserts a probe of any candidate per-pillar address fails to
+connect; asserts both HTTP and MCP transports route to the same
+plugin operation set.
+
+#### `[FM-MCC-0003]` IAM auth hook on every call
+
+Every inbound call **shall** traverse the IAM auth hook before
+reaching any plugin handler. The frame **shall** extract the
+call's credentials (session token in MCP, bearer token / cookie in
+HTTP), pass them to the IAM plugin's `validate-session` operation
+per the `[FM-IAM-0011]` identity-context contract, and proceed to
+plugin dispatch only on a return of an authenticated principal.
+
+Plugins **shall** receive the authenticated context as part of
+the call and **shall not** perform AuthN themselves; per
+`[FM-INV-0001]`, re-authentication at the plugin layer is a
+duplicated chokepoint and a structural defect.
+
+Auth failures (missing credentials, invalid session, denied
+authorization) **shall** halt at the frame boundary; the plugin
+handler **shall not** be invoked. The frame **shall** emit
+`mcc.auth_denied` and the call **shall** fail with the
+appropriate transport-level rejection (HTTP 401/403 or MCP
+equivalent).
+
+The IAM auth-hook implementation **shall** be backed by a
+session-validation cache to bound per-call latency. The cache
+entry **shall not** outlive the IAM-declared session lifetime,
+and **shall** be invalidated by IAM revocation events per
+`[FM-IAM-0005]` — a `suspend` or `terminate` against the
+session's principal-id **shall** evict the corresponding cache
+entry before the next authenticated call lands. The cache is a
+latency optimization, not an extension mechanism for the IAM
+authorization decision.
+
+*Verification: Conformance-test* — the harness submits calls
+with missing / invalid / denied credentials and asserts halt at
+the frame boundary with the corresponding auth-denied event;
+asserts a successful call reaches the plugin handler with a
+populated authenticated context; verifies the cache layer does not
+extend session lifetime past the IAM-declared bound.
+
+#### `[FM-MCC-0004]` Centralized substrate handles
+
+Substrate handles (database pool, secret-store client, identity-
+provider federation, telemetry sink, any other deployment-scoped
+substrate connection) **shall** be held by the frame and surfaced
+to plugins via dependency-injection or equivalent registry.
+Plugins **shall not** open direct connections to substrate; they
+**shall** request handles from the frame at registration.
+
+The frame **shall** fail plugin load if a plugin declares a
+substrate-handle requirement that the frame cannot satisfy
+(missing configuration, unreachable substrate, missing credential).
+
+Substrate credentials **shall** live in the frame's secret-store
+integration (per the Conformance Profile secret-store seam) and
+**shall not**:
+
+1. Appear in configuration files committed to source control,
+2. Persist in environment variables on disk,
+3. Appear in logs at any level,
+4. Be readable by plugin handlers — handles are opaque references,
+   not credential strings.
+
+*Verification: Inspection + Conformance-test* — Inspection
+verifies plugin code paths do not establish substrate connections
+outside the frame's registry; Conformance-test attempts to load a
+plugin whose declared substrate handle is unavailable and asserts
+load failure; static-check confirms substrate credentials do not
+appear in committed configuration files.
+
+#### `[FM-MCC-0005]` IAM-first load order
+
+The frame **shall** load the IAM plugin before any other plugin
+can serve requests. A frame startup that cannot load IAM **shall**
+fail closed — no plugins serve requests until IAM is operational.
+
+Per `[FM-MCC-0003]`, every plugin call authenticates through the
+IAM auth hook; the IAM plugin's `validate-session` operation
+**shall** be available before any other plugin's handler is
+reachable. The frame **shall** enforce this load ordering by
+construction; plugin authors **shall not** be able to declare a
+dependency ordering that places IAM after a dependent plugin.
+
+After IAM, the load order of remaining plugins **may** be governed
+by declared dependencies; plugin-name registration collisions
+**shall** fail loudly at frame startup, not silently at runtime.
+
+*Verification: Conformance-test* — the harness simulates IAM
+plugin load failure and asserts no other plugin serves requests;
+restores IAM and asserts dependent plugins load in declared
+order; submits a duplicate-name plugin registration and asserts
+loud rejection at startup.
+
+#### `[FM-MCC-0006]` Plugin contract (minimum-viable surface)
+
+A pillar implementation that plugs into MCC **shall** provide:
+
+1. **A read-only MCP tool surface** — agent-facing read
+   operations on the pillar's contract. The plugin registers these
+   as MCP tools with the frame at startup; the frame routes
+   inbound MCP calls to them after authentication.
+2. **Privileged service operations behind a non-agent boundary**
+   — write and lifecycle operations that an agent **shall not**
+   invoke directly. The frame **shall** route these to non-agent
+   actors (the operator via the admin UI; service principals via
+   the credentialed service path). The agent-out-of-secret-path
+   invariant **shall** be enforced at the frame boundary per
+   `[FM-MCC-0009]`.
+3. **A substrate-handle dependency declaration** — the plugin
+   names which substrate handles it requires; the frame fails
+   plugin load if any required handle is unavailable per
+   `[FM-MCC-0004]`.
+4. **Telemetry emission** — the plugin emits OTLP spans, metrics,
+   and JSON logs via the frame's telemetry handle; the plugin
+   **shall not** configure its own exporter.
+5. **A Judge-gate declaration** — operations requiring elevated
+   confirmation **shall** be declared by the plugin at registration
+   per `[FM-MCC-0010]`.
+
+This contract is the **minimum-viable surface** for the plugin
+contract. Extension (inter-plugin coordination semantics, plugin
+hot-replacement, sandboxing, external plugin loading) is reserved
+for future requirements as additional plugins exercise the contract
+and surface coverage gaps.
+
+*Verification: Conformance-test* — the harness verifies a
+candidate plugin satisfies every item; a plugin missing any of
+the five **shall** fail load.
+
+#### `[FM-MCC-0007]` Operator surface — web admin UI
+
+The operator interaction surface for MCC **shall** be a web admin
+UI. A CLI **may** exist at the frame level for build, test, and
+emergency debugging — it **shall not** be the operator's normal
+interaction surface for routine operations.
+
+The admin UI **shall** authenticate the human operator through
+the IAM auth hook per `[FM-MCC-0003]`, federated to the
+deployment's identity provider per the Conformance Profile
+identity-provider seam. There **shall not** be a separate
+human-auth surface parallel to the agent-auth surface; both flow
+through IAM.
+
+Admin UI surfaces **shall** be a strict subset of the operations
+available via the underlying frame API per `[FM-MCC-0008]` — the
+UI is a client of the API, not a parallel control surface.
+
+*Verification: Inspection + Conformance-test* — Inspection
+confirms a web admin UI is the documented operator surface;
+Conformance-test verifies every UI action invokes a frame API
+operation also reachable directly via HTTP/MCP.
+
+#### `[FM-MCC-0008]` CLI-first / UI-second discipline
+
+Every admin UI action **shall** invoke a frame API operation that
+is also reachable directly via the HTTP or MCP transport per
+`[FM-MCC-0002]`. The UI **shall** be a client of the API, never a
+parallel or privileged control surface. The CLI (when present)
+**shall** wrap the same API.
+
+A condition where the UI performs an operation the API cannot
+**shall** be classified as a structural defect requiring spec-level
+correction, not a UI bug. The discipline ensures the admin UI is
+documentation-by-example for the underlying contract, and that
+every operator action is automation-replayable through the API.
+
+*Verification: Conformance-test* — the harness asserts a
+one-to-one mapping between documented UI actions and reachable
+frame API operations; a UI action with no corresponding API
+operation fails the test.
+
+#### `[FM-MCC-0009]` Agent-out-of-secret-path enforcement at frame
+
+Agent-out-of-secret-path enforcement (per the IAM increment-2
+invariant) **shall** be applied at the frame boundary, not at the
+plugin layer. Calls from agents targeting privileged operations
+(write / lifecycle operations on identity, secret-rotation
+operations, infrastructure-modification operations) **shall** be
+denied at the frame *before* reaching the plugin handler.
+
+The frame **shall** maintain the privileged-operation classifier
+as a declared property of each plugin's operation set (per the
+plugin contract per `[FM-MCC-0006]` item 2). Calls from agents to
+privileged operations **shall** emit `mcc.agent_secret_path_denied`
+to ACT and **shall** fail with the corresponding transport-level
+rejection.
+
+The frame **shall not** trust the plugin to enforce the
+agent-out-of-secret-path invariant — duplicating the enforcement
+inside the plugin is permitted as defense in depth but **shall
+not** substitute for the frame-boundary enforcement.
+
+*Verification: Conformance-test* — the harness submits agent-
+authenticated calls to privileged operations across each loaded
+plugin and asserts frame-boundary denial; verifies the denial
+event lands in ACT with the agent's principal-id and the targeted
+privileged-operation classifier.
+
+#### `[FM-MCC-0010]` Judge-gate hook (frame-level)
+
+Operations requiring elevated confirmation (the Judge gate
+pattern: lifecycle terminations, irreversible deletions,
+catastrophic-class operations per `[FM-INV-0004]`) **shall** be
+enforced by the frame at the plugin-dispatch boundary. Plugins
+**shall** declare which operations are Judge-gated at
+registration; the frame **shall** enforce the elevated
+confirmation flow before dispatching to the plugin handler.
+
+The Judge-gate confirmation flow **shall**:
+
+1. Require non-default confirmation (the operator types or
+   re-attests a uniquely-identifying value for the target, not a
+   yes/no click);
+2. Be uniquely audit-attestable — the confirmation action emits
+   `mcc.judge_gate_confirm` with the operator's principal-id, the
+   target plugin / operation, and the confirmation token, to ACT
+   per the `[FM-ACT-0009]` ack contract before the plugin handler
+   is invoked;
+3. Be uniformly applied — every Judge-gated operation uses the
+   same UX pattern; plugin-specific confirmation surfaces are not
+   permitted, to prevent "the easy one" UX drift.
+
+A plugin operation declared Judge-gated that is dispatched without
+a matching `mcc.judge_gate_confirm` event in ACT is a no-bypass
+violation per `[FM-INV-0001]`.
+
+*Verification: Conformance-test* — the harness submits a
+Judge-gated operation without the confirmation flow and asserts
+denial at the frame; submits with confirmation and asserts the
+confirm event is emitted before plugin handler invocation;
+verifies the plugin handler cannot be invoked by skipping the
+frame's confirmation step.
+
+#### `[FM-MCC-0011]` Eight pillars; MCC is the host
+
+The mesh's pillar count **shall** remain eight: IBX (§5.1), IAM
+(§5.2), PGE (§5.3), ACT (§5.4), AKB (§5.5), DPG (§5.6), CRB
+(§5.7), and PCS (§6). MCC (§5.8) is the **host frame** and
+**shall not** be claimed a ninth pillar.
+
+MCC is the **host frame** the eight pillar contracts live inside,
+parallel to the substrate seams the pillars depend on below the
+pillar layer. The pillar layer is the contract surface customers
+consume; MCC is the structural host that surface runs on;
+substrates (`[FM-CONFORMANCE-*]` etc.) are the implementation
+seams below the pillar contracts.
+
+The Conformance Profile invariants — every pillar declares a
+substrate matrix; every pillar passes a conformance test set;
+every pillar emits audit and telemetry through the patterns
+specified in this Standard — **shall** be unaffected by the MCC
+host frame's existence; MCC adds a host layer, not a pillar.
+
+*Verification: Inspection* — the mesh's pillar enumeration
+across §§5.1–5.7 (seven pillars) + §6 (PCS, the eighth) is
+verified to count eight; MCC (§5.8) is documented as host frame,
+not as pillar #9; the Conformance Profile across all pillars is
+unaffected by the MCC frame.
+
+#### `[FM-MCC-0012]` Operational-state transitional clause
+
+The pluggable host-frame model committed by `[FM-MCC-0001]` is
+**partially operational** at this Standard's publication. The
+current deployed surface satisfies the single-endpoint property
+per `[FM-MCC-0002]`, the IAM auth hook per `[FM-MCC-0003]`, and
+the centralized-substrate-handle property per `[FM-MCC-0004]` for
+the operator-surface workload class. The full host-frame with all
+eight pillars loaded as plugins per `[FM-MCC-0006]` is the build
+target; the remaining pillars **shall** plug in as they reach
+their operational-state declarations.
+
+A deployment **may** operate under the partial-load pattern as a
+recognized **transitional deviation** until all eight pillars are
+loaded into MCC. The deviation **shall**:
+
+1. Be registered in Appendix F with explicit sunset condition:
+   "All eight pillars loaded into MCC per `[FM-MCC-0006]` plugin
+   contract; the deployment's `mcc_plugin_loaded` gauge per
+   `[FM-MCC-0014]` reports the full pillar set."
+2. Emit a divergence event to ACT per `[FM-INV-0005.2]` with
+   `divergence_type = "mcc-partial-load"` per `[FM-PGE-0011]`
+   discriminator (canonical emitter: PGE) for every dispatch
+   targeting a pillar that is not yet loaded as an MCC plugin.
+3. Be reviewed at each major Standard release; deviation expiry
+   **shall** be enforced when all eight pillars are loaded into
+   MCC. Mirror of the `[FM-IBX-0010]` / `[FM-IAM-0014]` /
+   `[FM-PGE-0005]` Gate-2 / `[FM-DPG-0013]` / `[FM-CRB-0010]`
+   transitional pattern.
+
+A deployment operating under the partial-load deviation **shall
+not** be claimed conformant to `[FM-MCC-0006]` on the basis of
+the loaded subset — it is conformant to the deviation clause only
+for the unloaded pillars.
+
+*Verification (operational): Conformance-test* — the harness
+verifies all eight pillars are loaded per the plugin contract;
+asserts every pillar's read-only MCP tool surface is reachable
+through MCC's single endpoint.
+*Verification (deviation period): Inspection of deviation
+registry* — deviation entry present in Appendix F with sunset
+condition; divergence events emitted per item 2 above.
+
+#### `[FM-MCC-0013]` Audit emission via ACT
+
+MCC **shall** emit the following `mcc.*` events to ACT via the
+`[FM-ACT-0009]` ack contract, drawn from the `[FM-ACT-0004]`
+event-type taxonomy:
+
+- `mcc.call_received` — emitted on inbound call before
+  authentication.
+- `mcc.auth_denied` — emitted on auth-hook denial per
+  `[FM-MCC-0003]`.
+- `mcc.agent_secret_path_denied` — emitted on agent-out-of-secret-
+  path denial per `[FM-MCC-0009]`.
+- `mcc.dispatch_completed` — emitted on plugin dispatch completion
+  (success or plugin-reported failure).
+- `mcc.judge_gate_confirm` — emitted on Judge-gate confirmation
+  per `[FM-MCC-0010]`.
+- `mcc.plugin_loaded` / `mcc.plugin_load_failed` — emitted on
+  plugin lifecycle events.
+
+Per `[FM-ACT-0009]`, a call **shall not** be considered complete
+until ACT acknowledges the corresponding terminal event;
+lack-of-ack or negative-ack **shall** cause the operation to fail
+strict.
+
+Every inbound call **shall** have exactly one terminal event in
+ACT (`dispatch_completed`, `auth_denied`, or
+`agent_secret_path_denied`); a call with no terminal event is a
+no-bypass violation per `[FM-INV-0001]`.
+
+*Verification: Conformance-test* — the harness exercises each
+event type on the corresponding event class; asserts the ACT ack
+contract is honored; asserts every call has exactly one terminal
+event.
+
+#### `[FM-MCC-0014]` MCC telemetry emission
+
+MCC **shall** emit OTLP-format traces, metrics, and logs for the
+frame's own operational observability. Span names **shall** follow
+the `mesh.mcc.*` namespace (e.g., `mesh.mcc.transport.handle`,
+`mesh.mcc.auth.validate`, `mesh.mcc.dispatch.plugin`,
+`mesh.mcc.plugin.load`, `mesh.mcc.judge_gate.confirm`).
+
+The required metric set **shall** include at minimum:
+`requests_total` (counter, labeled by transport, plugin,
+operation, outcome), `request_duration_seconds` (histogram),
+`auth_validations_total` (counter, labeled by auth outcome),
+`plugin_loaded` (gauge, labeled by plugin — the load-bearing
+host-frame-completeness signal that drives `[FM-MCC-0012]`'s
+sunset condition), `judge_gate_pending` (gauge).
+
+The operational telemetry stream (`mesh.mcc.*`) is distinct from
+the audit-event stream (`mcc.*` per `[FM-MCC-0013]`). The two flow
+to different sinks: operational OTLP for `mesh.mcc.*`; ACT event
+store for `mcc.*` audit.
+
+Per-plugin telemetry (each loaded plugin's own `mesh.<pillar>.*`
+spans / metrics / logs) is governed by that pillar's telemetry
+requirement (`[FM-IBX-…]`, `[FM-IAM-…]`, etc.) and flows through
+the frame's telemetry handle; the frame **shall not** swallow,
+relabel, or aggregate per-plugin telemetry into its own namespace.
+
+*Verification: Conformance-test* — the harness invokes
+representative MCC operations and asserts emission of the required
+span / metric / log records with the `mesh.mcc.*` namespace;
+verifies per-plugin telemetry passes through with the pillar's own
+namespace intact.
+
+### §5.8.1 MCC Conformance Profile
+
+The MCC pillar's substrate substitutability claim covers exactly
+the rows in this Conformance Profile. The substrate seams the
+frame depends on are deployment-architecture choices, not pillar
+implementation choices; per the `[FM-INV-0003.2]` argued-case
+discipline and the §1 language-neutral principle, every seam
+names the *capability*, not the product or implementation
+language.
+
+| Seam | Bound requirement(s) | Sovereign reference (version floor) | Supported alternatives | Test Set |
+|------|---------------------|-------------------------------------|------------------------|----------|
+| Transport (HTTP + MCP) | `[FM-MCC-0001]`, `[FM-MCC-0002]` | HTTPS-only HTTP server + MCP-over-TLS transport, both routing to the same plugin operation set | Any HTTPS-capable server + MCP-compatible transport satisfying the single-endpoint property | `mcc-transport-v1` |
+| Relational database (transactional, JSONB-equivalent) | `[FM-MCC-0004]` | PostgreSQL 17+ | Oracle 19+, MySQL 8+ — any relational substrate satisfying the IBX claim-queue and the IAM identity-store contracts | `mcc-database-v1` |
+| Secret store (HTTPS-accessible, audit-loggable, revocable) | `[FM-MCC-0004]`, `[FM-IAM-0006]` | HashiCorp Vault (Tier-0 with PKCS#11 HSM; Tier-2 soft-mode) per the IAM Conformance Profile | Azure Key Vault (HSM Tier-0), AWS KMS + Secrets Manager (CloudHSM Tier-0), OCI Vault (dedicated HSM), Thales CipherTrust Manager, standalone PKCS#11 HSM on-prem | `mcc-secret-store-v1` |
+| Identity provider (federated; SAML/OIDC/LDAP-capable) | `[FM-MCC-0003]`, `[FM-MCC-0007]`, `[FM-IAM-0011]` | Samba AD / Microsoft AD (federation per the IAM identity-provider seam) | Microsoft Entra, OpenLDAP, Keycloak, FreeIPA, any SAML/OIDC/LDAP-capable identity provider | `mcc-identity-provider-v1` |
+| Telemetry sink | `[FM-MCC-0014]` | OTLP-on-the-wire (any OTLP-compatible backend) | Grafana/Prometheus/Tempo, Azure Monitor, Datadog, OCI Monitoring | `mcc-telemetry-v1` |
+| TLS terminator | `[FM-MCC-0001]` (transport) | Any TLS-capable HTTPS server (self-handled or front-proxy) | Caddy, nginx, native HTTPS in the host runtime, cloud load-balancer TLS termination | `mcc-tls-v1` |
+| Process supervisor | `[FM-MCC-0001]` (lifecycle) | Any process supervisor with restart, log capture, resource limits | systemd, container orchestrator (Kubernetes / Nomad / Podman), supervisord, runit | `mcc-supervisor-v1` |
+
+Out-of-set substrates **shall not** be claimed supported.
+Extending the profile requires the argued-case discipline per
+`[FM-INV-0003.2]` AND a multi-profile conformance run proving the
+new substrate passes the MCC test suite for every affected seam.
 
 ---
 

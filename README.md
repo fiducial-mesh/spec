@@ -32,25 +32,28 @@ The Standard is organized NASA-STD-style:
 | §2 | Applicable Documents | Complete |
 | §3 | Acronyms & Definitions | Complete |
 | §4 | Top-Level Invariants (`FM-INV-NNNN`) | Complete |
-| §5 | Pillar requirements (8 pillars, see below) | In progress |
-| §6 | PCS plugin & workflow requirements | Reserved |
+| §5 | Pillar requirements — 7 substrate pillars (§§5.1–5.7) + MCC host frame (§5.8) | Filled |
+| §6 | **PCS** — the eighth pillar (plugin & workflow requirements) | Reserved |
 | §7 | Operational requirements | Reserved |
 | App. A | PCT Schema (normative) | Complete |
 | App. B–E | Manifest schema, namespace conventions, cross-pillar binding, regulatory crosswalk | Reserved |
 | App. F | Argued cases & deviations registry | Reserved |
 
-### §5 Pillar fill state
+### §5 + §6 pillar fill state (8 pillars + the host frame)
 
-| § | Pillar | Status |
-|---|--------|--------|
-| 5.1 | **IBX** — Inbox Exchange | Filled (12 requirements + Conformance Profile) |
-| 5.2 | **IAM** — Identity & Access Management | Filled (14 requirements + Conformance Profile) |
-| 5.3 | **PGE** — Policy Guardrail Engine | Filled (14 requirements + Conformance Profile) |
-| 5.4 | **ACT** — Agent Cognitive Telemetry | Filled (12 requirements + Conformance Profile) |
-| 5.5 | **AKB** — Agent Knowledge Base | Filled (14 requirements + Conformance Profile) |
-| 5.6 | **DPG** — Deterministic Proving Ground | Filled (14 requirements + Conformance Profile) |
-| 5.7 | **CRB** — Compute Resource Broker | Filled (13 requirements + Conformance Profile) |
-| 5.8 | **MCC** — Mesh Control Center | Reserved |
+| § | Slot | Status |
+|---|------|--------|
+| 5.1 | **IBX** — Inbox Exchange (pillar) | Filled (12 requirements + Conformance Profile) |
+| 5.2 | **IAM** — Identity & Access Management (pillar) | Filled (14 requirements + Conformance Profile) |
+| 5.3 | **PGE** — Policy Guardrail Engine (pillar) | Filled (14 requirements + Conformance Profile) |
+| 5.4 | **ACT** — Agent Cognitive Telemetry (pillar) | Filled (12 requirements + Conformance Profile) |
+| 5.5 | **AKB** — Agent Knowledge Base (pillar) | Filled (14 requirements + Conformance Profile) |
+| 5.6 | **DPG** — Deterministic Proving Ground (pillar) | Filled (14 requirements + Conformance Profile) |
+| 5.7 | **CRB** — Compute Resource Broker (pillar) | Filled (13 requirements + Conformance Profile) |
+| 5.8 | **MCC** — Mesh Control Center (**host frame**, not a pillar; see `[FM-MCC-0011]`) | Filled (14 requirements + Conformance Profile) |
+| 6 | **PCS** — Platform Control System (the eighth pillar) | Reserved |
+
+§5 is complete — 7 substrate pillars (§§5.1–5.7) + the MCC host frame (§5.8). The eighth and final pillar, **PCS**, lives in §6 (reserved). Pillar count is 8; MCC is host, not pillar #9.
 
 Reserved sections are placeholders with the dependencies that already
 bind them (e.g., the audit-emission requirements every pillar
