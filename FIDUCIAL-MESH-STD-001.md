@@ -1963,7 +1963,380 @@ the ACT test suite.
 
 ### §5.5 AKB — Agent Knowledge Base
 
-*Reserved for future PR.*
+**Scope.** AKB is the mesh's authored-knowledge substrate: the
+specs, planning docs, post-mortems, runbooks, security frameworks,
+agent briefs, AIRs (Agentic Incident Reports), and friction-catalog
+entries that comprise the corpus an agent reasons against. AKB
+ingests that corpus, projects it per agent role, and surfaces it at
+session-start (bounded prior) and mid-reasoning (gradient-gated
+injection) without inducing context-saturation or substrate-trap
+failures. The pillar exists because brief-drift, knowledge-rot, and
+substrate-trap (vector retrieval surfacing dead-end content as
+candidate solutions to physics queries) are observable failure
+classes in the current mesh, not hypothetical ones.
+
+**Dependencies.**
+
+- `[FM-INV-0001]` (No bypass) and `[FM-INV-0002]` (Fail strict) apply, with the explicit exception that AKB retrieval **fails open** per `[FM-AKB-0011]` — AKB unavailability does not halt agents. Fail-open is a deliberate departure from fail-strict, scoped strictly to retrieval; state-affecting operations (promote, curate, bootstrap, ingest, tier0-build) fail strict per the standard.
+- AKB emits state-affecting operations as `akb.*` events into ACT via the `[FM-ACT-0009]` emission-confirmation contract; the event-type taxonomy is enumerated under `[FM-ACT-0004]`.
+- AKB queries take `principal-id` from IAM per `[FM-IAM-0006]` and use it for the self-review exemption per `[FM-AKB-0006]`.
+- AKB queries and ingest paths are subject to PGE policy per `[FM-PGE-0008]` (deny on policy violation; AKB **shall not** bypass).
+- Role-projection axes, exemption tables, and promotion-gate identities **shall** be expressed as PGE-managed policy artifacts when PGE is operational; until then, AKB carries its own table per the substrate matrix.
+
+#### `[FM-AKB-0001]` Two-tier delivery
+
+AKB **shall** deliver knowledge to agents in exactly two tiers, and
+**shall not** surface knowledge by any other mechanism:
+
+1. **Tier 0 — bounded always-loaded prior.** Injected at every
+   agent session start as standing context, not as user input.
+   Contains the irreducible facts every agent needs to reason at all
+   (current production phase, locked physics laws, dead-end list,
+   security non-negotiables). Source-of-truth is a single
+   fence-sentinel-delimited markdown artifact; the deployed snapshot
+   **shall** be content-hash-addressed.
+2. **Tier 1 — gradient-gated mid-reasoning injection.** Triggered
+   by explicit agent query (`akb_query`) or by hook-fired query at
+   designated decision points per `[FM-AKB-0010]`. Per-injection
+   volume budget: at most 10 chunks and at most 3 KB total.
+
+Session-start mass push of the full corpus **shall not** be
+permitted. The naive "load everything" pattern saturates channel
+capacity before a reasoning gradient can form, and is what AKB
+exists to prevent.
+
+*Verification: Conformance-test* — the harness exercises agent
+session start and verifies Tier-0 is loaded as standing context;
+exercises Tier-1 hook + explicit-query paths and verifies per-event
+volume budget; asserts no other knowledge surface exists.
+
+#### `[FM-AKB-0002]` Tier-0 size cap (hard)
+
+The deployed Tier-0 snapshot **shall not** exceed **1024 bytes**.
+The cap is enforced at build time — a build whose snapshot exceeds
+the cap **shall** fail and **shall not** produce a deployable
+artifact. AKB **shall** emit a build-time warning at 95% of the cap
+(975 bytes) so headroom is observable before the cap binds.
+
+The cap is non-negotiable: Tier-0 is the always-loaded prior; growth
+without bound makes Tier-0 itself the saturation source it was
+designed to prevent.
+
+*Verification: Static-check + Conformance-test* — Static-check
+verifies the build-time enforcement; Conformance-test attempts to
+deploy an over-cap snapshot and asserts the build rejects it.
+
+#### `[FM-AKB-0003]` Tier-0 source provenance
+
+A deployable Tier-0 snapshot **shall** be built only from
+merged-`main` source on the canonical source artifact. Locally-built
+snapshots (built from working-tree or feature-branch source) **may**
+be used for development and conformance testing but **shall not** be
+deployed to a live agent session. Tier-0 source edits **shall** be
+gated by the Bar-B promotion gate per `[FM-AKB-0008]` — Judge
+approval via the MCC review path.
+
+*Verification: Conformance-test* — the harness attempts to deploy a
+snapshot built from a non-`main` source commit and asserts the
+deployment is rejected; verifies a snapshot deployed via the Bar-B
+path carries the corresponding promotion record.
+
+#### `[FM-AKB-0004]` Deterministic pre-filter before vector similarity
+
+Tier-1 retrieval **shall** execute a deterministic pre-filter on
+chunk metadata *before* the vector-similarity step. The pre-filter
+**shall**, at minimum, exclude chunks where `violates_invariant =
+true`, **except** when the query is explicitly historical (the query
+carries an `is_historical = true` flag and the chunk's
+`invariant_class` matches the query's stated subject).
+
+Vector retrieval is physics-blind: failure-mode post-mortems and
+invariant-compliant designs share vocabulary, so cosine similarity
+alone surfaces dead-end content as candidate solutions to physics
+queries. The pre-filter makes vector math downstream of physics
+math.
+
+Role projection per `[FM-AKB-0005]`, selective exemption per
+`[FM-AKB-0006]`, and the reranker (when present) **shall** apply
+*after* the pre-filter. A retrieval implementation that runs vector
+similarity over the unfiltered chunk set, even if it then filters,
+does not conform — the pre-filter is the search-space contract, not
+a post-rank trim.
+
+*Verification: Conformance-test* — the harness seeds the chunk
+store with mixed `violates_invariant`-true and -false chunks of
+near-identical cosine distance to a non-historical query; asserts
+the returned set contains only `violates_invariant = false` chunks;
+re-runs with `is_historical = true` + matching `invariant_class` and
+asserts the historical chunks return.
+
+#### `[FM-AKB-0005]` Role projection at retrieval
+
+AKB **shall** maintain a single source of truth in the chunk store
+— no per-agent or per-role chunk duplication. Per-agent reasoning
+independence **shall** be expressed via *projection at retrieval
+time*: each chunk carries a `roles` array, and a query against
+`role = R` returns the subset of chunks whose roles include `R`.
+
+The dialectical engine relies on agents reasoning from different
+priors over the same evidence; storage-time duplication would diverge
+the underlying evidence, and a shared single-projection retrieval
+would converge the priors. Role projection at retrieval is the
+mechanism that satisfies both invariants simultaneously.
+
+*Verification: Conformance-test* — the harness ingests a chunk with
+`roles = [r1, r2]`; queries from `role = r1`, `role = r2`, and
+`role = r3` and asserts the chunk appears for `r1` and `r2` only;
+verifies there is exactly one row per `chunk_id` in the underlying
+chunk store.
+
+#### `[FM-AKB-0006]` Self-review exemption
+
+A querying agent **shall be** exempt from AKB query results that
+include chunks they themselves authored, when the querying task is a
+review-class task. The exemption is matched on `(querying_agent_id
+== chunk.author_id) AND (task_type ∈ review-class)`, where the
+review-class task-type vocabulary is bounded and audited per the
+substrate matrix.
+
+The mechanism preserves the dialectical-engine guarantee: an agent
+reviewing their own artifact **shall not** be primed by their own
+prior reasoning surfaced through AKB. The exemption is enforced at
+retrieval time, not at storage time; the chunks remain in the
+corpus for other agents.
+
+*Verification: Conformance-test* — the harness submits a chunk
+authored by agent `A`; queries from agent `A` with a review-class
+task-type and asserts the chunk is excluded from results; queries
+from agent `A` with a non-review task-type and asserts the chunk
+returns; queries from agent `B` with a review-class task-type and
+asserts the chunk returns.
+
+#### `[FM-AKB-0007]` Cross-role per-document cap
+
+The number of corpus documents whose `roles` frontmatter spans
+**all** role projections in the deployed role set **shall not**
+exceed **50**. The cap is per-document, not per-chunk; per-chunk
+cross-role count is preserved as a non-blocking advisory signal.
+The cap is enforced at the bootstrap pre-write gate per
+`[FM-AKB-0009]` — a bootstrap whose dry-run report shows more than
+50 such documents **shall be** rejected.
+
+Without the cap, the pressure to mark chunks "visible to all"
+collapses role projection toward a shared substrate and defeats
+`[FM-AKB-0005]`.
+
+*Verification: Conformance-test* — the harness constructs a corpus
+with 51 all-roles documents and submits a bootstrap dry-run; asserts
+the dry-run rejects with the cross-role-cap reason; reduces to 50
+and asserts the dry-run accepts.
+
+#### `[FM-AKB-0008]` Stratified promotion gates
+
+Promotion of an AKB chunk to a higher confidence tier **shall** be
+gated by content class:
+
+- **Bar A — Auto** — procedural, reference, or routine planning
+  chunks **may** be auto-promoted to `validated` on `N`-successful-
+  uses query-log signal (with `N` configurable per deployment).
+- **Bar B — Judge-gated** — spec changes, cross-cutting
+  architectural decisions, and Tier-0 source content **shall**
+  require Judge approval via the MCC review path before promotion.
+- **Bar C — Patton-veto** — failure-class chunks (V-results,
+  dead-end docs, anti-patterns, CLCA outputs) **shall** queue for
+  Patton review on next invocation, with rejection landing as a
+  rejection-class promotion event.
+- **Physics Bar C — Two-key** — chunks touching V16-class locked
+  physics invariants **shall** require both Judge **and** Einstein
+  approval; neither alone is sufficient.
+
+Bar-B and Bar-C promotion gates **shall not** auto-promote on query
+signal; the rejection of a Bar-B/Bar-C chunk by its gate **shall**
+be a recorded event, not a silent re-queue.
+
+*Verification: Conformance-test* — the harness exercises promotion
+attempts under each bar with valid and invalid approvers; asserts
+Bar A auto-promotes only on the documented signal; Bar B / Bar C /
+Physics Bar C require the documented identities and reject when
+unmet.
+
+#### `[FM-AKB-0009]` Bootstrap pre-write gate
+
+Any ingest event writing **20 or more chunks** in a single
+transaction — bootstrap, embedding-model swap, schema migration,
+large backfill — **shall** pass through a three-step pre-write
+gate:
+
+1. **Dry-run.** Produce a dry-run report covering cross-role
+   document count (`[FM-AKB-0007]`), inherited-over-tagging suspects
+   (chunks whose roles inherit from a path-default outside the
+   expected-domain allowlist), default-rule (no-specific-match)
+   count, and pre-filter contract violations (`violates_invariant =
+   true` chunks missing `invariant_class`, etc.).
+2. **Patton review.** Patton **shall** review the dry-run report
+   and produce a sign-off or rejection.
+3. **Judge `--apply`.** Judge **shall** issue an explicit `--apply`
+   action via the MCC path. The `--apply` step **shall** reference
+   the dry-run report hash and the Patton sign-off identifier.
+
+Single-file edit re-ingests below the 20-chunk threshold **may**
+proceed via the standard chunking + embedding path without the
+gate. The threshold is non-negotiable; the gate is the cheap CLCA
+chokepoint and skipping it is a defect requiring rollback.
+
+*Verification: Conformance-test* — the harness submits a 20-chunk
+ingest without the gate and asserts rejection; submits with the gate
+chain and asserts acceptance only on a non-empty dry-run + Patton
+sign-off + Judge `--apply` matching the dry-run hash.
+
+#### `[FM-AKB-0010]` Hook trigger domains
+
+Tier-1 hook-fired queries **shall** trigger at both of two domains,
+not just one:
+
+1. **Code-author-side** — `Edit` / `Write` on protected file
+   patterns; `git commit`; MCP plugin invocation on a designated set
+   of plugins.
+2. **Infra-decision-side** — `git push`; `gh pr create` /
+   `gh pr review`; deploy commands; substrate config edits.
+
+The infra-decision-side domain is load-bearing: it fires *before*
+the irreversible step (the push, the PR, the deploy), so the
+operational lesson surfaces at the moment the agent is about to act
+on potentially stale assumptions. A hook implementation that fires
+only on the code-author side leaves the infra-decision pain class
+uncovered and does not conform.
+
+Hook enforcement **shall** be at the runtime tool-call layer per
+`[FM-INV-0001]` — agent-layer-only enforcement is bypassable.
+
+*Verification: Conformance-test* — the harness exercises each
+listed trigger and asserts an AKB query is fired before the
+underlying action completes; constructs an agent-layer bypass
+attempt and asserts the runtime layer still fires the hook.
+
+#### `[FM-AKB-0011]` Fail-open on AKB unavailability with status
+
+AKB **retrieval** unavailability (substrate down, network partition,
+embedding service unreachable) **shall** return empty results with
+a `status` field indicating the unavailability cause. Retrieval
+unavailability **shall not** error, **shall not** halt the agent,
+and **shall not** be silently indistinguishable from a "no relevant
+chunks" return.
+
+The status-field requirement is the load-bearing half: empty results
+without a status field would be indistinguishable from a successful
+retrieval that legitimately found nothing — agents would treat an
+outage as "no relevant knowledge exists," producing the precise
+failure class AKB is meant to prevent.
+
+The fail-open scope is **retrieval only**. State-affecting AKB
+operations (promote, curate, ingest, bootstrap, tier0-build)
+**shall** fail strict per `[FM-INV-0002]` — silent state mutation
+on substrate failure is non-conforming.
+
+*Verification: Conformance-test* — the harness induces retrieval
+substrate unavailability and asserts queries return empty results
+with a non-empty status field; induces state-affecting-path
+unavailability and asserts the operation fails strict per
+`[FM-INV-0002]`.
+
+#### `[FM-AKB-0012]` AIRs as Tier-1 corpus; security AIRs excluded
+
+Agentic Incident Reports (AIRs) **shall** be first-class AKB Tier-1
+corpus content with `doc_type = air-report`. AIRs **shall** carry
+`violates_invariant = false` regardless of the incident's content
+(AIRs are operational lessons to be surfaced at decision points;
+marking them `true` would filter them out via the
+`[FM-AKB-0004]` pre-filter and defeat the containment loop).
+
+AIRs whose classification is `incident_class = security` or
+`audience = restricted` **shall be** categorically excluded from
+AKB ingest. The ingest pipeline **shall** drop such AIRs and
+**shall** record an audit event documenting the exclusion;
+broadcast-by-design substrates are incompatible with need-to-know
+audiences. The mesh's restricted-audience store for security
+findings is governed elsewhere.
+
+AIRs **shall** chunk at sub-section granularity (H3-or-deeper
+headers within the AIR's findings section), so a query about a
+specific finding returns the relevant chunk rather than the full
+AIR.
+
+*Verification: Conformance-test* — the harness ingests a
+non-security AIR and asserts it lands with the prescribed metadata
+and sub-section chunks; ingests a security-class AIR and asserts it
+is dropped with the corresponding audit event recorded.
+
+#### `[FM-AKB-0013]` Audit emission via ACT
+
+Every state-affecting AKB operation — `promote`, `demote`,
+`role-change`, `ingest`, `bootstrap`, `tier0-snapshot`,
+`curate`, `air-ingest`, `air-exclusion` — **shall** emit an event
+of corresponding `akb.*` type into ACT via the `[FM-ACT-0009]`
+emission-confirmation contract. The operation **shall not** be
+considered complete until ACT acknowledges the emission within the
+`[FM-INV-0002]` timeout per the `[FM-ACT-0009]` ack sequence; on
+lack-of-ack or negative-ack the operation **shall** fail strict.
+
+The `akb.*` event-type namespace **shall** be enumerated in the
+ACT event-type taxonomy per `[FM-ACT-0004]`.
+
+Retrieval queries are not state-affecting and **shall not** be
+required to emit per-query audit events to ACT; per-query telemetry
+flows to the operational OTLP sink per `[FM-AKB-0014]`. Query-log
+data used for Bar-A auto-promotion is a separate stream maintained
+by AKB itself.
+
+*Verification: Conformance-test* — the harness exercises each
+state-affecting operation and asserts the corresponding `akb.*`
+event lands in ACT with the per-`[FM-ACT-0009]` ack sequence
+respected; induces ACT unavailability and asserts the operation
+fails strict.
+
+#### `[FM-AKB-0014]` AKB telemetry emission
+
+AKB **shall** emit OTLP-format traces, metrics, and logs for its
+own operational observability. Span names **shall** follow the
+`mesh.akb.*` namespace (e.g., `mesh.akb.query`,
+`mesh.akb.tier0_snapshot`, `mesh.akb.bootstrap`,
+`mesh.akb.promote`, `mesh.akb.curate`, `mesh.akb.hook_query`).
+Required attributes follow the mesh-wide telemetry contract.
+
+The telemetry stream — covering query latency, queries-total,
+chunks-total, cross-role-document count against the
+`[FM-AKB-0007]` cap, Tier-0 bytes against the `[FM-AKB-0002]`
+cap, promotion-queue depth, injection-bytes-per-session, and
+zero-query-chunks — is distinct from the audit-event emission per
+`[FM-AKB-0013]`. The two flow to different sinks: this
+requirement targets the operational OTLP sink; the audit events
+flow to ACT.
+
+*Verification: Conformance-test* — the harness invokes
+representative AKB operations and asserts emission of spans /
+metrics / logs to the operational OTLP sink with the
+`mesh.akb.*` namespace and required attributes.
+
+### §5.5.1 AKB Conformance Profile
+
+The AKB pillar's substrate substitutability claim covers exactly
+the rows in this Conformance Profile. Conformance is verified by
+passing the AKB multi-profile conformance suite against the listed
+implementations.
+
+| Seam | Bound requirement(s) | Sovereign reference (version floor) | Supported alternatives | Test Set |
+|------|---------------------|-------------------------------------|------------------------|----------|
+| Chunk + embedding store | `[FM-AKB-0004]`, `[FM-AKB-0005]`, `[FM-AKB-0006]`, `[FM-AKB-0007]` | PostgreSQL 15+ with pgvector 0.5+ (HNSW, cosine distance) | Qdrant 1.7+ (vector-primary escalation, ~50–100M+ vectors), Milvus 2.x (billion-vector scale only) | `akb-chunk-store-v1` |
+| Embedding service | `[FM-AKB-0004]` (vector layer) | BAAI/bge-large-en-v1.5 (1024-dim, local GPU) | voyage-3-large, text-embedding-3-large, nomic-embed-text-v1.5 | `akb-embedding-v1` |
+| Corpus source | `[FM-AKB-0009]` (corpus walk), `[FM-AKB-0012]` (AIR ingest) | Git-tracked markdown across the lab's org-folder repos (GitHub multi-org) | GitLab, self-hosted Gitea, mirrored git on local NAS | `akb-corpus-source-v1` |
+| Tier-0 snapshot store | `[FM-AKB-0002]`, `[FM-AKB-0003]` | Local POSIX filesystem with `os.replace`-atomic publish + content-hash chain | S3-compatible object store with versioning (MinIO, AWS S3, Azure Blob, OCI Object Storage) | `akb-tier0-snapshot-v1` |
+| Curation event store | `[FM-AKB-0008]`, `[FM-AKB-0013]` | PostgreSQL `akb.curation_events` (same substrate as chunks) | Any append-only event substrate honoring the contract (ACT-conformant store, NATS JetStream, Kafka compacted topics) | `akb-curation-events-v1` |
+| Telemetry sink | `[FM-AKB-0014]` | OTLP-on-the-wire (any OTLP-compatible backend) | Grafana/Prometheus/Tempo, Azure Monitor, Datadog, OCI Monitoring | `akb-telemetry-v1` |
+
+Out-of-set substrates **shall not** be claimed supported. Extending
+the profile requires the argued-case discipline per `[FM-INV-0003.2]`
+and a multi-profile conformance run proving the new substrate passes
+the AKB test suite.
 
 ### §5.6 DPG — Deterministic Proving Ground
 

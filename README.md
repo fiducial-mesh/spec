@@ -47,7 +47,7 @@ The Standard is organized NASA-STD-style:
 | 5.2 | **IAM** — Identity & Access Management | Filled (14 requirements + Conformance Profile) |
 | 5.3 | **PGE** — Policy Guardrail Engine | Filled (14 requirements + Conformance Profile) |
 | 5.4 | **ACT** — Agent Cognitive Telemetry | Filled (12 requirements + Conformance Profile) |
-| 5.5 | **AKB** — Agent Knowledge Base | Reserved |
+| 5.5 | **AKB** — Agent Knowledge Base | Filled (14 requirements + Conformance Profile) |
 | 5.6 | **DPG** — Deterministic Proving Ground | Reserved |
 | 5.7 | **CRB** — Compute Resource Broker | Reserved |
 | 5.8 | **MCC** — Mesh Control Center | Reserved |
