@@ -1633,19 +1633,34 @@ evidence trail.
 
 The ACT event store **shall** be append-only at the substrate layer.
 No event, once committed, **shall** be modifiable, deletable, or
-shadowed by an in-place rewrite. Corrections **shall** be expressed
-as a new event with a `correcting_event_id` field referencing the
-event being corrected; the original event **shall** remain in the
-store.
+shadowed by an in-place rewrite, **except** via the
+retention-expiration ceremony governed by `[FM-ACT-0011]` — which is
+itself audited (the ceremony emits `act.retention.expired`), bound to
+the operator-configured retention rule per regulatory regime, and
+gated such that reduction below the regime's minimum is a
+catastrophic-class operation requiring quorum per `[FM-INV-0004]`.
+The `[FM-ACT-0011]` ceremony is the sole permitted removal path.
+Corrections **shall** be expressed as a new event with a
+`correcting_event_id` field referencing the event being corrected;
+the original event **shall** remain in the store (the
+`correcting_event_id` mechanism is not a removal path — it is a
+forward-only correction).
 
 The append-only property is what makes the audit chain
 tamper-evident; modify-in-place semantics would destroy the property.
+The retention-expiration carve-out is bounded — it removes *whole
+events past their retention window* per a published rule, it does not
+permit targeted edits or selective deletions, and the ceremony itself
+leaves an audit record.
 
 *Verification: Conformance-test* — the harness attempts every
 documented substrate write path (UPDATE, DELETE, REPLACE) targeting
-committed events; asserts every attempt fails. Inserts new events
-including a `correcting_event_id` reference and asserts both events
-are queryable.
+committed events outside the `[FM-ACT-0011]` ceremony; asserts every
+such attempt fails. Inserts new events including a
+`correcting_event_id` reference and asserts both events are
+queryable. Exercises the `[FM-ACT-0011]` retention-expiration
+ceremony and asserts the `act.retention.expired` audit record is
+emitted with the rule applied and event count.
 
 #### `[FM-ACT-0002]` Unidirectional cognitive-event emission
 
@@ -1782,8 +1797,14 @@ ACT's event stream and producing inferences.
 availability.** A deployment operating without Detect Layer **may**
 satisfy this Standard's other requirements without satisfying
 `[FM-ACT-0008]`; the Detect Layer is a future capability whose
-absence is a recognized deviation, not non-conformance for the
-Compliance/Audit + CLCA consumer classes. The deviation **shall**:
+absence is a recognized deviation, **scoped strictly to the
+Compliance/Audit and CLCA consumer classes**. Absence of an
+operational Detect Layer **shall** constitute non-conformance with
+respect to detection-class compliance — a deployment without Detect
+Layer **shall not** be represented as satisfying any
+detection-class compliance requirement (regulatory or otherwise),
+and the deviation period does not extend coverage to those
+requirements. The deviation **shall**:
 
 1. Be registered in Appendix F with explicit sunset condition:
    "Detect Layer operational per `[FM-ACT-0008]`" — declared by the
@@ -1792,7 +1813,9 @@ Compliance/Audit + CLCA consumer classes. The deviation **shall**:
 2. Be reviewed at each major Standard release.
 3. Not be cited as satisfaction of detection-class compliance
    requirements (e.g., regulatory requirements demanding active
-   behavioral monitoring) that the Detect Layer addresses.
+   behavioral monitoring) that the Detect Layer addresses — an
+   absent Detect Layer is failing such requirements, not deferring
+   them.
 
 *Verification (operational): Conformance-test* — the harness
 verifies Detect Layer consumes events and emits
@@ -1812,15 +1835,53 @@ substrate down, network partition, ingestion queue saturated —
 **shall** result in the upstream operation failing strict per
 `[FM-INV-0002]`.
 
+**Emission-confirmation contract.** "Confirmed by ACT" is defined as
+the following synchronous, durable-commit ack sequence; pillar audit
+emissions and ACT implementations **shall** conform to it so the
+cross-pillar fail-strict is testable from both sides:
+
+1. **Emit.** The upstream pillar submits the event to ACT's ingestion
+   endpoint with a request-scoped `emission_id` (uniquely
+   identifying this emission attempt) and the full event payload
+   including its `event_type`, attribution per `[FM-ACT-0003]`, and
+   chain-link fields per `[FM-ACT-0005]`.
+2. **Commit.** ACT **shall** durably append the event to the
+   event-store substrate (the append must be persistent across the
+   substrate's documented crash-recovery boundary — a memory-buffered
+   write that has not flushed to durable storage **shall not** be
+   acknowledged) and write the chain-link fields per
+   `[FM-ACT-0005]`.
+3. **Ack.** ACT **shall** return an acknowledgement to the upstream
+   pillar referencing the `emission_id` and including the committed
+   event's stored identifier. The acknowledgement **shall** be
+   returned only after step 2 completes successfully.
+4. **Proceed.** The upstream pillar's operation **shall not** be
+   considered complete until the acknowledgement is received within
+   the timeout bound established by `[FM-INV-0002]`.
+
+If the acknowledgement is not received within the timeout, or is
+explicitly negative, the upstream operation **shall** fail strict —
+the lack-of-ack and the negative-ack are equivalent in their effect
+on the upstream caller per `[FM-INV-0002]`. Implementations **may**
+implement retry-with-idempotency on the upstream side keyed on
+`emission_id`; ACT **shall** treat duplicate `emission_id`
+submissions as idempotent (return the prior acknowledgement) rather
+than as new events.
+
 ACT **shall not** silently drop events under load. If sustained
 ingest exceeds capacity, ACT **shall** apply backpressure such that
 upstream emissions block (with timeout per `[FM-INV-0002]` →
-fail-strict) rather than complete without persistence.
+fail-strict) rather than complete without persistence. Acknowledging
+a buffered-but-not-yet-durable event **shall not** be permitted.
 
 *Verification: Conformance-test* — the harness induces ACT
-unavailability (substrate down, ingestion saturation) and submits
-upstream operations across pillars; asserts every operation fails
-strict; restores ACT and asserts operations resume successfully.
+unavailability (substrate down, ingestion saturation, ack-path
+faults) and submits upstream operations across pillars; asserts
+every operation fails strict on lack-of-ack or negative-ack within
+the `[FM-INV-0002]` timeout; restores ACT and asserts operations
+resume successfully. Exercises the idempotency contract by
+re-submitting the same `emission_id` and asserts ACT returns the
+prior acknowledgement without producing a second stored event.
 
 #### `[FM-ACT-0010]` Cold-storage tier (deferred)
 
