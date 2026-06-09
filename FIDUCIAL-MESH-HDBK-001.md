@@ -210,6 +210,53 @@ is not replicating human governance — it is governing entities that are
 *more* capable than humans in exactly the dimensions where human limits
 were quietly doing safety work.
 
+### 1.3.1 Operating principle — *build to a spec, not spec to a build*
+
+The duality describes *what* the mesh constructs. The operating
+discipline that produces it is one sentence:
+
+> **Build to a spec, not spec to a build.**
+
+The naive failure mode in platform engineering is the inverse:
+implementation ships first, documentation is reverse-engineered from
+it, and that "spec" exists only to describe what the build already
+does. The resulting document is description, not contract — it has no
+authority to constrain a different implementation, no falsifiable
+claims a third party can verify, and no defense against drift because
+every change to the build is allowed to mutate the spec to match.
+
+The mesh inverts this. The Standard (`FIDUCIAL-MESH-STD-001`) is
+authored as authority: requirements precede implementation,
+implementations conform to requirements, and divergence between an
+implementation and the Standard is either fixed in the implementation
+or registered as a recognized deviation in Appendix F per §F.2 — never
+absorbed silently into a revised spec.
+
+The discipline has three operational consequences:
+
+- **The Verification line on every numbered requirement is the
+  blueprint for the conformance harness.** A build that passes the
+  per-requirement Verification tests is spec-conformant; a build that
+  doesn't is spec-divergent and produces either a rebuild target or an
+  argued-case / deviation entry. The harness is what makes the motto
+  more than aspiration.
+- **The Standard moves first.** When a new pattern is needed (a new
+  pillar, a new deviation class, a substrate matrix extension), the
+  spec changes first — through the argued-case discipline per
+  `[FM-INV-0003.2]` for capability extensions, or through the
+  catastrophic-class quorum path per `[FM-INV-0004]` for changes to
+  the floor. Then implementations catch up.
+- **Deviation machinery is honest, not absorptive.** When a
+  deployment cannot meet a requirement (yet), the transitional clauses
+  (`[FM-IBX-0010]`, `[FM-IAM-0014]`, `[FM-PGE-0005]` Gate-2,
+  `[FM-ACT-0008]`, `[FM-DPG-0013]`, `[FM-CRB-0010]`,
+  `[FM-MCC-0012]`) document the gap with a sunset condition and
+  divergence-event emission. The deviation does not redefine the
+  requirement; it acknowledges the gap until the gap closes.
+
+This is the discipline that turns the capability/constraint duality
+into a contract a customer can hold the project to.
+
 ## 1.4 The agentic workforce — identity as the foundation
 
 The duality above is realized through one organizing principle: **the
@@ -249,9 +296,38 @@ principals within it. To an auditor: **the AI is held to the same
 standard of identity, authorization, and auditability you already hold
 your employees to.**
 
+**Bound STD requirements.** The HR mapping is realized through the
+IAM pillar's numbered contract: ARCA as offline issuance authority
+per `[FM-IAM-0001]`; per-agent identity birth + lifecycle per
+`[FM-IAM-0003]` and `[FM-IAM-0003.1]` (identity-permanent /
+authority-mutable separation); Vault in-boundary signing per
+`[FM-IAM-0006]` (the private-key "DNA" that never leaves the
+boundary); the Roster as personnel file per `[FM-IAM-0007]`;
+suspend / resume / terminate as offboarding per `[FM-IAM-0004]` and
+`[FM-IAM-0005]`; the principal-type stamp per `[FM-IAM-0010]`; and
+the identity-context contract per `[FM-IAM-0011]` (IAM provides
+verified context; PGE makes the decision). The two non-negotiable
+invariants — *no bypass* and *fail strict* — are `[FM-INV-0001]`
+and `[FM-INV-0002]`; the fail-strict deadline anchored to every
+external-ack point is `[FM-INV-0002.1]`. IAM operational-state
+declaration (when the deployment exits the identity-by-brief
+transitional deviation) is `[FM-IAM-0014]`.
+
 ## 1.5 Language policy
 
 Open-source first. Sovereign by construction. Pragmatism over preference.
+
+> **STD/HDBK boundary.** The Standard is **language-neutral at the
+> contract layer** per `[FM-STD §1]` — pillar requirements shall not
+> mandate the implementation language or framework of any pillar; the
+> conformance test sets are language-blind, and a conforming
+> implementation may be written in any language. **This Handbook
+> section is the project's reference-implementation choice**, not a
+> conformance requirement. A customer who insists on a different
+> language stack implements the same numbered Standard requirements
+> in their stack and is conformant on the same terms. The text below
+> documents what *we* build to, not what *every* conforming
+> implementation must build to.
 
 **Python is the default.** Every pillar, every MCP server, every plugin
 that doesn't have an argued reason to deviate is built in Python. The
@@ -365,6 +441,19 @@ IBX or AKB runs correctly on its own — PCS reaches into each pillar via
 its published interface (skills, MCP, hooks) and orchestrates from
 outside. `pip install <pillar>` works with no PCS present.
 
+**Bound STD requirements.** The pillar enumeration is the
+8-pillar invariant per `[FM-MCC-0011]`: IBX (§5.1), IAM (§5.2),
+PGE (§5.3), ACT (§5.4), AKB (§5.5), DPG (§5.6), CRB (§5.7), PCS
+(§6). MCC (§5.8) is the **host frame**, not a ninth pillar. The
+Issuance Plane's offline-ARCA / runtime-IAM separation is
+`[FM-IAM-0001]`. PCS-as-action-layer-managing-every-pillar is the
+MCC kernel/frame model per `[FM-MCC-0001]` (frame hosts pillars as
+loadable modules) + `[FM-MCC-0004]` (centralized substrate handles)
++ `[FM-MCC-0005]` (IAM-first load order) — and the
+zero-coupled-to-PCS / standalone-installable property is preserved
+because pillars remain conformant against their own §5.x
+requirements independent of MCC composition.
+
 ## 1.7 Foundational invariants
 
 Three invariants govern every pillar and every workflow in the mesh.
@@ -386,6 +475,29 @@ denied. When in doubt, stop.
 
 These two clauses cannot be relaxed by policy. They are the load-bearing
 floor every other guarantee in the mesh stands on.
+
+**The "no bootstrap path that runs before identity is up" line has a
+deliberate, bounded exception**: the **genesis event class** per
+`[FM-INV-0004.5]` permits exactly three subtypes
+(`mesh-init-quorum-bootstrap`, `iam-init-arca-root`,
+`iam-init-roster-seed`) to land in ACT without IAM-`principal-id`
+attribution, using holder-fingerprint attestation instead. The
+carve-out exists because the identity system cannot bootstrap itself
+under the unmodified rule — the founding ceremony has to create the
+attribution chain it would otherwise need to reference. The carve-out
+is closed (no other class qualifies), one-shot per subtype per
+deployment lifetime, and re-issuance is catastrophic-class.
+
+**Bound STD requirements.** No-bypass is `[FM-INV-0001]`; fail-strict
+is `[FM-INV-0002]`; the fail-strict *deadline* anchored to every
+external-ack point is `[FM-INV-0002.1]` (operator-configurable; shall
+be strictly shorter than the minimum worker-pool lease window per
+`[FM-IBX-0009]` so a lagging ack cannot race the lease and produce
+duplicate execution). The genesis-event carve-out is
+`[FM-INV-0004.5]`. ACT honors the carve-out per `[FM-ACT-0003]`'s
+Genesis-event carve-out section + `[FM-ACT-0005]`'s Genesis-event
+chain seeding section; every other event-emission path requires
+full attribution.
 
 ### 1.7.2 Capability provisioning as primary defense
 
@@ -449,6 +561,12 @@ capability requires the argued-case + quorum path.** Concretely:
 This invariant inverts the "feature-then-policy" default that produces
 most enterprise breaches. Mesh's first line of defense at every pillar
 is the absence of the capability, not the presence of the policy.
+
+**Bound STD requirements.** Capability-provisioning-as-primary-defense
+is `[FM-INV-0003]`. The extensions-compose-within-the-provisioned-
+surface rule is `[FM-INV-0003.1]`. Net-new capability requires the
+argued-case + quorum path per `[FM-INV-0003.2]`; the argued-case
+entry schema is §F.1 of the Standard's normative Appendix F.
 
 ### 1.7.3 Quorum authority for catastrophic-class capabilities
 
@@ -533,6 +651,26 @@ This is capability-minimization (§1.7.2) applied recursively to the
 policy substrate itself: the plugin's declaration is a *hint to
 authors and consumers*, not an *enforcement contract*. The platform
 floor cannot be opted out of by omission, weakening, or silence.
+
+**Bound STD requirements.** Catastrophic-class quorum authority is
+`[FM-INV-0004]`, decomposed as: asymmetric apply-vs-revoke thresholds
+per `[FM-INV-0004.1]`; time-bounded attestation windows with the
+clock-skew tolerance discipline (authenticated time source, verifier-
+side expiry evaluation, asymmetric larger tolerance on the revoke
+path) per `[FM-INV-0004.2]`; role-typed quorum membership per
+`[FM-INV-0004.3]`; bootstrap at mesh init per `[FM-INV-0004.4]`; and
+the genesis event class that makes mesh-init emittable to ACT
+without a circular dependency on the identity system it brings into
+existence per `[FM-INV-0004.5]`. The platform-enforcement-floor
+discipline (the "declaration is a hint, not a contract" paragraph)
+is `[FM-INV-0005]` (the floor is authoritative), `[FM-INV-0005.2]`
+(divergence between declaration and enforcement is auditable),
+`[FM-PGE-0005]` (the double-guardrail — IBX intent gate + DPG
+execution gate), `[FM-PGE-0010]` (PGE applies the floor regardless
+of plugin self-declaration), and `[FM-PGE-0011]` (`divergence_type`
+discriminator + the 8 active subtypes registered in its
+canonical-emitter table, including `policy-block-mismatch` which
+covers the divergence-as-signal pattern).
 
 ---
 
