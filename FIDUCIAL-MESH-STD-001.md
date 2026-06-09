@@ -599,7 +599,15 @@ A genesis event **shall**:
    re-bootstrapping the IAM root after a compromise) **shall** itself
    require K-of-N quorum per the existing membership, and the new
    ceremony's event carries a `supersedes_genesis` reference to the
-   prior genesis record.
+   prior genesis record. Consumers querying "current genesis" for a
+   given `genesis_subtype` **shall** resolve to the **head of the
+   supersedes chain** (the most-recent genesis event for that subtype
+   with no further `supersedes_genesis` reference pointing to it);
+   superseded genesis events remain in ACT for audit but **shall
+   not** be honored as current. Replay/downgrade attacks against
+   the head resolution are blocked by item 6's quorum-gating of the
+   re-issuance ceremony itself — a forged supersede cannot be
+   appended without K-of-N attestation.
 
 ACT requirements that otherwise demand IAM-`principal-id` attribution
 or full chain-link predecessors (`[FM-ACT-0001]`, `[FM-ACT-0003]`,
