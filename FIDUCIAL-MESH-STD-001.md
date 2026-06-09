@@ -523,12 +523,294 @@ declares in its §5 requirements when landed}.
 
 ---
 
-## §5 Reserved — Pillar requirements
+## §5 Pillar requirements
 
-*This section is reserved for the per-pillar normative requirements
-(IBX, AKB, ACT, IAM, PGE, CRB, DPG, MCC). Pillar requirements will be
-landed in subsequent PRs that migrate the substrate-matrix conformance
-profiles and pillar-specific contracts from the companion handbook.*
+Per-pillar normative requirements. Each pillar section follows the
+same shape: scope of the pillar, dependencies on other pillars and
+mesh-level invariants, numbered requirements with `Verification:`
+annotations, and a Conformance Profile binding substrate-matrix rows
+to requirement IDs per §0.4.
+
+Sections §5.2–§5.8 are reserved for future PRs. The IBX requirements
+in §5.1 are the canonical template for the remaining seven pillars.
+
+### §5.1 IBX — Inbox Exchange
+
+**Scope.** IBX is the Control-Plane message-routing substrate. Every
+asynchronous hand-off between mesh agents and every Judge-approval
+gate routes through IBX. PCT (Principal Control Token), defined
+below, lives in IBX rather than in PCS scope because PCT is a
+*message* and IBX is the *message system*.
+
+**Dependencies.**
+
+- `[FM-INV-0001]` (No bypass) and `[FM-INV-0002]` (Fail strict) apply to all IBX operations.
+- IBX consumes verified-principal context from the IAM pillar (§5.2 when landed). Today (pre-IAM-build), the `sender` field is asserted by brief and verified by post-hoc convention; once IAM is operational, the `principal-id` PCT field (`[FM-IBX-0004]`) is the verification seam.
+- IBX emits to ACT (§5.4 when landed) per `[FM-IBX-0012]`.
+
+#### `[FM-IBX-0001]` PCT nine-field contract
+
+Every message routed through IBX **shall** carry a Principal Control
+Token (PCT) with the following nine fields, divided into three groups:
+
+| Group | Field | Purpose |
+|-------|-------|---------|
+| Identity / work (1–3) | `principal-id` | Who sent the message (the identity behind the message) |
+| | `task` | What the recipient is asked to do |
+| | `background` | Context the recipient needs to do it |
+| Boundary axes (4–6) | `reach` | Scope — what the recipient may touch |
+| | `completion-criterion` | Success criteria for the work |
+| | `autonomy` | Authority bounds — what the recipient may decide without further approval |
+| Meta (7–9) | `pct-version` | Version of the PCT schema in use |
+| | `provenance` | Chain of identities and tooling that produced the PCT |
+| | `validity-window` | Earliest-effective and latest-effective timestamps |
+
+A message that does not carry all nine fields **shall** be rejected by
+IBX at the routing layer and **shall not** be delivered to its
+recipient.
+
+*Verification: Conformance-test* — the harness submits messages with
+each field omitted in turn and asserts rejection in every case; submits
+a complete nine-field PCT and asserts successful routing.
+
+#### `[FM-IBX-0002]` PCT field-name stability
+
+The nine PCT field names defined in `[FM-IBX-0001]` **shall not** be
+renamed or removed in any `pct-v1.x` revision. Validation detail,
+field-value constraints, and deprecation-with-replacement semantics
+**may** be added in v1.x; field identity is immutable across the v1
+schema.
+
+*Verification: Inspection* — every PCT schema-version artifact in the
+deployment is reviewed against the v1.0 field list; any rename or
+removal is a non-conformance.
+
+#### `[FM-IBX-0003]` Server-enforced Judge gate for action-priority messages
+
+Messages tagged with priority `action` or `urgent` **shall not** be
+delivered to recipients for execution until they have been explicitly
+approved by the Judge (the human-in-the-loop principal). Server-side
+enforcement is mandatory: agent-side code **shall not** be the only
+gate, and agents **shall not** be able to bypass the gate by
+self-approving.
+
+The Judge approval **shall** be performed via a credential that is
+distinct from any agent credential and is granted only to the
+identity authorized to act as Judge.
+
+*Verification: Conformance-test* — the harness submits an
+action-priority message, asserts the recipient cannot retrieve the
+message in an actionable state without a Judge-approval transition;
+attempts to set the approval status using a non-Judge credential and
+asserts denial.
+
+#### `[FM-IBX-0004]` Message status workflow
+
+Messages routed through IBX **shall** transit a defined status
+workflow:
+
+```
+unread → read → approved → in_progress → done
+                     ↘
+                       rejected
+```
+
+The terminal states are `done` and `rejected`. Transitions to
+`approved` and `rejected` **shall** be writable only by the Judge
+credential per `[FM-IBX-0003]`. All other transitions **may** be
+written by agent credentials with scope `inbox.message.transition` per
+the IAM-defined scope catalogue.
+
+Messages with priority `info` **may** be acted on without an
+`approved` transition; the Judge gate applies only to `action` and
+`urgent` priority.
+
+*Verification: Conformance-test* — the harness exercises each
+transition with each credential class and asserts permitted/denied per
+the table; asserts info-priority does not require Judge approval.
+
+#### `[FM-IBX-0005]` Append-mostly substrate
+
+Status mutations on messages **shall** be implemented as append-only
+event rows in the underlying substrate, materialized into a
+latest-state view. Direct UPDATEs to a `status` column on the canonical
+message row **shall not** be the substrate's representation of state.
+
+Rationale (informative): append-only state mutation preserves the
+full audit chain required by `[FM-INV-0001]`-class audit invariants
+and §7 operational requirements when landed; an UPDATE-in-place model
+discards the transition history.
+
+*Verification: Inspection* — the substrate DDL is reviewed for
+append-only event-row semantics; any UPDATE statement on canonical
+status state is a non-conformance.
+
+#### `[FM-IBX-0006]` Identity-vs-session distinction in PCT
+
+The PCT `principal-id` field (per `[FM-IBX-0001]`) **shall** name
+*which identity* sent the message — a stable IAM-issued identifier
+that persists across sessions of that identity. The substrate-layer
+session identifier (the specific connection, agent process, or
+authenticated session through which the message was submitted)
+**shall** be recorded separately by IBX and **shall not** be conflated
+with `principal-id`.
+
+This distinction is load-bearing for worker-pool dispatch
+(`[FM-IBX-0007]`), per-session forensics, and quorum-voter
+independence per `[FM-INV-0004]`: a worker-pool is one identity with N
+concurrent sessions; a quorum vote requires N distinct identities.
+
+*Verification: Inspection* — the IBX substrate schema is reviewed for
+two distinct fields (identity, session) with documented semantics;
+runtime check: the harness submits two messages from one identity in
+two sessions and asserts they share `principal-id` but differ on
+session identifier.
+
+#### `[FM-IBX-0007]` Worker-pool claim dispatch semantics
+
+When a message is dispatched to a worker-pool (multiple sessions of
+one identity competing to claim work), IBX **shall** provide
+exactly-once claim semantics with the following properties:
+
+1. **SKIP-LOCKED-equivalent claim** — concurrent claim attempts on the
+   same message resolve to exactly one winner; the loser receives a
+   "not claimed" response and may re-try on a different message.
+2. **Lease / visibility timeout** — a claimed message that is not
+   marked `done` or `rejected` within the operator-configured lease
+   window returns to the claimable pool and may be claimed by a
+   different session.
+3. **Retry semantics** — a message that returns to the claimable pool
+   via lease expiration **shall** carry an incremented retry counter;
+   messages exceeding the operator-configured retry threshold
+   **shall** transition to a poison-queue terminal state.
+4. **Idempotency keys** — workers **shall** be able to provide an
+   idempotency key on `done` transitions; duplicate `done`
+   submissions with the same idempotency key **shall not** double-count
+   the operation.
+5. **Mid-action-safe termination** — a worker process termination
+   mid-claim **shall** result in lease expiration and re-claim; the
+   substrate **shall not** lose the message.
+
+*Verification: Conformance-test* — the harness exercises each of the
+five properties with adversarial timing (concurrent claims, late
+heartbeats, duplicate completions, abrupt process termination) and
+asserts the expected behavior.
+
+#### `[FM-IBX-0008]` Routing-audit storage seam
+
+The routing-audit storage substrate **shall** satisfy the conformance
+profile for ANSI SQL with JSONB-equivalent semi-structured query
+support. The sovereign reference implementation is PostgreSQL 17+;
+supported alternatives are listed in the IBX Conformance Profile.
+
+*Verification: Conformance-test* — the multi-profile conformance suite
+runs the IBX routing-audit test set against each declared supported
+substrate; passing the suite on the substrate is the verification.
+
+#### `[FM-IBX-0009]` Worker-pool claim queue substrate seam
+
+The worker-pool claim queue substrate **shall** satisfy the
+conformance profile for transactional SKIP-LOCKED-equivalent claim
+semantics. OLAP / append-only substrates that do not provide row-level
+transactional claim **shall not** be claimed as conformant for this
+seam.
+
+*Verification: Conformance-test* — the multi-profile conformance suite
+runs the IBX claim-queue test set (concurrent claims, lease expiration,
+poison queue) against each declared supported substrate.
+
+#### `[FM-IBX-0010]` Identity verification seam
+
+IBX **shall** consume verified-principal context from the IAM pillar
+(§5.2 when landed) at message-submission time. The PCT `principal-id`
+field **shall** be verifiable against the IAM Roster's identity
+records; an unverifiable `principal-id` **shall** cause the message
+to be rejected at submission per `[FM-INV-0002]` (Fail strict).
+
+In deployments where IAM is not yet operational (transitional brief-
+based identity), this requirement is satisfied by IBX recording the
+asserted identity and the substrate's audit trail; full
+cryptographic verification lands when IAM does.
+
+*Verification: Inspection (current) / Conformance-test (post-IAM)* —
+review of the identity-verification call path; once IAM is operational,
+the harness submits messages with valid and invalid `principal-id`
+values and asserts accept/reject.
+
+#### `[FM-IBX-0011]` Telemetry emission
+
+IBX **shall** emit OTLP-format traces, metrics, and logs to the
+deployment's configured OTLP backend. Span names **shall** follow the
+`mesh.ibx.*` namespace per the per-pillar telemetry contract; required
+attributes **shall** include `identity`, `session`, `trace_id`,
+`span_id`, plus event-specific fields.
+
+*Verification: Conformance-test* — the harness invokes representative
+IBX operations and asserts emission of the expected span / metric /
+log records to a test OTLP sink, with required attributes present.
+
+#### `[FM-IBX-0012]` Audit emission per state-affecting operation
+
+Every message-status transition `[FM-IBX-0004]` **shall** emit an
+audit-class event to ACT (§5.4 when landed) carrying the transitioning
+identity, the message identifier, the from-state, the to-state, the
+timestamp, and the trace/span correlation IDs. Audit emission failure
+**shall** be treated as fail-strict per `[FM-INV-0002]` — the
+transition itself **shall not** be applied if its audit emission
+cannot be confirmed.
+
+*Verification: Conformance-test* — the harness exercises each
+transition class and asserts audit-event emission with all required
+fields; induces audit-sink unavailability and asserts the transition
+is denied (fail-strict semantics).
+
+### §5.1.1 IBX Conformance Profile
+
+The IBX pillar's substrate substitutability claim covers exactly the
+rows in this Conformance Profile. Conformance is verified by passing
+the IBX multi-profile conformance suite against the listed
+implementations.
+
+| Seam | Bound requirement(s) | Sovereign reference (version floor) | Supported alternatives |
+|------|---------------------|-------------------------------------|------------------------|
+| Routing-audit storage | `[FM-IBX-0008]` | PostgreSQL 17+ | Oracle 19+, MySQL 8+ |
+| Worker-pool claim queue | `[FM-IBX-0007]`, `[FM-IBX-0009]` | PostgreSQL 17+ | (none currently — OLAP unsuitable; alternatives require transactional claim semantics) |
+| Identity verification | `[FM-IBX-0010]` | Per IAM pillar (§5.2) | Whatever IAM declares conformant |
+| Telemetry sink | `[FM-IBX-0011]` | OTLP-on-the-wire | Any OTLP-compatible backend declared conformant by ACT (§5.4) |
+
+Out-of-set substrates **shall not** be claimed as supported under
+this profile. Extending the profile requires the argued-case
+discipline per `[FM-INV-0003.2]` and a multi-profile conformance run
+proving the new substrate passes the IBX test suite.
+
+### §5.2 IAM — Identity & Access Management
+
+*Reserved for future PR. Foundational pillar; per
+`[FM-INV-0001]`/`[FM-INV-0002]` Tier-0 invariants. Required by `[FM-IBX-0010]`.*
+
+### §5.3 PGE — Policy Guardrail Engine
+
+*Reserved for future PR. Required by `[FM-INV-0005]` enforcement floor.*
+
+### §5.4 ACT — Agent Cognitive Telemetry
+
+*Reserved for future PR. Required by `[FM-IBX-0012]` and the audit-emission requirements every other pillar inherits.*
+
+### §5.5 AKB — Agent Knowledge Base
+
+*Reserved for future PR.*
+
+### §5.6 DPG — Deterministic Proving Ground
+
+*Reserved for future PR.*
+
+### §5.7 CRB — Compute Resource Broker
+
+*Reserved for future PR.*
+
+### §5.8 MCC — Mesh Control Center
+
+*Reserved for future PR.*
 
 ---
 
