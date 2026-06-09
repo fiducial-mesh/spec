@@ -65,7 +65,30 @@ profile row without a bound identifier is not a conformant artifact;
 the conformance harness rejects it. Substrate matrices declared per
 pillar are conformance profiles in this sense.
 
-### §0.5 Out of scope for this Standard
+### §0.5 Verification methods
+
+Every numbered requirement in this Standard **shall** carry a
+`Verification:` annotation specifying how conformance to the
+requirement is verified. The annotation appears as the final line of
+each requirement block.
+
+Allowed verification methods:
+
+| Method | Meaning |
+|--------|---------|
+| **Inspection** | Visual or document review — verified by reading code, configuration, or documentation against the requirement text. |
+| **Analysis** | Mathematical, logical, or formal proof — verified by demonstration that the implementation cannot violate the requirement (e.g., type-system guarantees, cryptographic argument). |
+| **Demonstration** | Operational behavior shown — verified by exercising the system end-to-end and observing the required behavior. |
+| **Test** | Formal test procedure — verified by an executable test case that fails when the requirement is violated. |
+| **Conformance-test** | Automated test in the Fiducial Mesh conformance harness — verified mechanically against the deployed substrate. Subset of Test, distinguished because Conformance-test is binding for substrate-matrix profile rows per §0.4. |
+| **Static-check** | Automated lint, grep, AST analysis, or signature check — verified at build or commit time without running the system. |
+
+A requirement that cannot be assigned a verification method is not
+ready to merge into this Standard — by construction, "a requirement
+the harness cannot check is not done." The verification method is the
+bridge from this Standard to the conformance harness.
+
+### §0.6 Out of scope for this Standard
 
 This Standard adopts NASA Technical Standard structural conventions
 (numbered requirements, RFC 2119 keywords, normative appendices, the
@@ -224,6 +247,9 @@ internal" path. No standing god-rights account **shall** exist; no
 bootstrap path that runs before identity verification is operational
 **shall** exist.
 
+*Verification: Conformance-test* — the harness exercises representative
+operation paths without a valid principal and asserts denial.
+
 #### `[FM-INV-0002]` Fail strict
 
 Under error, ambiguity, unavailability, or unverifiable state, the
@@ -235,6 +261,10 @@ An action whose authorization cannot be resolved **shall** be denied.
 An identity verification request that cannot be completed **shall not**
 default to "allow." When in doubt, the platform **shall** halt.
 
+*Verification: Conformance-test* — the harness injects each
+fail-strict condition (unreachable IAM, unverifiable credential,
+ambiguous authorization) and asserts halt-not-proceed.
+
 ### §4.2 Capability provisioning as primary defense
 
 #### `[FM-INV-0003]` Capability provisioning is the primary defense
@@ -245,6 +275,10 @@ capabilities; policy **shall not** be used to expand the capability
 surface beyond what has been explicitly provisioned with an argued
 case.
 
+*Verification: Inspection* — each provisioned capability in the
+Standard cites an argued-case section per `[FM-INV-0003.2]`; review
+verifies presence and adequacy.
+
 ##### `[FM-INV-0003.1]` Extensions compose within the provisioned surface
 
 PCS plugins, workflows, and components **shall** compose only within
@@ -252,13 +286,43 @@ the capability surface already provisioned by the pillar implementations
 and their declared substrate matrices. A plugin **shall not** introduce
 a capability that the underlying pillars do not already expose.
 
+*Verification: Conformance-test* — the validation harness rejects any
+plugin whose declared capability surface (`.pcs/plugin.pcs.json`
+policy block, per §6 and Appendix A) references a capability not
+present in the deployment's provisioned-capability registry.
+
 ##### `[FM-INV-0003.2]` Net-new capability requires argued-case plus quorum
 
 Provisioning a net-new platform-level capability — a new pillar, an
 extended substrate matrix row, a new agent surface, or any other
-expansion of what the platform allows — **shall** require an explicit
-argued case documented in this Standard and **shall** be gated at apply
-time by the quorum mechanism defined in `[FM-INV-0004]`.
+expansion of what the platform allows — **shall** require an *argued
+case* and **shall** be gated at apply time by the quorum mechanism
+defined in `[FM-INV-0004]`.
+
+An **argued case** for the purposes of this Standard is a written
+rationale satisfying all of the following:
+
+1. It is committed to a designated section of this Standard or to a
+   referenced amendment document (default location: Appendix E,
+   reserved for argued-case records, to be created in PR-B).
+2. It answers the `[FM-INV-0003.3]` decision test affirmatively, with
+   explicit identification of the consumer(s) and the operational need.
+3. It specifies the policy gates, identity scopes, audit emissions,
+   and (where applicable) quorum-class classification per
+   `[FM-INV-0004]` that govern the new capability.
+4. It is signed by an identity authorized to author Standard
+   amendments (per the IAM publishing-rights model — see §5 IAM
+   requirements when landed).
+5. It is bound to a requirement identifier in this Standard via the
+   conformance-profile mechanism per §0.4.
+
+A capability without an argued case satisfying these five criteria is
+not "provisioned" within the meaning of `[FM-INV-0003]` and the
+platform **shall not** treat it as authorized for use.
+
+*Verification: Inspection* — at amendment merge, the review process
+confirms presence of the five-element argued case bound to a
+requirement identifier.
 
 ##### `[FM-INV-0003.3]` Decision test for new capability proposals
 
@@ -270,6 +334,10 @@ non-existent capability safer than its non-existence. If the answer
 is yes, the proposal **shall** specify the policy gates, identity
 scopes, audit emissions, and (where applicable) quorum-class
 classification per `[FM-INV-0004]` that govern its use.
+
+*Verification: Inspection* — proposal review confirms the test is
+answered explicitly with one of {no, yes-with-gates}; an unanswered
+or ambiguous test blocks merge.
 
 ### §4.3 Quorum authority for catastrophic-class capabilities
 
@@ -286,6 +354,10 @@ overlay-author identity; rotating the trust-root key chain; mass
 identity action affecting the entire workforce; substrate decommission
 or irreversible data destruction.
 
+*Verification: Conformance-test* — the harness submits a
+catastrophic-class operation request signed by fewer than K independent
+identities and asserts the operation is not applied.
+
 ##### `[FM-INV-0004.1]` Asymmetric apply-vs-revoke thresholds
 
 The K threshold for applying (arming) a catastrophic-class operation
@@ -293,6 +365,10 @@ The K threshold for applying (arming) a catastrophic-class operation
 (firing) the same operation, where applicable. Emergency revocation
 **shall not** be blocked by a quorum threshold equivalent to the apply
 threshold.
+
+*Verification: Inspection* — each catastrophic-class capability's PGE
+policy declaration cites both K-apply and K-revoke values; review
+confirms K-apply ≥ K-revoke.
 
 ##### `[FM-INV-0004.2]` Time-bounded attestation windows
 
@@ -302,21 +378,69 @@ configured window, all collected attestations **shall** expire and the
 quorum process **shall** restart. Stale attestations **shall not** be
 retained for later use beyond their declared window.
 
+*Verification: Conformance-test* — the harness submits an attestation,
+advances clock past the window without reaching K-of-N, and asserts
+all attestations have expired and the operation cannot apply with the
+expired attestation set.
+
 ##### `[FM-INV-0004.3]` Role-typed quorum membership
 
-A catastrophic-class operation **may** require specific roles within
-the K-of-N quorum (e.g., HIPAA overlay apply may require the
-HIPAA-compliance-officer identity within the K set). When role-typed
-quorum is specified, the absence of a required role **shall** prevent
-the operation regardless of total attestation count.
+A catastrophic-class operation **may** specify role requirements
+in addition to the K-of-N threshold. When role-typed quorum is
+specified, the K attesting identities **shall** collectively cover the
+required role set, and the absence of any required role **shall**
+prevent the operation regardless of total attestation count.
+
+**Role specification.** Each catastrophic-class capability's PGE
+policy declaration **shall** identify required roles by name, where a
+"role" is an identity attribute (assigned via the IAM identity-role
+mapping defined in §5 IAM requirements when landed) drawn from the
+operator's named role registry. The role registry is operator-defined
+at mesh initialization; common entries include `hipaa-compliance-officer`,
+`fedramp-iso`, `ciso`, `legal-counsel`.
+
+**Role verification at attestation time.** When an attestation is
+submitted, the quorum verifier **shall** (1) verify the attesting
+identity's signature against IAM's trust chain, (2) read the
+attesting identity's assigned roles from IAM, and (3) record both
+the identity and its role set in the quorum-collection state. Quorum
+completion requires K signed attestations AND coverage of every
+declared required role at least once across the K signers.
+
+*Verification: Conformance-test* — the harness submits K signed
+attestations missing a declared required role and asserts the
+operation is not applied; then resubmits with the role covered and
+asserts the operation applies.
 
 ##### `[FM-INV-0004.4]` Bootstrap at mesh initialization
 
 The initial K-of-N quorum membership **shall** be established at mesh
-initialization, parallel to the `vault operator init` ceremony.
-Subsequent modifications to quorum membership — including addition,
-removal, replacement, or rotation of members — **shall** themselves
-require existing K-of-N quorum.
+initialization, parallel to the `vault operator init` ceremony, via
+a documented **mesh-init quorum-bootstrap ceremony** that satisfies
+all of the following:
+
+1. **N independent identity holders** are physically present (or
+   attested-presence equivalent via accredited remote ceremony) for
+   the ceremony.
+2. **Each holder receives a single Shamir shard** of the
+   quorum-authority master, with custody chain recorded — shard
+   transfer is direct holder-to-holder-keyring or holder-to-HSM, never
+   via a shared storage medium.
+3. **Initial role assignments are documented and signed** by all N
+   holders — each holder's assigned roles (per `[FM-INV-0004.3]`) are
+   recorded and counter-signed.
+4. **The ceremony itself is a recorded ACT audit event** — timestamp,
+   N value, K threshold, holder identity fingerprints (not shards),
+   role assignments, and a ceremony attestation signed by each holder
+   are emitted to the ACT pillar as a single immutable record.
+5. **From ceremony completion onward**, all subsequent modifications
+   to quorum membership — including addition, removal, replacement,
+   or rotation of members — **shall** themselves require existing
+   K-of-N quorum.
+
+*Verification: Inspection* — mesh-init record in ACT is reviewed for
+all five ceremony elements; absence of any element invalidates the
+bootstrap and requires re-ceremony.
 
 ### §4.4 Platform enforcement floor
 
@@ -330,6 +454,10 @@ plugin or workflow self-declaration. A plugin's PCS manifest policy
 declaration **shall** constitute a declaration of intent, not an
 enforcement contract.
 
+*Verification: Conformance-test* — the harness submits a plugin that
+self-declares less restrictive policy than the platform floor and
+asserts the platform-floor restrictions still apply at runtime.
+
 ##### `[FM-INV-0005.1]` Default-deny on declaration omission
 
 Absence of a policy declaration field in a plugin's PCS manifest
@@ -339,14 +467,43 @@ permission to perform those operations without the platform's gates.
 Absent **shall not** mean permitted; absent **shall** mean unspecified,
 and the platform **shall** apply its floor.
 
+*Verification: Conformance-test* — the harness submits a plugin
+manifest omitting a `judge_gates` field, attempts an operation the
+platform classifies as judge-gated, and asserts the platform gate
+applies.
+
 ##### `[FM-INV-0005.2]` Divergence between declaration and enforcement is auditable
 
-When a plugin's declared policy diverges from the platform's
-enforcement (the plugin claims an operation requires no gate; the
-platform enforces a gate anyway), the divergence **shall** be recorded
-as a discrete audit event in the ACT pillar. Repeated divergence
-involving the same plugin **shall** be available as a CLCA trigger
-signal.
+A **divergence event** is defined as any runtime occurrence where the
+operation about to be executed would be permitted by the calling
+plugin's declared policy block (or by the absence of declaration) but
+is denied or gated by the platform's enforcement floor. Each divergence
+event **shall** be emitted to the ACT pillar as a single ACT
+audit-event class `pcs.policy.divergence` with the following required
+attributes:
+
+- `plugin_id` — the plugin's coordinate (namespace:artifact:version)
+- `operation` — the platform-classified operation name
+- `plugin_declared` — what the plugin's policy block declared (or
+  `null` for omission)
+- `platform_enforced` — what the platform floor applied
+- `caller_identity` — the calling principal
+- `timestamp`, `trace_id`, `span_id` per `[FM-INV-0001]` audit
+  invariants
+
+A **CLCA trigger** is defined as a count of `pcs.policy.divergence`
+events emitted by a single `plugin_id` within an operator-configured
+window exceeding an operator-configured threshold. Default values
+(when no operator configuration is supplied): window = 24 hours,
+threshold = 10 events. When the threshold is exceeded, the platform
+**shall** emit a derived event `pcs.policy.divergence.clca-trigger`
+to ACT with the offending `plugin_id` and the triggering event count;
+this derived event is the canonical signal CLCA workflows consume.
+
+*Verification: Conformance-test* — the harness induces a divergence
+event, asserts `pcs.policy.divergence` is emitted with all required
+attributes; then induces threshold-exceeding repetition and asserts
+`pcs.policy.divergence.clca-trigger` is emitted.
 
 ##### `[FM-INV-0005.3]` Enforcement granularity
 
@@ -356,6 +513,13 @@ approval, not solely the headline catastrophic-class operations
 enumerated in `[FM-INV-0004]`. Per-operation classification belongs to
 PGE policy; the enforcement floor binds regardless of plugin
 declaration.
+
+*Verification: Inspection* — PGE policy registry enumerates
+state-affecting operations with their classification; review confirms
+the registry covers at minimum {catastrophic-class operations per
+`[FM-INV-0004]`, judge-gated operations per `[FM-INV-0005]`, and the
+explicit state-affecting operation list each pillar specification
+declares in its §5 requirements when landed}.
 
 ---
 
