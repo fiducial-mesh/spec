@@ -55,6 +55,8 @@ The Standard is organized NASA-STD-style:
 
 §5 is complete — 7 substrate pillars (§§5.1–5.7) + the MCC host frame (§5.8). The eighth and final pillar, **PCS**, lives in §6 (reserved). Pillar count is 8; MCC is host, not pillar #9.
 
+**Review chain status:** Pass-1 full-spec review (Watson + Bob+panel) merged via PR #87 — hardened the consistency / completeness layer (cross-pillar refs, deviation-clause uniformity, divergence_type registry, appendix resolution, language-neutrality). **Pass-2 adversarial review (Patton) in flight** — landing on PR #88.
+
 Reserved sections are placeholders with the dependencies that already
 bind them (e.g., the audit-emission requirements every pillar
 inherits). Filled pillars carry numbered requirements + a Conformance
