@@ -1217,7 +1217,399 @@ emission per the IAM transitional deviation clause in
 
 ### §5.3 PGE — Policy Guardrail Engine
 
-*Reserved for future PR. Required by `[FM-INV-0005]` enforcement floor.*
+**Scope.** PGE is the mesh's deterministic, owned, auditable policy
+enforcement pillar. It is the sovereign alternative to
+vendor-mediated safety filters (which are opaque, non-deterministic,
+at the wrong layer, and subject to vendor policy drift). PGE consumes
+identity context from IAM per `[FM-IAM-0011]` and produces allow|deny
+decisions against an operator-owned policy corpus. PGE enforces the
+platform floor per `[FM-INV-0005]` and the catastrophic-class quorum
+discipline per `[FM-INV-0004]`.
+
+**Dependencies.**
+
+- `[FM-INV-0001]` (No bypass) and `[FM-INV-0002]` (Fail strict) apply to all PGE decisions.
+- `[FM-INV-0004]` (Quorum authority): PGE is the enforcement point for catastrophic-class quorum gating.
+- `[FM-INV-0005]` (Platform enforcement floor authoritative) — PGE is the consumer that makes the floor binding regardless of plugin self-declaration.
+- `[FM-IAM-0011]` (Identity-context contract) — PGE consumes the six-element identity context from IAM; PGE makes the allow|deny decision, IAM does not.
+- PGE emits to ACT (§5.4 when landed) per `[FM-PGE-0008]`.
+- PGE consumes policy overlays from PCS (§6 when landed) per `[FM-PGE-0012]`.
+
+#### `[FM-PGE-0001]` Policy decision authority
+
+PGE **shall** be the single mesh component that produces `allow | deny`
+decisions on policy-gated operations. The decision **shall** be
+produced from:
+
+1. The verified identity context returned by IAM per `[FM-IAM-0011]`
+2. The action being requested (operation name + target resource +
+   parameters)
+3. PGE's policy corpus (per `[FM-PGE-0003]`) including any active
+   overlays (per `[FM-PGE-0012]`)
+
+No other pillar **shall** produce policy decisions; pillars **shall**
+either invoke PGE for a decision or operate inside the surface PGE
+has already gated. IAM **shall not** return allow|deny; it returns
+context only per `[FM-IAM-0011]`.
+
+*Verification: Conformance-test* — the harness asserts that policy
+decision queries against PGE return `{allow|deny, reason, rule-id,
+policy-version}` with no other pillar's decision interceding;
+asserts IAM does not expose a decision-producing surface.
+
+#### `[FM-PGE-0002]` Deterministic evaluation
+
+PGE policy evaluation **shall** be deterministic: the same input
+(identity context + action + active overlays + policy version)
+**shall** produce the same decision. Non-determinism in the decision
+path **shall** be treated as a defect.
+
+This is the property that vendor-mediated safety filters lack and is
+load-bearing for audit reconstructability and conformance testing.
+
+*Verification: Conformance-test* — the harness submits identical
+policy-decision queries from independent sessions and asserts
+identical decisions across all sessions; verifies decisions are
+identical across a configured number of repetitions for randomized-
+sample input sets.
+
+#### `[FM-PGE-0003]` Two-stratum rule corpus
+
+The PGE rule corpus **shall** be organized into two strata:
+
+- **Stratum 1 — Non-negotiable guarantees**: invariants that bind
+  across every deployment of the mesh (e.g., the security framework's
+  10 non-negotiables — no `subprocess`+`shell=True`, no `eval`/`exec`
+  on untrusted input, parameterized SQL only, HTTPS-only egress,
+  keyring-only credentials, etc.). Stratum 1 rules **shall not** be
+  weakened by overlays; they are the floor of `[FM-INV-0005]`.
+- **Stratum 2 — Implementation patterns**: rules and patterns that
+  may vary per deployment, per regulatory regime, or per customer
+  posture. Overlays (per `[FM-PGE-0012]`) operate at Stratum 2; they
+  **may** add new Stratum 2 rules or modify Stratum 2 thresholds.
+
+A rule's stratum classification **shall** be immutable for the rule's
+lifetime; moving a rule between strata is a new rule with a new
+identifier.
+
+*Verification: Static-check* — the rule corpus is parsed and each
+rule's stratum tag is verified against the corpus schema; the harness
+attempts to apply an overlay weakening a Stratum 1 rule and asserts
+rejection.
+
+#### `[FM-PGE-0004]` Per-rule stable identifiers + decision attribution
+
+Every rule in the corpus **shall** carry a stable identifier of the
+form `pge-<stratum>-<area>-NNNN` (e.g., `pge-s1-injection-0007`).
+Identifiers are immutable + append-only per the same discipline as
+requirement IDs in this Standard (§0.2): once assigned, never
+renumbered, never reused; deprecated rules are marked and retained.
+
+Every PGE decision **shall** record the matching rule identifier (or
+the explicit "no rule matched → default" path) in its audit emission
+per `[FM-PGE-0008]`. Audit consumers reconstruct which rule fired by
+identifier; no audit chain ever references "rule text" alone.
+
+*Verification: Static-check + Conformance-test* — Static-check
+asserts every rule in the corpus has a unique identifier matching the
+schema; Conformance-test exercises representative decisions and
+asserts the rule-id field is present and correct in the emitted audit
+record.
+
+#### `[FM-PGE-0005]` Double-guardrail enforcement
+
+PGE **shall** apply policy enforcement at **two distinct chokepoints**
+in the mesh execution surface, both of which **shall** be in place
+for a deployment to claim PGE-conformance:
+
+- **Gate 1 — Intent gate** at IBX submission (per `[FM-IBX-0003]`
+  / `[FM-IBX-0004]`): the PCT's principal, scope assertion, action
+  declaration, and authority claim are evaluated against the rule
+  corpus before the message reaches downstream pillars. Non-compliant
+  submissions fail closed at IBX.
+- **Gate 2 — Execution gate** at the DPG ephemeral boundary (§5.6
+  when landed): code emitted by agents is evaluated against the rule
+  corpus before execution. Non-compliant code fails closed at DPG;
+  it **shall not** touch production state.
+
+Either gate alone **shall not** be claimed conformant — both are
+required. The double-guardrail is the structural property that
+distinguishes PGE from vendor-mediated safety filters (which enforce
+at one layer and miss the execution surface entirely).
+
+Supplemental surfaces (CI release gate per `publish.yml`, PreToolUse
+hook per `[FM-PGE-0007]`, per-server test suite) **may** layer
+additional enforcement; supplemental enforcement does **not**
+substitute for either Gate 1 or Gate 2.
+
+**Transitional deviation — Gate-2 sunset on DPG operational
+availability.** Gate-2 enforcement lives in the DPG pillar (§5.6
+when landed). Until DPG is operational per the future `[FM-DPG-NNNN]`
+declaration in §5.6, a deployment **may** operate the supplemental
+enforcement surfaces (PreToolUse hook + per-server test suite + CI
+release gate) **only** for execution-side policy without satisfying
+Gate-2. **This is a recognized deviation, not satisfaction of this
+requirement.** Same shape as `[FM-IBX-0010]` and `[FM-IAM-0014]`
+transitional deviations.
+
+The transitional Gate-2 deviation **shall**:
+
+1. Be registered in Appendix F with explicit sunset condition: "DPG
+   operational per the future `[FM-DPG-NNNN]` requirement marking
+   DPG operational state, to be defined in §5.6."
+2. Emit a divergence event to ACT per `[FM-INV-0005.2]` with
+   `divergence_type = "gate-2-supplemental-only"` per
+   `[FM-PGE-0011]` discriminator (canonical emitter: PGE) for every
+   execution-side policy evaluation operating under the deviation.
+3. Be reviewed at each major Standard release; deviation expiry
+   **shall** be enforced when DPG operational state is declared per
+   §5.6.
+
+A deployment operating under the Gate-2 transitional deviation
+**shall not** be claimed conformant to `[FM-PGE-0005]`; it is
+conformant to the deviation clause only.
+
+*Verification: Conformance-test (post-DPG)* — the harness submits
+non-compliant intent through IBX and asserts rejection at Gate 1;
+submits compliant intent that emits non-compliant code into DPG and
+asserts rejection at Gate 2; verifies removing either gate causes
+the conformance suite to fail.
+*Verification (deviation period): Inspection of deviation registry +
+Static-check of supplemental-surface coverage + Conformance-test of
+Gate 1 alone* — Gate 1 conformance verified per the post-DPG harness;
+Gate-2 deviation entry verified in Appendix F; supplemental surfaces
+(PreToolUse hook + CI gate + per-server tests) verified to cover the
+execution-side rule set even though they do not constitute Gate-2.
+
+#### `[FM-PGE-0006]` No vendor-mediated bypass
+
+PGE policy enforcement **shall not** delegate to or be substituted by
+a vendor-mediated safety filter (Anthropic safety filters, OpenAI
+moderation endpoints, or any vendor-side policy surface). A
+deployment that relies on vendor-side enforcement for any rule in the
+corpus **shall not** be claimed PGE-conformant for that rule.
+
+This is capability-minimization per `[FM-INV-0003]` applied to policy
+enforcement: the capability "trust an external vendor to enforce our
+policy" is not provisioned in the mesh.
+
+*Verification: Inspection* — review of the policy enforcement code
+path verifies no rule decision is routed to a vendor-mediated
+endpoint; the rule corpus is owned and evaluated within the mesh's
+trust boundary.
+
+#### `[FM-PGE-0007]` Hook integration
+
+PGE **shall** integrate with Claude Code and OpenAI Codex hook surfaces
+(PreToolUse, PostToolUse, PermissionRequest, SessionStart) per the
+respective vendor plugin specifications. The hook integration **shall**
+be the runtime mechanism by which Gate 1 and Gate 2 intercept actions
+at the agent surface.
+
+When a hook fires, PGE **shall** evaluate the action against the rule
+corpus and return the gate decision before the underlying tool
+executes; a `deny` decision **shall** prevent tool execution.
+
+*Verification: Conformance-test* — the harness exercises PreToolUse
+hook fires with compliant and non-compliant tool calls and asserts
+the gate decision is enforced before the tool executes (compliant
+proceeds; non-compliant blocked).
+
+#### `[FM-PGE-0008]` Audit emission per decision
+
+Every PGE decision (every Gate 1 and Gate 2 evaluation, plus every
+supplemental-surface evaluation) **shall** emit an audit-class event
+to ACT (§5.4 when landed) carrying: the deciding rule identifier (per
+`[FM-PGE-0004]`), the decision (`allow | deny`), the policy version
+in force, the identity context fingerprint (per `[FM-IAM-0011]`), the
+action evaluated, the timestamp, and the trace/span correlation IDs.
+
+Audit emission failure **shall** be treated as fail-strict per
+`[FM-INV-0002]`: PGE **shall not** apply a decision if its audit
+emission cannot be confirmed; the action **shall** be denied.
+
+*Verification: Conformance-test* — the harness exercises decisions
+and asserts audit emission with all required fields; induces audit-
+sink unavailability and asserts decisions deny rather than proceed
+without audit.
+
+#### `[FM-PGE-0009]` Catastrophic-class enforcement
+
+For operations classified as catastrophic-class per `[FM-INV-0004]`,
+PGE **shall** require K-of-N quorum attestation before issuing an
+`allow` decision. The quorum-verification path is per `[FM-INV-0004]`;
+PGE is the enforcement point that consumes the verified quorum result.
+
+A catastrophic-class operation request that lacks K-of-N quorum at
+decision time **shall** be denied independent of policy; presence
+of quorum is necessary but not sufficient (the rule corpus may
+additionally deny based on identity context or content).
+
+*Verification: Conformance-test* — the harness submits
+catastrophic-class operation requests with insufficient quorum and
+asserts deny; submits with sufficient quorum but a rule-corpus deny
+condition active and asserts deny; submits with sufficient quorum
+and a clean rule-corpus state and asserts allow.
+
+#### `[FM-PGE-0010]` Platform enforcement floor
+
+PGE **shall** apply the platform enforcement floor per `[FM-INV-0005]`
+regardless of plugin self-declaration. A plugin's PCS-manifest policy
+block (per §6 when landed) is a declaration of intent, not an
+enforcement contract; PGE **shall not** weaken its floor based on a
+plugin's declared posture.
+
+PGE-recognized floor operations include (at minimum):
+
+- All Stratum 1 rules per `[FM-PGE-0003]`
+- All catastrophic-class operations per `[FM-PGE-0009]`
+- All judge-gated operations per the operator's PGE policy registry
+
+Plugins **may** add stricter constraints in their policy block; PGE
+**shall** honor stricter declarations. Plugins **shall not** be able
+to relax the floor through declaration omission, soft-failure
+patterns, or silent declarations.
+
+*Verification: Conformance-test* — the harness submits a plugin
+whose policy block declares a Stratum 1 operation as permitted
+without further gating; PGE asserts the floor regardless and denies
+or gates per the floor's classification. The deny + audit emission
+is recorded.
+
+#### `[FM-PGE-0011]` Divergence-event emission
+
+When PGE detects a divergence between a plugin's declared policy
+block (per §6 when landed) and the platform enforcement floor PGE
+applies, PGE **shall** emit a `pcs.policy.divergence` event to ACT
+per `[FM-INV-0005.2]` with the required attributes (`plugin_id`,
+`operation`, `plugin_declared`, `platform_enforced`,
+`caller_identity`, timestamp+trace) plus the `divergence_type`
+discriminator per the following clause.
+
+**Divergence-type discriminator.** `pcs.policy.divergence` events
+**shall** carry a `divergence_type` attribute distinguishing the
+divergence subclass. Each subclass has a single canonical emitter
+pillar; an event of a given `divergence_type` value is authoritative
+when emitted by its canonical pillar:
+
+| `divergence_type` | Canonical emitter | What it represents |
+|-------------------|-------------------|--------------------|
+| `policy-block-mismatch` | **PGE (this requirement)** | Plugin's declared policy block disagrees with PGE's enforced floor |
+| `identity-by-brief` | **IBX (per `[FM-IBX-0010]`)** | Assertion-only identity claim under the transitional deviation |
+| (future subtypes) | Their respective canonical emitter pillar | Per the requirement that introduces the subtype |
+
+Other pillars **may** emit corroborative records of an out-of-subtype
+event for cross-pillar observability, but the canonical emitter for
+each `divergence_type` is the authoritative source for that subtype.
+Downstream consumers — including `[FM-IAM-0014]` Condition 4 reading
+`identity-by-brief` events to verify sunset — operate against the
+canonical-emitter records for the subtype they're verifying. All
+subtypes flow into the same `pcs.policy.divergence` event class in
+ACT, distinguishable by the `divergence_type` discriminator.
+
+When the count of `divergence_type = "policy-block-mismatch"` events
+from one `plugin_id` exceeds the operator-configured threshold within
+the configured window, PGE **shall** emit the derived
+`pcs.policy.divergence.clca-trigger` event per `[FM-INV-0005.2]`.
+CLCA-trigger derivation **shall** operate per-`divergence_type`;
+counts and thresholds for other subtypes are owned by the canonical
+emitter of that subtype (e.g., `identity-by-brief` CLCA-trigger
+derivation is IBX's per `[FM-IBX-0010]`).
+
+*Verification: Conformance-test* — the harness induces a
+`policy-block-mismatch` divergence by submitting a plugin manifest
+with a relaxed policy block; asserts `pcs.policy.divergence` is
+emitted with all required attributes plus `divergence_type =
+"policy-block-mismatch"`; exceeds the threshold by repetition and
+asserts the `pcs.policy.divergence.clca-trigger` event is also
+emitted with the correct discriminator scope.
+
+#### `[FM-PGE-0012]` Policy overlay consumption
+
+PGE **shall** consume policy overlays distributed via the PCS
+registry (§6 when landed) and apply them additively at Stratum 2
+above the deployment's baseline policy. Overlay application
+**shall**:
+
+1. Be evaluated against `[FM-PGE-0003]` Stratum 1 invariants — an
+   overlay attempting to weaken a Stratum 1 rule **shall** be
+   rejected at apply time.
+2. Carry a quorum attestation per `[FM-INV-0004]` if the overlay
+   class is catastrophic (per `[FM-INV-0004]` and any operator-
+   declared overlay-quorum policy).
+3. Be auditable — each overlay's apply, deprecate, and revoke events
+   are recorded in ACT per `[FM-PGE-0008]` and the audit chain
+   attributes subsequent decisions to the overlay-augmented policy
+   version.
+
+Overlays composing across regimes (e.g., HIPAA + GDPR + FedRAMP-High
+on one deployment) **shall** be applied in the operator-declared
+order; PGE **shall** evaluate decisions against the composed effective
+policy.
+
+*Verification: Conformance-test* — the harness applies a Stratum 2
+overlay, asserts subsequent decisions reflect the overlay-augmented
+policy; attempts to apply a Stratum 1-weakening overlay and asserts
+rejection; applies a catastrophic-class overlay without quorum and
+asserts rejection.
+
+#### `[FM-PGE-0013]` Fail-strict on policy-engine unavailability
+
+If the PGE policy-evaluation engine is unavailable (engine process
+down, policy corpus unreadable, audit sink unreachable per
+`[FM-PGE-0008]`), policy-gated operations **shall** fail closed per
+`[FM-INV-0002]`. PGE unavailability **shall not** default to "allow"
+or "skip enforcement."
+
+This **shall** apply at both Gate 1 and Gate 2: IBX **shall** reject
+submissions when PGE cannot evaluate; DPG **shall** refuse code
+execution when PGE cannot evaluate.
+
+*Verification: Conformance-test* — the harness induces PGE engine
+unavailability and submits compliant operations; asserts deny at both
+gates; restores PGE and asserts compliant operations succeed.
+
+#### `[FM-PGE-0014]` Telemetry emission
+
+PGE **shall** emit OTLP-format traces, metrics, and logs per the
+mesh-wide telemetry discipline. Span names **shall** follow the
+`mesh.pge.*` namespace per the per-pillar telemetry contract;
+required attributes **shall** include `decision`, `rule-id`,
+`policy-version`, `principal-id` (from the consumed identity
+context), `trace_id`, `span_id`.
+
+Note: PGE's own telemetry (`mesh.pge.*` traces/metrics/logs) is
+distinct from the `pge.*_evaluated` audit-class events PGE emits to
+ACT per `[FM-PGE-0008]`. The two flow to different consumers — ACT
+for audit reconstructability; the deployment's OTLP sink for
+operational observability.
+
+*Verification: Conformance-test* — the harness invokes representative
+PGE operations and asserts emission of expected span/metric/log
+records to a test OTLP sink with required attributes present;
+confirms the `mesh.pge.*` namespace.
+
+### §5.3.1 PGE Conformance Profile
+
+The PGE pillar's substrate substitutability claim covers exactly the
+rows in this Conformance Profile. Conformance is verified by passing
+the PGE multi-profile conformance suite against the listed
+implementations.
+
+| Seam | Bound requirement(s) | Sovereign reference (version floor) | Supported alternatives | Test Set |
+|------|---------------------|-------------------------------------|------------------------|----------|
+| Rule corpus storage | `[FM-PGE-0003]`, `[FM-PGE-0004]` | Git-versioned Markdown (`MCP-SECURITY-FRAMEWORK.md` style) + per-component `test_security.py` files | OPA Rego policy bundle, Cedar policy file, database-backed corpus with explicit version table, hybrid (Markdown for Stratum 1 + Rego for Stratum 2) | `pge-corpus-v1` |
+| Policy evaluation engine | `[FM-PGE-0001]`, `[FM-PGE-0002]`, `[FM-PGE-0013]` | Distributed per-surface enforcement — Python pytest + Bash `subagent-guard.sh` + CI release gate | OPA (Open Policy Agent) 0.60+ with Rego eval, Cedar runtime with declarative policy engine, per-pillar embedded policy engines, hybrid centralized + per-surface | `pge-engine-v1` |
+| Enforcement surface | `[FM-PGE-0005]`, `[FM-PGE-0007]`, `[FM-PGE-0009]`, `[FM-PGE-0010]` | Distributed multi-surface — PreToolUse hook + IBX submission chokepoint + DPG ephemeral boundary + CI release gate + per-server test suite | OPA-sidecar middleware at IBX/DPG, Cedar runtime sidecar, custom enforcement library per-pillar, hybrid | `pge-enforcement-v1` |
+| Overlay consumption | `[FM-PGE-0012]` | Signed overlay bundles consumed from PCS registry (§6 when landed) | Any signed bundle format declared conformant by PCS (§6 + Appendix B when landed) | `pge-overlay-v1` |
+| Telemetry sink | `[FM-PGE-0014]` | OTLP-on-the-wire (any OTLP-compatible backend per ACT §5.4) | Grafana/Prometheus/Tempo, Azure Monitor, Datadog, OCI Monitoring | `pge-telemetry-v1` |
+
+Out-of-set substrates **shall not** be claimed supported. Extending
+the profile requires the argued-case discipline per `[FM-INV-0003.2]`
+and a multi-profile conformance run proving the new substrate passes
+the PGE test suite. The double-guardrail composition (`[FM-PGE-0005]`)
+and the single-source-of-policy-truth invariant are preserved across
+substrate change.
 
 ### §5.4 ACT — Agent Cognitive Telemetry
 
