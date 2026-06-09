@@ -55,7 +55,16 @@ The Standard is organized NASA-STD-style:
 
 §5 is complete — 7 substrate pillars (§§5.1–5.7) + the MCC host frame (§5.8). The eighth and final pillar, **PCS**, lives in §6 (reserved). Pillar count is 8; MCC is host, not pillar #9.
 
-**Review chain status:** Pass-1 full-spec review (Watson + Bob+panel) merged via PR #87 — hardened the consistency / completeness layer (cross-pillar refs, deviation-clause uniformity, divergence_type registry, appendix resolution, language-neutrality). **Pass-2 adversarial review (Patton) in flight** — landing on PR #88.
+**Review chain status:**
+
+| Pass | Doc | Reviewer | PR | Status |
+|------|-----|----------|-----|--------|
+| Pass-1 STD | STD-001 | Watson + Bob+panel | #87 | Merged |
+| Pass-2 STD | STD-001 | Patton adversarial | #88 | Merged |
+| Pass-1 HDBK | HDBK-001 (refresh) | Watson + Bob+panel | #89 | Merged |
+| **Pass-2 HDBK** | HDBK-001 | **Patton adversarial** | **#90 (this PR — in flight)** | **In flight** |
+
+STD ↔ HDBK pair is complete and navigable both directions (125/125 cross-reference coverage); STD requirements each carry a Verification line; Pass-2-HDBK closes the four-pass review chain.
 
 Reserved sections are placeholders with the dependencies that already
 bind them (e.g., the audit-emission requirements every pillar
