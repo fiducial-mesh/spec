@@ -50,7 +50,9 @@ The Standard is organized NASA-STD-style:
 | 5.5 | **AKB** — Agent Knowledge Base | Filled (14 requirements + Conformance Profile) |
 | 5.6 | **DPG** — Deterministic Proving Ground | Filled (14 requirements + Conformance Profile) |
 | 5.7 | **CRB** — Compute Resource Broker | Filled (13 requirements + Conformance Profile) |
-| 5.8 | **MCC** — Mesh Control Center | Reserved |
+| 5.8 | **MCC** — Mesh Control Center | Filled (14 requirements + Conformance Profile) |
+
+§5 is complete — all eight pillars filled.
 
 Reserved sections are placeholders with the dependencies that already
 bind them (e.g., the audit-emission requirements every pillar
