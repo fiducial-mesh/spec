@@ -1964,16 +1964,28 @@ the ACT test suite.
 ### §5.5 AKB — Agent Knowledge Base
 
 **Scope.** AKB is the mesh's authored-knowledge substrate: the
-specs, planning docs, post-mortems, runbooks, security frameworks,
-agent briefs, AIRs (Agentic Incident Reports), and friction-catalog
-entries that comprise the corpus an agent reasons against. AKB
-ingests that corpus, projects it per agent role, and surfaces it at
-session-start (bounded prior) and mid-reasoning (gradient-gated
-injection) without inducing context-saturation or substrate-trap
-failures. The pillar exists because brief-drift, knowledge-rot, and
-substrate-trap (vector retrieval surfacing dead-end content as
-candidate solutions to physics queries) are observable failure
-classes in the current mesh, not hypothetical ones.
+specs, planning docs, post-mortems, security frameworks, agent
+briefs, AIRs (Agentic Incident Reports), design notes, and
+friction-catalog entries that comprise the **reference corpus** an
+agent reasons *against*. AKB ingests that corpus, projects it per
+agent role, and surfaces it at session-start (bounded prior) and
+mid-reasoning (gradient-gated injection) without inducing
+context-saturation or substrate-trap failures. The pillar exists
+because brief-drift, knowledge-rot, and substrate-trap (vector
+retrieval surfacing dead-end content as candidate solutions to
+physics queries) are observable failure classes in the current
+mesh, not hypothetical ones.
+
+**Scope boundary — AKB vs PCS.** AKB is the reference layer (what
+an agent *reads to reason*); PCS owns the executable layer (what an
+agent *runs*). Runbooks, workflows, skills, and other executable
+artifacts are **PCS-governed and out of AKB scope** — they live
+under the PCS artifact contract (contents + test + deploy), not in
+the AKB corpus. The reverse is also true: an AIR or design note
+about a runbook is AKB corpus; the runbook itself is not. This
+boundary prevents the duplication that would otherwise let an
+agent reason against a stale copy of an executable that PCS has
+since updated.
 
 **Dependencies.**
 
@@ -2055,6 +2067,13 @@ invariant-compliant designs share vocabulary, so cosine similarity
 alone surfaces dead-end content as candidate solutions to physics
 queries. The pre-filter makes vector math downstream of physics
 math.
+
+AIRs carry `violates_invariant = false` per `[FM-AKB-0012]` and
+therefore **shall** pass the pre-filter for non-historical queries
+— AIRs are operational lessons whose surfacing at decision points
+is the intended behavior, not failure-class content the pre-filter
+is meant to exclude. The pre-filter targets only chunks whose
+`violates_invariant = true`.
 
 Role projection per `[FM-AKB-0005]`, selective exemption per
 `[FM-AKB-0006]`, and the reranker (when present) **shall** apply
@@ -2256,7 +2275,13 @@ AKB ingest. The ingest pipeline **shall** drop such AIRs and
 **shall** record an audit event documenting the exclusion;
 broadcast-by-design substrates are incompatible with need-to-know
 audiences. The mesh's restricted-audience store for security
-findings is governed elsewhere.
+findings is **out of AKB scope and out of this Standard's current
+pillar set** — it is provisional on the ratification of a
+restricted-audience pillar (e.g., a SEC pillar under
+consideration), and **shall** be specified there when ratified.
+Until then, the categorical exclusion is the contract; security
+findings are not orphaned but are simply not AKB's responsibility
+to route.
 
 AIRs **shall** chunk at sub-section granularity (H3-or-deeper
 headers within the AIR's findings section), so a query about a
