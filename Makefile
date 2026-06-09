@@ -55,7 +55,7 @@ $(STD_OUT): $(STD)
 	@mkdir -p $(OUT_DIR)
 	@pandoc $(STD) $(PANDOC_COMMON) \
 		-V title="FIDUCIAL-MESH-STD-001 — Fiducial Mesh Platform Standard" \
-		-V author=Watson \
+		-V author="Fiducial Mesh Group" \
 		-V date="2026-06-09" \
 		-o $(STD_OUT) 2> $(STD_LOG) || (echo "STD PDF build failed — see $(STD_LOG)" && exit 1)
 	@echo "Built: $(STD_OUT)"
@@ -68,7 +68,7 @@ $(HDBK_OUT): $(HDBK)
 	@mkdir -p $(OUT_DIR)
 	@pandoc $(HDBK) $(PANDOC_COMMON) \
 		-V title="FIDUCIAL-MESH-HDBK-001 — Fiducial Mesh Handbook" \
-		-V author=Watson \
+		-V author="Fiducial Mesh Group" \
 		-V date="2026-06-09" \
 		-o $(HDBK_OUT) 2> $(HDBK_LOG) || (echo "HDBK PDF build failed — see $(HDBK_LOG)" && exit 1)
 	@echo "Built: $(HDBK_OUT)"
