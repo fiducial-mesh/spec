@@ -1658,7 +1658,36 @@ work, non-FIPS crypto modules must not be provisioned at all — the
 overlay encodes the NIST controls, the substrate provides the validated
 primitives.
 
+**Bound STD requirements.** The security framework's bullet list
+maps directly to numbered STD requirements: credentials in Vault =
+`[FM-IAM-0006]` (in-boundary signing) + the IAM Conformance
+Profile's secret-store seam; no-injection-surfaces is a §0.5
+Static-check discipline applied across every pillar; HTTPS/TLS
+only is the substrate-pluggable contract every pillar's
+Conformance Profile names; audit-emission-as-build-standard is the
+per-pillar audit requirement bound to the `[FM-ACT-0009]`
+emission-confirmation contract (FM-IBX-0012, FM-IAM-0013,
+FM-PGE-0008, FM-AKB-0013, FM-DPG-0012, FM-CRB-0012, FM-MCC-0013);
+no-bypass + fail-strict = `[FM-INV-0001]` + `[FM-INV-0002]` +
+`[FM-INV-0002.1]` deadline; PreToolUse hooks gating destructive
+ops = `[FM-PGE-0007]` (PreToolUse hook surface) + `[FM-PGE-0005]`
+double-guardrail with Gate-2 via `[FM-DPG-0005]`. Two-person
+GH-native review and tag-push-triggers-publish are PCS / §6
+release-gate concerns (§6 reserved). FIPS-Day-1 substrate
+discipline binds to the Tier-0 substrate selection in the IAM
+Conformance Profile per `[FM-IAM-0006]` and to the FIPS-validated
+hash algorithm per `[FM-ACT-0006]`; capability-minimization-applied-
+to-FIPS-mode is the `[FM-INV-0003]` discipline applied at substrate
+provisioning.
+
 ## 4.3 Delivery and packaging
+
+> **STD/HDBK boundary reminder (per §1.5).** The Standard is
+> language-neutral at the contract layer per `[FM-STD §1]`. The
+> language map below is the project's **reference-implementation
+> choice**, not a conformance requirement. A customer choosing
+> a different stack for any pillar remains conformant on the same
+> terms (passing the per-pillar Conformance Profile test set).
 
 Language map (canonical reference in Appendix B):
 
@@ -1727,6 +1756,15 @@ the path is: argue the case → pillar maintainers add it to the matrix
 → ship in the next mesh release → customer's workflow now has a
 supported binding to point at. The argued-deviation discipline (§1.5)
 is the same shape applied to substrate choices.
+
+**Bound STD requirements.** The argued-case path for adding a new
+substrate to a pillar's Conformance Profile is `[FM-INV-0003.2]`
+(net-new capability requires argued-case + the multi-profile
+conformance run proving the new substrate passes the pillar's
+test set). The Appendix F entry schema for the argued-case
+submission is §F.1 of STD-001. The customer-tenant-namespace
+discipline (`<customer-x>:<workflow>:<version>`) belongs to the
+§6 PCS namespace + registry contract (currently Reserved).
 
 ## 4.6 Agents own deployment, installation, config, maintenance
 
