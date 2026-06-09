@@ -394,11 +394,12 @@ the visual contract):
 sovereign to the deploying organization, and never in the action path.
 Its only role is to mint identities and step out. **ARCA** (Agentic
 Root CA) is its only component — the per-organization root of trust for
-agent identity. The dotted-line separation is a deliberate security
-property, not tidiness: because ARCA is never in the action path, it
-can be kept offline, and an offline authority cannot be attacked over
-the network during operation. Runtime verification is local (signature
-+ trust chain), never a callback.
+agent identity per `[FM-IAM-0002]` (per-organization ARCA sovereignty).
+The dotted-line separation is a deliberate security property, not
+tidiness: because ARCA is never in the action path, it can be kept
+offline, and an offline authority cannot be attacked over the network
+during operation. Runtime verification is local (signature + trust
+chain), never a callback.
 
 **The Control Plane** is the authoritative governing body of the mesh.
 Six elements:
@@ -410,7 +411,7 @@ Six elements:
 | **PGE** | deterministic policy enforcement. Double-guardrail — gates intent before IBX, gates execution inside DPG. |
 | **CRB** | hardware-aware workload broker. Routes between unified-memory hosts and compute-host GPUs. |
 | **IBX** | the message hub. Every Control-Plane pillar and the Judge gate route to Workforce *through* IBX. |
-| **Judge (human)** | the human-in-the-loop approval gate for `action` / `urgent` priority messages. First-class architectural element. |
+| **Judge (human)** | the human-in-the-loop approval gate for `action` / `urgent` priority messages — server-enforced at the IBX submission chokepoint per `[FM-IBX-0003]` (the gate cannot be opted out of by the message sender). First-class architectural element. |
 
 **The Compute Plane** is where agent work executes:
 
@@ -532,9 +533,9 @@ The mesh already follows this principle implicitly at every pillar:
 - **No-callbacks runtime verification** (§1.2) — we don't policy
   "don't phone home"; there is no phone-home substrate.
 
-**The test for new architectural decisions.** When a new capability is
-proposed, the first question is: *"Do we want anyone — anywhere, ever
-— to be able to do this?"*
+**The test for new architectural decisions** per `[FM-INV-0003.3]`.
+When a new capability is proposed, the first question is: *"Do we
+want anyone — anywhere, ever — to be able to do this?"*
 
 - If no: don't provision it. Policy can't make it safer than not existing.
 - If yes: policy gates who can do it, under what conditions, with what audit.
@@ -630,22 +631,22 @@ every operation the platform classifies as catastrophic-class,
 regardless of whether the plugin declares it. **Absence of declaration
 is not absence of constraint.** Three corollaries follow:
 
-- **Default-deny on declaration omission.** A plugin that does not
-  declare a `judge_gates` or `quorum_required` field does not thereby
-  acquire permission to perform those operations without the platform's
-  gates. Absent ≠ safe; absent = unspecified, and the platform applies
-  its floor.
+- **Default-deny on declaration omission** per `[FM-INV-0005.1]`.
+  A plugin that does not declare a `judge_gates` or `quorum_required`
+  field does not thereby acquire permission to perform those operations
+  without the platform's gates. Absent ≠ safe; absent = unspecified,
+  and the platform applies its floor.
 - **Divergence is a signal.** When a plugin's declared policy diverges
   from the platform's enforcement (plugin claims an op needs no judge
   gate; platform enforces one anyway), the divergence is logged to ACT
   as a discrete audit event. The plugin author and the operator both
   receive the signal; over time, repeated divergence is a CLCA
   trigger.
-- **Granularity covers all dangerous operations.** Catastrophic-class
-  is the headline list (§1.7.3); judge-gating and quorum-enforcement
-  cover the broader surface of state-affecting operations PGE policy
-  classifies as requiring approval — not just the named catastrophic
-  set.
+- **Granularity covers all dangerous operations** per
+  `[FM-INV-0005.3]`. Catastrophic-class is the headline list (§1.7.3);
+  judge-gating and quorum-enforcement cover the broader surface of
+  state-affecting operations PGE policy classifies as requiring
+  approval — not just the named catastrophic set.
 
 This is capability-minimization (§1.7.2) applied recursively to the
 policy substrate itself: the plugin's declaration is a *hint to
@@ -1209,14 +1210,20 @@ approval gates are first-class PCS workflow primitives — a `judge-gate`
 hook can be declared on any workflow step that needs explicit approval
 before proceeding.
 
-**Bound STD requirements.** PCT shape + nine-field schema = the IBX
-message-shape requirements in §5.1; worker-pool dispatch semantics =
-`[FM-IBX-0007]`; claim-queue substrate seam (transactional
-SKIP-LOCKED) = `[FM-IBX-0009]`; routing-audit storage seam =
-`[FM-IBX-0008]`; status-transition audit emission via the
-`[FM-ACT-0009]` ack contract = `[FM-IBX-0012]`. The identity-by-
-brief transitional deviation (the recognized gap until IAM
-operational) = `[FM-IBX-0010]` — sunsets via `[FM-IAM-0014]`.
+**Bound STD requirements.** PCT nine-field contract =
+`[FM-IBX-0001]`; PCT field-name stability =
+`[FM-IBX-0002]`; server-enforced Judge gate for action-priority
+messages = `[FM-IBX-0003]`; message status workflow =
+`[FM-IBX-0004]`; append-mostly substrate = `[FM-IBX-0005]`;
+identity-vs-session distinction in PCT = `[FM-IBX-0006]`;
+worker-pool dispatch semantics = `[FM-IBX-0007]`; routing-audit
+storage seam = `[FM-IBX-0008]`; claim-queue substrate seam
+(transactional SKIP-LOCKED) = `[FM-IBX-0009]`; status-transition
+audit emission via the `[FM-ACT-0009]` ack contract =
+`[FM-IBX-0012]`; mesh.ibx.* telemetry emission =
+`[FM-IBX-0011]`. The identity-by-brief transitional deviation
+(the recognized gap until IAM operational) = `[FM-IBX-0010]` —
+sunsets via `[FM-IAM-0014]`.
 
 ## 3.2 AKB — Agent Knowledge Base
 
@@ -1247,9 +1254,11 @@ ingestion plugins.
 
 **Bound STD requirements.** Two-tier delivery (Tier 0 bounded prior
 + Tier 1 gradient-gated injection) = `[FM-AKB-0001]`; the 1024-byte
-Tier-0 hard cap = `[FM-AKB-0002]`; substrate-trap deterministic
-pre-filter before vector similarity = `[FM-AKB-0004]`; role
-projection at retrieval = `[FM-AKB-0005]`; self-review exemption =
+Tier-0 hard cap = `[FM-AKB-0002]`; Tier-0 source provenance
+(deployable snapshot only from merged-`main`; Bar-B-gated source
+edits) = `[FM-AKB-0003]`; substrate-trap deterministic pre-filter
+before vector similarity = `[FM-AKB-0004]`; role projection at
+retrieval = `[FM-AKB-0005]`; self-review exemption =
 `[FM-AKB-0006]`; cross-role per-document cap = `[FM-AKB-0007]`;
 stratified promotion gates (Bar A/B/C/Physics-C) = `[FM-AKB-0008]`;
 bootstrap pre-write gate ≥20 chunks = `[FM-AKB-0009]`; hook trigger
