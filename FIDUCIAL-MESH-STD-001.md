@@ -755,6 +755,26 @@ the reasoning runs determines what content reaches what
 counterparty. The Standard binds this seam at the deployment
 level, not at any individual pillar.
 
+**Why this binds at invariant level** (rather than as a pillar-
+level Conformance Profile seam). The persistent-store, secret-
+store, and identity-provider seams are **sovereignty-neutral** —
+PostgreSQL vs Oracle vs MySQL, HashiCorp Vault vs Azure Key Vault
+vs AWS KMS, Samba AD vs Microsoft Entra vs OpenLDAP are all
+contract-substitutable choices that do not, by themselves,
+change what content reaches what counterparty (the deployment
+operator chooses substrates within their trust boundary; the
+substrate doesn't reach back out). The reasoning-runtime seam is
+**sovereignty-determining**: it admits exactly three closed
+classes — `sovereign-local-inference`, `vendor-hosted-reasoning`,
+`hybrid` — and the choice between them determines whether prompts
+and working context leave the customer trust boundary at all.
+That binary (data-egress yes/no) is a deployment-wide invariant,
+not a pillar-implementation detail; every deployment **shall**
+declare its position in the trichotomy, and the declaration is
+what makes the air-gap claim of the adjacent invariants
+(`[FM-INV-0001]` no-bypass-on-pillar-paths) coherent with the
+deployment's reasoning substrate.
+
 The substrate seam **shall** be declared by every deployment at
 attestation per `[FM-INV-0005]` and per §F.3 of the registry-
 integrity requirements. The declaration **shall** name:
@@ -777,6 +797,19 @@ across every workload class is **conformant** to this requirement.
 A deployment with any workload class on a non-sovereign reasoning
 runtime is **operating under a recognized deviation** per
 `[FM-INV-0006.1]`.
+
+*Verification: Inspection of deployment attestation + Conformance-test
+of per-workload-class declaration coverage* — Inspection of the
+deployment's attestation record per §F.3 confirms the three required
+fields are present (runtime substrate class drawn from the closed
+trichotomy; sovereign reference named; data-flow consequence
+documented for every workload class not on the sovereign reference);
+Conformance-test verifies the per-workload-class assignment covers
+every workload class the deployment routes to a reasoning runtime
+— an undeclared workload class is non-conforming; verifies a
+workload class declared `sovereign-local-inference` does not emit
+`vendor-hosted-reasoning` divergence events per `[FM-INV-0006.1]`
+item 2 over the attestation window.
 
 ##### `[FM-INV-0006.1]` Vendor-hosted reasoning — transitional deviation
 
