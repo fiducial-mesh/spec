@@ -1818,6 +1818,97 @@ the deployment's ARCA-custody role + the IAM-administration role,
 recorded in ACT. The attestation is corroborative — it does **not**
 substitute for the mechanical Conformance-test.
 
+#### `[FM-IAM-0015]` Delegation Token — cross-async-boundary capability transfer
+
+IAM **shall** mint **Delegation Tokens** as the cryptographic
+primitive for transferring execution authority across asynchronous
+process boundaries. A Delegation Token represents a *delegating
+principal's* authorization scoped to a *delegated operation*,
+held by a *trusted intermediary* that resumes the operation on
+the delegator's behalf — without the intermediary impersonating
+the delegator and without the intermediary acquiring the
+delegator's broader authority.
+
+Every cross-async-boundary capability transfer in the mesh —
+including but not limited to the `[FM-PCS-0011]` quorum-pending
+async-saga resume per item 4 — **shall** carry a Delegation
+Token rather than have the intermediary present its own
+principal-id or forge the delegator's credential. Both
+alternatives are non-conforming: the intermediary self-
+authorizing strips the original caller's authorization context
+and grants whatever authority the intermediary holds (typically
+broader); the intermediary forging the caller's credential
+violates `[FM-IAM-0006]` Vault in-boundary signing. The
+Delegation Token is the structural defense per the
+Confused-Deputy class of attacks.
+
+A Delegation Token **shall** carry:
+
+1. **`delegator_principal_id`** — the original caller, the
+   identity whose authority is being delegated. The Token does
+   not grant the delegator's full authority; it grants
+   exactly-and-only the scope per item 3.
+2. **`delegate_principal_id`** — the intermediary that holds
+   and presents the Token (e.g., the registry's
+   `pcs-registry` principal-id for PCS-0011 resume; future
+   intermediaries register their own delegate principal-ids).
+3. **`scope`** — a strict-subset of the delegator's authority,
+   bounded to the specific operation being resumed (e.g., for
+   PCS-0011 resume: the specific promotion operation identified
+   by `idempotency_key`; not all promotions, not other
+   operations). The scope **shall** be expressed in the same
+   policy-evaluable form `[FM-PGE-0008]` consumes.
+4. **`bound_idempotency_key`** — the originating operation's
+   idempotency key per `[FM-IBX-0007]` (for PCS-0011 resumes,
+   the original worker-pool claim key recorded in the
+   pending-state per `[FM-PCS-0011]` item 1). A Token without
+   this binding is non-conforming; the binding is what
+   prevents replay across operations.
+5. **`expiry`** — a strict-after timestamp evaluated per the
+   `[FM-INV-0004.2]` time-model discipline (verifier-side
+   evaluation with skew tolerance; never delegator-side). A
+   Token **shall not** be honored after expiry.
+6. **`signature`** — a Vault-issued signature over the prior
+   fields per `[FM-IAM-0006]` in-boundary signing. The
+   delegator's identity authorizes the Token's mint; the
+   intermediary cannot mint a Token on the delegator's behalf
+   without the delegator's signing path being invoked.
+
+PGE per `[FM-PGE-0008]` **shall** evaluate a Token-bearing
+request against the **Token's scope**, not the delegate's
+broader authority and not the delegator's broader authority.
+The Token is the precise capability being delegated; nothing
+else is.
+
+ACT per `[FM-ACT-0003]` attribution **shall** record both
+identities on Token-bearing events: `principal-id` = the
+delegating principal (per item 1; the operation is authorized
+by the delegator); `acting_principal-id` = the delegate (per
+item 2; the intermediary executed the operation). Auditors
+reading the trail see both: who authorized + who acted.
+Single-identity attribution would lose the delegation
+provenance; both-identity attribution preserves it.
+
+Delegation Tokens **shall not** be transitively re-delegated —
+the delegate cannot mint a sub-Token granting a further
+intermediary the same scope. Transitive delegation would
+permit token-laundering chains that defeat the per-Token
+audit attribution; re-delegation requires the original
+delegator to mint a fresh Token to the new intermediary,
+which makes the new chain explicit in the audit trail.
+
+*Verification: Conformance-test* — the harness exercises a
+PCS-0011 quorum-pending resume and asserts the fresh dispatch
+carries a Delegation Token bound to the original idempotency
+key; submits a Token-bearing request with mismatched
+`bound_idempotency_key` and asserts rejection; submits a
+Token past expiry and asserts rejection; submits a
+Token-bearing request and asserts ACT records both
+`principal-id` (delegator) and `acting_principal-id`
+(delegate); attempts to re-delegate a Token transitively and
+asserts rejection; verifies PGE evaluates against the Token's
+scope, not the delegate's broader authority.
+
 ### §5.2.1 IAM Conformance Profile
 
 The IAM pillar's substrate substitutability claim covers exactly the
@@ -2348,6 +2439,36 @@ The verifier **shall**:
    the structured result; PGE **shall** verify the verifier's
    signature and **shall not** accept an unsigned or
    verifier-signature-invalid result.
+
+   **Per-evaluation challenge nonce.** When the verifier opens
+   a quorum evaluation for an operation, it **shall** mint a
+   unique per-evaluation `challenge_nonce` (cryptographically
+   random; recorded against the open evaluation in the
+   consensus substrate per item 4). Every attestation submitted
+   for that evaluation **shall** be a signature over
+   `{attester_principal_id, operation_identifier, challenge_nonce,
+   attestation_expiry, attester_role}` — the nonce binds the
+   attestation to the specific active evaluation. The verifier
+   **shall** reject any attestation whose signed payload does
+   not include the current evaluation's `challenge_nonce`; an
+   intercepted attestation from a prior evaluation of the same
+   operation (e.g., a request that was Judge-denied and
+   re-attempted within the `[FM-INV-0004.2]` skew window)
+   carries the prior evaluation's nonce and is rejected. Without
+   the nonce binding, a static-payload signature would be
+   replayable inside the temporal validity window;
+   the nonce closes the replay vector.
+
+   For evaluations that resume across an async-saga boundary per
+   `[FM-PCS-0011]` item 4, the `challenge_nonce` MAY be the
+   same as the originating operation's
+   `bound_idempotency_key` per `[FM-IAM-0015]` (the
+   idempotency-key and the verifier nonce both identify the
+   active evaluation; using the same value preserves cross-
+   boundary correlation while satisfying the nonce-binding
+   requirement). The Token's bound_idempotency_key + the
+   attestation's challenge_nonce + the verifier's signed result
+   all reference the same evaluation identity end-to-end.
 4. Be **horizontally scalable** but **logically single-sourced
    per operation** — multiple verifier instances may collect
    attestations for distinct operations concurrently; for any
@@ -2597,34 +2718,67 @@ the chain initial event is **not unanchored**:
   sole permitted predecessor that is itself unattributed;
   subsequent links require full attribution per `[FM-ACT-0003]`.
 - **Every subsequent session** (any session N ≥ 2 of any pillar)
-  **shall** chain-link its initial event to the **chain-checkpoint
-  with the highest monotonic sequence number** issued by the ACT
-  event store for that pillar at the time the session begins. To
-  enable this, ACT **shall** issue every `act.chain_checkpoint`
-  event a strictly-monotonic per-pillar sequence number
-  (Lamport-style logical timestamp; the sequence is total within
-  the pillar's chain, not across pillars) and the chain-link
-  field on the session's initial event **shall** reference the
-  checkpoint by `(pillar, sequence_number, checkpoint_hash)` —
-  not by wall-clock "most-recent." In a distributed mesh,
-  "most-recent" by wall-clock is undefined without a global
-  atomic clock per the relativity-of-simultaneity property of
-  distributed systems; the monotonic sequence number provides
-  the strict total ordering chain reconstruction depends on,
-  and the `(pillar, sequence_number, checkpoint_hash)` triple
-  is deterministically resolvable across implementations. This
-  makes session insertion and session deletion tamper-evident:
-  a fabricated session whose initial event does not chain to a
-  real `(pillar, sequence_number, checkpoint_hash)` fails chain
+  **shall** chain-link its initial event to the **causal frontier**
+  of `act.chain_checkpoint` events for that pillar at the time
+  the session begins. The causal frontier is the set of all
+  chain-checkpoints that have no successor checkpoint visible
+  to the session-initiating ACT instance — i.e., the maximal
+  antichain of the per-pillar checkpoint DAG under the
+  vector-clock partial order. The chain-link field on the
+  session's initial event **shall** reference the frontier by
+  `(pillar, frontier_hash, {checkpoint_hash, ...})` where
+  `frontier_hash` is a deterministic Merkle-style hash over
+  the lexicographically-sorted set of frontier checkpoint
+  hashes.
+
+  ACT **shall** assign every `act.chain_checkpoint` event a
+  **vector-clock logical timestamp** (one component per ACT
+  issuer participating in the pillar's chain). The ordering
+  between two checkpoints is the partial order induced by
+  vector-clock dominance; checkpoints whose vector clocks are
+  incomparable are *concurrent*, and a session beginning while
+  concurrent checkpoints exist **shall** anchor to all of them
+  (the frontier), not to an arbitrarily-chosen one. ACT
+  **shall not** require a strict total order across the
+  pillar's checkpoint chain — strict total order would require
+  a single global checkpoint issuer per pillar, which would
+  impose an Amdahl serialization bottleneck on the pillar's
+  audit throughput and a single point of failure on the chain
+  itself. Partial order plus frontier anchoring is sufficient
+  for the tamper-evidence property the chain provides; strict
+  total order is not required by that property and is
+  incompatible with horizontal scaling of ACT issuers.
+
+  Chain reconstruction across the partially-ordered chain
+  remains deterministic: the verifier walks each session's
+  initial event back to its anchored frontier set, then walks
+  each frontier checkpoint back through its vector-clock
+  predecessors, and accepts the reconstruction iff every
+  predecessor link resolves to a real checkpoint and every
+  checkpoint's vector clock dominates the union of its
+  declared predecessors' vector clocks. "Most-recent" by
+  wall-clock is undefined without a global atomic clock per
+  the relativity-of-simultaneity property of distributed
+  systems; vector-clock-induced causal order plus frontier
+  anchoring is the causal substitute that does not require
+  one.
+
+  This makes session insertion and session deletion tamper-
+  evident: a fabricated session whose initial event does not
+  chain to a real frontier checkpoint set fails chain
   verification; a deleted session whose checkpoint reference
-  would have been the next-session predecessor breaks the next
-  session's initial-event chain.
+  was a member of a subsequent session's anchored frontier
+  breaks that session's initial-event chain. Concurrency does
+  not weaken either property — the frontier captures every
+  causally-prior checkpoint with no visible successor, so a
+  deletion at any vector-clock position is detected by the
+  next session that would have anchored to it.
 
 A chain whose initial event does not trace back to either a
 genesis-event anchor (first session) or a previously-emitted
-`act.chain_checkpoint` event referenced by its
-`(pillar, sequence_number, checkpoint_hash)` triple (sessions
-N ≥ 2) is non-conforming.
+set of `act.chain_checkpoint` events referenced by its
+`(pillar, frontier_hash, {checkpoint_hash, ...})` causal-
+frontier anchor (sessions N ≥ 2) is non-conforming.
 
 **Retention-boundary re-anchoring.** When the `[FM-ACT-0011]`
 retention-expiration ceremony removes a chain predecessor, the
@@ -2642,14 +2796,23 @@ boundary semantics. The same re-anchoring discipline applies at
 the `[FM-ACT-0010]` cold-storage tier boundary when implemented.
 
 *Verification: Static-check + Conformance-test* — Static-check
-verifies hash-chain field presence in the event schema; the harness
-constructs a tampered event in storage (e.g., by direct substrate
-write outside the ACT API) and asserts chain re-verification detects
-the tampering at the next checkpoint; verifies the first runtime
-event after genesis chain-links to the genesis hash; exercises the
-`[FM-ACT-0011]` ceremony on a chain-bearing session and asserts
-chain re-verification across the expiration boundary passes via the
-`act.retention.expired` re-anchor.
+verifies hash-chain field presence in the event schema and the
+vector-clock + frontier-anchor fields on `act.chain_checkpoint`
+and session-initial events; the harness constructs a tampered
+event in storage (e.g., by direct substrate write outside the
+ACT API) and asserts chain re-verification detects the tampering
+at the next checkpoint; verifies the first runtime event after
+genesis chain-links to the genesis hash; **issues two
+concurrent `act.chain_checkpoint` events from distinct ACT
+issuers (incomparable vector clocks) and asserts the next
+session anchors to BOTH via the causal-frontier reference, not
+to one arbitrarily-chosen winner; deletes one of the two
+concurrent checkpoints post-anchor and asserts the next
+session's chain verification fails on the missing frontier
+member**; exercises the `[FM-ACT-0011]` ceremony on a
+chain-bearing session and asserts chain re-verification across
+the expiration boundary passes via the `act.retention.expired`
+re-anchor.
 
 #### `[FM-ACT-0006]` Hash algorithm policy
 
@@ -3759,6 +3922,58 @@ confidence at promotion-time cost). For `numerical-drift-only`
 declarations, the tolerance bound **shall** be declared per
 artifact and the empirical test **shall** verify outputs stay
 within tolerance across the N runs.
+
+**Execution-environment indistinguishability (Observer-Effect
+defense).** The empirical N≥2 test defeats *blind* stochasticity
+but not *observation-dependent* stochasticity: an adversarial
+payload can probe its execution environment (`clock_gettime`,
+process metadata, run-counter env vars, DPG-specific markers) to
+detect that it is being tested, behave deterministically for the
+N test runs, and defect on the production run. To close this
+attack class, DPG **shall** present an
+**execution-environment indistinguishable** boundary across all
+N test runs **AND** the subsequent production run for the same
+declared-deterministic artifact. Specifically:
+
+1. **Time + entropy mediation.** DPG **shall** mediate access to
+   wall-clock time, process metadata (PID, parent PID,
+   container/VM identifiers), and entropy sources (`/dev/urandom`,
+   `RDRAND`, network jitter) such that the values observable from
+   inside the boundary are produced by DPG itself, not by the
+   underlying host. The mediation **shall** be enforced at the
+   substrate layer (e.g., seccomp/BPF filtering of `clock_gettime`,
+   `getpid`, `read(/dev/urandom)`, etc.); enforcement at the
+   workload layer is bypassable and non-conformant.
+2. **Bit-identical environment across the N+1 invocations.** The
+   time values, process metadata, entropy seeds, and any other
+   substrate-mediated value observable to the workload **shall**
+   be bit-identical across the N test runs and the production
+   run for the same artifact. The verifier-side environment
+   record **shall** be cryptographically committed at the first
+   test run and re-supplied verbatim to the subsequent N−1 test
+   runs + the production run.
+3. **No DPG-marker leakage.** The execution-environment
+   indistinguishability **shall** extend to negative markers:
+   the workload **shall not** be able to detect that it is
+   running under DPG (no DPG-specific env vars, no DPG
+   filesystem markers, no DPG-pattern in `/proc`). A workload
+   probing for DPG-specific signals to behavior-switch **shall**
+   observe the same signals in the production run; the signals
+   are not "DPG-only."
+
+The combination — substrate-mediated time/proc/entropy + bit-
+identical environment record across N+1 invocations + no
+DPG-marker leakage — makes test runs and production runs
+*physically identical from inside the boundary*. The
+observer-effect defense is structural: a workload that cannot
+distinguish test from production cannot defect on production
+without defecting on test, and the empirical N test catches the
+defection.
+
+A DPG implementation that satisfies the empirical N≥2 test but
+not the environment-indistinguishability requirement is non-
+conformant — the test would catch blind stochasticity but admit
+the Volkswagen-emissions-class attack.
 
 *Verification: Conformance-test* — the harness runs the same
 sample execution twice under identical inputs and asserts
@@ -5418,16 +5633,27 @@ the gate **shall**:
    pending-state record), not by trusting an ephemeral runner to
    resurrect the original execution. Specifically: the registry,
    on receiving the verifier-signed result, atomically (a)
-   marks the pending-state record as `verified`, (b) generates a
-   new IBX worker-pool claim with `parent_idempotency_key` set
-   to the original idempotency key (preventing duplicate
-   resume), and (c) emits the dispatch. The new dispatch
-   acquires a fresh worker-pool claim and applies the
-   promotion. **Network partition between verifier-signed and
+   marks the pending-state record as `verified`, (b) mints an
+   IAM **Delegation Token** per `[FM-IAM-0015]` with
+   `delegator_principal_id` = the original caller's
+   `principal-id` recorded in the pending-state per item 1,
+   `delegate_principal_id` = the registry's own principal-id,
+   `scope` = the specific promotion operation,
+   `bound_idempotency_key` = the original idempotency key
+   (which serves both as F-E-02's duplicate-resume guard AND as
+   F-E-14's verifier nonce — see item 3), (c) generates a new
+   IBX worker-pool claim with `parent_idempotency_key` set to
+   the original idempotency key, and (d) emits the dispatch
+   under the Delegation Token. The downstream gate per
+   `[FM-PCS-0010]` evaluates the Token-bearing dispatch against
+   the Token's scope per `[FM-IAM-0015]` — the registry presents
+   neither its own broader authority nor a forged caller
+   credential. **Network partition between verifier-signed and
    registry-acked-dispatch is survivable** because the verifier-
    signed result is durable in ACT per `[FM-PGE-0015]`'s audit
    stream — on partition recovery, the registry replays from the
-   durable verified result; no in-memory state is required to
+   durable verified result and re-mints the Token from the same
+   pending-state record; no in-memory state is required to
    resume.
 5. On quorum timeout per `[FM-INV-0004.2]`, emit a
    `pcs.promotion.quorum_timeout` event to ACT and discard the
