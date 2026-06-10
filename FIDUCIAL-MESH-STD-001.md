@@ -2236,10 +2236,19 @@ The verifier **shall**:
    per operation** — multiple verifier instances may collect
    attestations for distinct operations concurrently; for any
    single operation, exactly one verifier instance **shall** be
-   the source of the verified-quorum result. Concurrent verifier
-   instances racing on the same operation **shall** be detected
-   and resolved deterministically (e.g., by leader election on
-   the operation identifier).
+   the source of the verified-quorum result. The deterministic
+   per-operation single-sourcing **shall** be guaranteed by an
+   underlying **distributed-consensus substrate** with strict
+   partition-tolerant consistency for the leader-election state
+   (e.g., Raft, Paxos, or equivalent). Ad-hoc leader election
+   without a consensus-backed substrate **shall not** be claimed
+   conformant — under network partition, ad-hoc election produces
+   split-brain in which two verifier instances independently
+   produce verified-quorum results for the same catastrophic-class
+   operation, violating the logical-single-sourcing property by
+   the CAP theorem (you cannot have partition tolerance and strict
+   consistency without consensus). The Conformance Profile per
+   §5.3.1 names the consensus-substrate seam explicitly.
 5. Emit `pge.quorum.attestation_collected`,
    `pge.quorum.attestation_expired`,
    `pge.quorum.role_coverage_failed`, `pge.quorum.verified`, and
@@ -2292,7 +2301,7 @@ implementations.
 | Policy evaluation engine | `[FM-PGE-0001]`, `[FM-PGE-0002]`, `[FM-PGE-0013]` | Distributed per-surface enforcement composed of: a build-time test-runtime policy suite exercising the rule corpus, a runtime tool-call guard hook on the agent surface, and a CI release gate | OPA (Open Policy Agent) 0.60+ with Rego eval, Cedar runtime with declarative policy engine, per-pillar embedded policy engines, hybrid centralized + per-surface | `pge-engine-v1` |
 | Enforcement surface | `[FM-PGE-0005]`, `[FM-PGE-0007]`, `[FM-PGE-0009]`, `[FM-PGE-0010]` | Distributed multi-surface — PreToolUse hook + IBX submission chokepoint + DPG ephemeral boundary + CI release gate + per-server test suite | OPA-sidecar middleware at IBX/DPG, Cedar runtime sidecar, custom enforcement library per-pillar, hybrid | `pge-enforcement-v1` |
 | Overlay consumption | `[FM-PGE-0012]` | Signed overlay bundles consumed from PCS registry (§6 when landed) | Any signed bundle format declared conformant by PCS (§6 + Appendix B when landed) | `pge-overlay-v1` |
-| Quorum verifier | `[FM-PGE-0015]` | Named PGE sub-component running with its own IAM-issued principal-id; structured signed verified-quorum result consumed by `[FM-PGE-0009]`; horizontally scalable with leader election per operation identifier | Any quorum-verifier implementation satisfying the structured-signed-result contract + the IAM-attribution + ACT audit stream + leader-election deterministic-resolution properties | `pge-quorum-verifier-v1` |
+| Quorum verifier | `[FM-PGE-0015]` | Named PGE sub-component running with its own IAM-issued principal-id; structured signed verified-quorum result consumed by `[FM-PGE-0009]`; horizontally scalable with **leader election backed by a distributed-consensus substrate** (Raft / Paxos / equivalent strict-consistency primitive) per operation identifier | Vault Raft storage backend (sovereign reference; in-substrate), etcd 3.5+ (Raft), Apache Zookeeper 3.8+ (ZAB), Consul (Raft), any consensus substrate satisfying the strict-consistency-under-partition contract; ad-hoc leader election without a consensus substrate is **not conformant** | `pge-quorum-verifier-v1` |
 | Telemetry sink | `[FM-PGE-0014]` | OTLP-on-the-wire (any OTLP-compatible backend per ACT §5.4) | Grafana/Prometheus/Tempo, Azure Monitor, Datadog, OCI Monitoring | `pge-telemetry-v1` |
 
 Out-of-set substrates **shall not** be claimed supported. Extending
@@ -5144,16 +5153,48 @@ not** hold the IBX worker-pool claim that triggered the promotion;
 the gate **shall**:
 
 1. Release the worker-pool claim normally per the IBX
-   mid-action-safe termination contract.
+   mid-action-safe termination contract. The released claim
+   **shall** record its **idempotency key** (the original
+   `[FM-IBX-0007]` worker-pool claim key) in the pending-state
+   record per item 2; this key is the cryptographic identity that
+   the eventual fresh dispatch binds to, preventing any other
+   request from impersonating the resume.
 2. Record the promotion request as a **quorum-pending** state in
-   the registry (a non-runtime persistent state, not a held
-   in-flight execution).
-3. On quorum-verifier completion per `[FM-PGE-0015]` (signed
-   verified-quorum result arrives), resume promotion via a new
-   IBX dispatch carrying the verified-result reference; the new
-   dispatch acquires a fresh worker-pool claim and applies the
-   promotion.
-4. On quorum timeout per `[FM-INV-0004.2]`, emit a
+   the **registry, persisted on the same consensus-backed
+   substrate the registry uses for the BOM** per
+   `[FM-PCS-0013]` (the registry substrate is what survives the
+   process boundary the released claim crosses). The pending-
+   state record **shall** include: the original idempotency key
+   (item 1), the original `principal-id` + `request_payload`
+   hash, the verification target (catastrophic-class operation
+   identifier), and the verifier-result placeholder. The
+   pending-state record is durable and survives any individual
+   process restart, network partition, or runner death.
+3. On quorum-verifier completion per `[FM-PGE-0015]`, the signed
+   verified-quorum result **shall** include a cryptographic
+   binding to the original idempotency key recorded in item 1
+   (the verifier signs over `{verifier_principal_id, K-of-N
+   attestations, operation_identifier, idempotency_key}`). The
+   binding **shall not** be optional; a verifier-signed result
+   without an idempotency-key binding **shall** be rejected by
+   PGE per `[FM-PGE-0009]`.
+4. The **fresh dispatch shall be instantiated by the registry
+   substrate** (the durable persistent layer that holds the
+   pending-state record), not by trusting an ephemeral runner to
+   resurrect the original execution. Specifically: the registry,
+   on receiving the verifier-signed result, atomically (a)
+   marks the pending-state record as `verified`, (b) generates a
+   new IBX worker-pool claim with `parent_idempotency_key` set
+   to the original idempotency key (preventing duplicate
+   resume), and (c) emits the dispatch. The new dispatch
+   acquires a fresh worker-pool claim and applies the
+   promotion. **Network partition between verifier-signed and
+   registry-acked-dispatch is survivable** because the verifier-
+   signed result is durable in ACT per `[FM-PGE-0015]`'s audit
+   stream — on partition recovery, the registry replays from the
+   durable verified result; no in-memory state is required to
+   resume.
+5. On quorum timeout per `[FM-INV-0004.2]`, emit a
    `pcs.promotion.quorum_timeout` event to ACT and discard the
    pending state; re-attempt requires a fresh request.
 
@@ -5162,7 +5203,14 @@ that holding a claim past the worker-pool lease would create
 (per the `[FM-INV-0002.1]` deadline constraint), and generalizes
 to every catastrophic-class operation under PGE-0009 / PCS-0011 /
 PGE-0012 / ARCA revocation that requires quorum collection inside
-what would otherwise be a worker-pool-held execution.
+what would otherwise be a worker-pool-held execution. The
+**state-transfer mechanism is the durable persistent registry +
+the durable verifier-signed result in ACT**, not an ephemeral
+runner's in-memory state; this is what makes the saga survivable
+under network partition (the Two Generals' Problem requires a
+durable external coordinator for exactly-once delivery across
+async boundaries, and that coordinator is the registry substrate
++ ACT audit stream, not the runner pool).
 
 *Verification: Conformance-test* — the harness exercises a
 promotion attempt missing required approvals and asserts denial;
@@ -5170,9 +5218,15 @@ exercises a `core`-tier promotion without K-of-N quorum and
 asserts denial; exercises a clean promotion and asserts the
 event is recorded in ACT; exercises a quorum-pending promotion
 and asserts the worker-pool claim is released, the pending state
-is recorded, the quorum-verifier-completion path resumes via a
-fresh dispatch, and no duplicate execution occurs across the
-async-saga boundary.
+is recorded with the idempotency key, the verifier-signed result
+includes the cryptographic idempotency-key binding (and a
+result without binding is rejected), the registry instantiates
+the fresh dispatch with `parent_idempotency_key` set, and no
+duplicate execution occurs across the async-saga boundary;
+**injects a network partition between verifier-signed and
+registry-acked-dispatch and asserts the partition-recovery path
+correctly resumes from the durable verified result without
+double-dispatch or lost-dispatch**.
 
 #### `[FM-PCS-0012]` Plugin lifecycle states
 
