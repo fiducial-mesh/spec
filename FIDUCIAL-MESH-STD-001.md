@@ -819,15 +819,17 @@ attributes per family:
   {`identity-by-brief`, `gate-2-supplemental-only`,
   `detect-layer-not-operational`, `subagent-worktree-precursor`,
   `crb-codified-by-convention`, `mcc-partial-load`,
-  `vendor-hosted-reasoning`, `pcs-convention-pattern`}: events
+  `non-sovereign-reasoning`, `pcs-convention-pattern`}: events
   recording that the deployment is operating under a recognized
   transitional deviation. Required attributes: `deployment_state`
   (the operator-attestation declared state per §F.3 covering the
   affected workload class or pillar), `deviation_entry_id` (the
   Appendix F entry per §F.2 that authorizes the deviation),
-  `triggering_context` (per-subtype payload — e.g., session-id
-  for vendor-hosted-reasoning, dispatch-id for
-  pcs-convention-pattern), `timestamp`, `trace_id`, `span_id`. The
+  `triggering_context` (per-subtype payload — e.g., for
+  `non-sovereign-reasoning` the `(data_egress_boundary,
+  hardware_custody)` cell + session-id for external cells;
+  dispatch-id for `pcs-convention-pattern`), `timestamp`,
+  `trace_id`, `span_id`. The
   declaration-divergence attributes (`plugin_id`, `operation`,
   `plugin_declared`, `platform_enforced`) **shall not** be
   required for this family; an event of this family **shall not**
@@ -857,7 +859,7 @@ family) + the triggering subtype + the triggering event count;
 this derived event is the canonical signal CLCA workflows consume.
 
 A deployment under a long-running deployment-state-family
-deviation (e.g., `vendor-hosted-reasoning` at >10 sessions/day for
+deviation (e.g., `non-sovereign-reasoning` at >10 sessions/day for
 weeks) **shall not** fire a CLCA trigger from the deviation's
 per-session emission cadence alone — the threshold applies to
 out-of-pattern surges within a subtype, not to steady-state
@@ -909,20 +911,26 @@ level Conformance Profile seam). The persistent-store, secret-
 store, and identity-provider seams are **sovereignty-neutral** —
 PostgreSQL vs Oracle vs MySQL, HashiCorp Vault vs Azure Key Vault
 vs AWS KMS, Samba AD vs Microsoft Entra vs OpenLDAP are all
-contract-substitutable choices that do not, by themselves,
-change what content reaches what counterparty (the deployment
-operator chooses substrates within their trust boundary; the
-substrate doesn't reach back out). The reasoning-runtime seam is
-**sovereignty-determining**: it admits exactly three closed
-classes — `sovereign-local-inference`, `vendor-hosted-reasoning`,
-`hybrid` — and the choice between them determines whether prompts
-and working context leave the customer trust boundary at all.
-That binary (data-egress yes/no) is a deployment-wide invariant,
-not a pillar-implementation detail; every deployment **shall**
-declare its position in the trichotomy, and the declaration is
-what makes the air-gap claim of the adjacent invariants
-(`[FM-INV-0001]` no-bypass-on-pillar-paths) coherent with the
-deployment's reasoning substrate.
+contract-substitutable choices that do not, by themselves, change
+what content reaches what counterparty (the deployment operator
+chooses substrates within their trust boundary; the substrate
+doesn't reach back out). The reasoning-runtime seam is
+**sovereignty-determining**: it is described by two orthogonal
+attributes — **`data_egress_boundary`** (`local` vs `external`,
+whether bytes leave the customer's network boundary) and
+**`hardware_custody`** (`owned` vs `vendor-managed`, whether the
+customer or a counterparty roots trust to the underlying
+hardware) — and only the (`local`, `owned`) cell of that 2×2
+matrix preserves the air-gap claim of the adjacent invariants
+(`[FM-INV-0001]` no-bypass-on-pillar-paths). The `data_egress_
+boundary = local` axis is the load-bearing sovereignty property
+(prompts + working context staying within the trust boundary);
+the `hardware_custody = owned` axis is the load-bearing root-of-
+trust property (customer owning the transistor below the
+reasoning runtime). Both are required for the sovereign reference
+cell, and both are matters of deployment-wide invariant rather
+than per-pillar implementation. Every deployment **shall**
+declare its position in the 2×2 matrix per workload class.
 
 The substrate seam **shall** be declared by every deployment at
 attestation per `[FM-INV-0005]` and per §F.3 of the registry-
@@ -963,7 +971,7 @@ represent two of them):
 | | `data_egress_boundary = local` | `data_egress_boundary = external` |
 |---|---|---|
 | **`hardware_custody = owned`** | Sovereign reference — bytes stay, customer owns hardware | Bytes leave, customer owns hardware (rare; e.g., customer's compute hosting a vendor's API at the edge) |
-| **`hardware_custody = vendor-managed`** | Bytes stay, vendor owns hardware (e.g., AWS Outposts in the customer datacenter; vendor-managed AI appliance) | Bytes leave AND vendor owns hardware — the strongest dependency on the counterparty (typical vendor-hosted reasoning) |
+| **`hardware_custody = vendor-managed`** | Bytes stay, vendor owns hardware (e.g., AWS Outposts in the customer datacenter; vendor-managed AI appliance) | Bytes leave AND vendor owns hardware — the strongest dependency on the counterparty (typical vendor-cloud reasoning APIs) |
 
 A deployment whose reasoning runtime is the sovereign reference
 cell for every workload class is **conformant** to this
@@ -981,15 +989,17 @@ with explicit hardware-trust consequences documented.
 
 *Verification: Inspection of deployment attestation + Conformance-test
 of per-workload-class declaration coverage* — Inspection of the
-deployment's attestation record per §F.3 confirms the three required
-fields are present (runtime substrate class drawn from the closed
-trichotomy; sovereign reference named; data-flow consequence
-documented for every workload class not on the sovereign reference);
-Conformance-test verifies the per-workload-class assignment covers
-every workload class the deployment routes to a reasoning runtime
-— an undeclared workload class is non-conforming; verifies a
-workload class declared `sovereign-local-inference` does not emit
-`vendor-hosted-reasoning` divergence events per `[FM-INV-0006.1]`
+deployment's attestation record per §F.3 confirms the required
+fields are present per workload class: the `(data_egress_boundary,
+hardware_custody)` pair from the 2×2 matrix; identification of
+which cell is the sovereign-reference cell (`local` × `owned`);
+the data-flow + custody consequence documented for every workload
+class not on the sovereign reference cell; Conformance-test
+verifies the per-workload-class assignment covers every workload
+class the deployment routes to a reasoning runtime — an
+undeclared workload class is non-conforming; verifies a workload
+class declared on the sovereign-reference cell does not emit
+`non-sovereign-reasoning` divergence events per `[FM-INV-0006.1]`
 item 2 over the attestation window.
 
 ##### `[FM-INV-0006.1]` Non-sovereign-reference reasoning — transitional deviation
@@ -999,57 +1009,73 @@ A deployment **may** operate one or more workload classes in any
 (i.e., where `data_egress_boundary ≠ local` OR
 `hardware_custody ≠ owned` OR both) as a recognized
 **transitional deviation** until the affected workload class
-migrates to the sovereign reference cell. The `vendor-hosted-
-reasoning` divergence_type covers the (external, vendor-managed)
-cell — typical vendor-cloud reasoning APIs like Anthropic Claude
-Code / Codex — and analogous classes cover the off-diagonal cells
-when a deployment occupies them. The deviation **shall**:
+migrates to the sovereign reference cell. The `non-sovereign-
+reasoning` divergence_type covers **any non-sovereign cell** —
+(external, owned), (local, vendor-managed), or (external,
+vendor-managed) — and the per-cell distinction is recorded in
+the divergence event's payload so consumers can distinguish, for
+example, a vendor-managed appliance physically in the customer
+DC (bytes stay local) from a vendor-cloud reasoning API (bytes
+leave). The deviation **shall**:
 
 1. Be registered in Appendix F per §F.2 with explicit sunset
-   condition: "sovereign local inference operational per
-   `[FM-INV-0006]` Sovereign reference for the affected workload
-   class — model substrate inside the customer trust boundary; no
-   callback for that class."
+   condition: "sovereign-reference cell operational per
+   `[FM-INV-0006]` for the affected workload class — both
+   `data_egress_boundary = local` and `hardware_custody = owned`
+   for that class."
 2. Emit a divergence event to ACT per `[FM-INV-0005.2]` with
-   `divergence_type = "vendor-hosted-reasoning"` per
+   `divergence_type = "non-sovereign-reasoning"` per
    `[FM-PGE-0011]` discriminator (canonical emitter: PGE, via the
    policy that classifies the session's reasoning-runtime
-   substrate as non-sovereign) for **every session** under the
-   deviation. Per-session emission is the granularity — the
-   deviation is per-workload-class, but the audit signal is
-   per-session so the deployment's actual usage pattern is visible
-   in ACT.
+   substrate as outside the sovereign-reference cell). The event
+   payload **shall** include the specific `(data_egress_boundary,
+   hardware_custody)` cell the session is operating in. Emission
+   granularity is **per-session** for cells where
+   `data_egress_boundary = external` (the data-egress
+   property requires per-session resolution to make usage patterns
+   visible to audit) and **per-deviation-window-aggregate** for
+   cells where `data_egress_boundary = local` (the bytes don't
+   leave; only the hardware-custody property is being audited,
+   which doesn't require per-session resolution). The Appendix F
+   entry per §F.2 **shall** declare the granularity per cell.
 3. Document, in the Appendix F entry per §F.2 `deviation_scope`
-   field, the **data-flow consequence** required by `[FM-INV-0006]`
-   item 3 — what content reaches the vendor + identity attribution
-   + retention + vendor's data-handling commitments.
+   field, the **data-flow + custody consequence** required by
+   `[FM-INV-0006]` item 4 — what content reaches what
+   counterparty, what hardware-trust is delegated to whom, under
+   whose identity, with what retention, and what stated data-
+   handling commitments apply.
 4. Be reviewed at each major Standard release; deviation expiry
-   **shall** be enforced when sovereign local inference is
+   **shall** be enforced when the sovereign-reference cell is
    declared operational for the affected workload class. Mirror
    of the `[FM-IBX-0010]` / `[FM-IAM-0014]` / `[FM-PGE-0005]`
    Gate-2 / `[FM-ACT-0008]` / `[FM-DPG-0013]` / `[FM-CRB-0010]` /
    `[FM-MCC-0012]` transitional pattern.
 
-A deployment operating under the vendor-hosted-reasoning deviation
-**shall not** be claimed conformant to `[FM-INV-0006]` Sovereign
-reference on the basis of the deviation — it is conformant to the
-deviation clause only for the affected workload classes. Saying so
-plainly is the hostile-auditor baseline: vendor-hosted reasoning
-**is** data egress to the vendor regardless of how careful
-prompt-engineering is, and the deviation discipline names that
+A deployment operating under the non-sovereign-reasoning deviation
+**shall not** be claimed conformant to `[FM-INV-0006]` sovereign-
+reference cell on the basis of the deviation — it is conformant to
+the deviation clause only for the affected workload classes.
+Saying so plainly is the hostile-auditor baseline: non-sovereign-
+reference reasoning **is** either data egress to the vendor (for
+external cells) or hardware-trust delegation to the vendor (for
+vendor-managed cells), and the deviation discipline names that
 honestly rather than implying the air-gap claim of `[FM-INV-0001]`
 adjacent invariants extends to the reasoning runtime.
 
-*Verification (operational): Conformance-test* — when sovereign
-local inference is operational for a workload class, the harness
+*Verification (operational): Conformance-test* — when the sovereign-
+reference cell is operational for a workload class, the harness
 exercises representative sessions and asserts no
-vendor-hosted-reasoning divergence events are emitted for that
+`non-sovereign-reasoning` divergence events are emitted for that
 class.
 *Verification (deviation period): Inspection of deviation registry
-+ Conformance-test of per-session emission* — Appendix F entry
-present with sunset condition + data-flow consequence; per-session
-`vendor-hosted-reasoning` divergence events emitted to ACT for
-every session of the affected workload class.
++ Conformance-test of per-cell emission granularity* — Appendix F
+entry present with sunset condition + data-flow + custody
+consequence + per-cell granularity declaration;
+`non-sovereign-reasoning` divergence events emitted to ACT at the
+per-cell-declared granularity for every session (external cells)
+or per-deviation-window aggregate (local-vendor-managed cell) of
+the affected workload class, with the event payload carrying the
+specific `(data_egress_boundary, hardware_custody)` cell.
 
 ---
 
@@ -2111,7 +2137,7 @@ when emitted by its canonical pillar:
 | `crb-codified-by-convention` | **PGE (per `[FM-CRB-0010]` transitional clause)** | Dispatch decision made under operator/agent convention; CRB broker daemon not yet operational |
 | `mcc-partial-load` | **PGE (per `[FM-MCC-0012]` transitional clause)** | Dispatch targets a pillar not yet loaded into MCC as a plugin |
 | `akb-fail-open-on-irreversible-hook` | **AKB (per `[FM-AKB-0011]` infra-decision-side escalation)** | AKB retrieval failed-open on a `[FM-AKB-0010]` domain-2 hook (`git push`, `gh pr`, deploy, substrate config) — the irreversible-step moment a suppressed warning is most load-bearing |
-| `vendor-hosted-reasoning` | **PGE (per `[FM-INV-0006.1]` transitional clause)** | The session's reasoning runtime is a vendor-hosted inference service (Anthropic Claude Code, OpenAI Codex, equivalent) rather than the sovereign-local-inference reference — prompts and working context reach the vendor; per-session emission so the deployment's actual usage pattern is visible in ACT |
+| `non-sovereign-reasoning` | **PGE (per `[FM-INV-0006.1]` transitional clause)** | The session's reasoning runtime occupies a non-sovereign-reference cell of the `[FM-INV-0006]` 2×2 matrix — i.e., one of `(external, owned)`, `(local, vendor-managed)` (e.g., vendor-managed AI appliance physically in the customer DC, AWS Outposts-class), or `(external, vendor-managed)` (typical vendor-cloud reasoning APIs like Anthropic Claude Code, OpenAI Codex). The event payload includes the specific `(data_egress_boundary, hardware_custody)` cell; per-cell emission granularity (per-session for `data_egress_boundary = external` cells; per-deviation-window-aggregate for `(local, vendor-managed)`) is declared in the deployment's Appendix F entry per §F.2 |
 | `pcs-convention-pattern` | **PGE (per `[FM-PCS-0016]` transitional clause)** | Promotion / dispatch made under the PCS convention pattern (PCS-Daemon not yet operational); the convention deviation classifies the dispatch as non-Daemon-conformant per `[FM-PCS-0015]` |
 | `vendor-spec-conflict` | **PCS (per `[FM-PCS-0001]` cardinal-rule arbitration)** | Strict-superset claim unsatisfiable for an affected artifact class because the two vendor specs (Claude Code, Codex) conflict; the cardinal rule yielded to per-vendor variants per `[FM-PCS-0001]` arbitration; persists until upstream reconciliation lands |
 | (future subtypes) | Their respective canonical emitter pillar | Per the requirement that introduces the subtype |
@@ -2144,7 +2170,7 @@ unloaded set, the fallback-emitter rule is **generic**:
    today: `mcc-partial-load`, `gate-2-supplemental-only`,
    `subagent-worktree-precursor`, `crb-codified-by-convention`,
    `detect-layer-not-operational`, `pcs-convention-pattern`,
-   `vendor-hosted-reasoning` — and any future PGE-canonical
+   `non-sovereign-reasoning` — and any future PGE-canonical
    subtype whose condition is observable at the frame.
 2. **Attestation-cadence floor (when neither PGE nor MCC is in
    the path).** Under multi-deviation windows where the dispatch
@@ -2166,7 +2192,8 @@ unloaded set, the fallback-emitter rule is **generic**:
    The attestation-cadence floor is sampling at a low frequency
    relative to per-session emission; subtypes whose CLCA-trigger
    derivation per `[FM-INV-0005.2]` depends on **per-session
-   temporal resolution** (notably `vendor-hosted-reasoning`,
+   temporal resolution** (notably the `data_egress_boundary =
+   external` cells of `non-sovereign-reasoning`,
    which requires per-session granularity to make usage patterns
    visible to audit) **shall not** be eligible for the
    attestation-cadence fallback — a weekly aggregate sample
