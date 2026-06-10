@@ -4389,12 +4389,589 @@ new substrate passes the MCC test suite for every affected seam.
 
 ---
 
-## §6 Reserved — PCS plugin and workflow requirements
+## §6 PCS — Platform Control System
 
-*This section is reserved for the normative requirements governing PCS
-plugin structure, workflow lifecycle, validation harness tiers,
-registry behavior, and marketplace projection. Will be landed in
-subsequent PRs.*
+**Scope.** PCS is the mesh's **action layer**: the eighth pillar
+and the operational core that composes the substrate pillars
+(IBX, IAM, PGE, ACT, AKB, DPG, CRB) into a deployable platform.
+PCS owns the **plugin contract** (what a deployable bundle
+contains), the **validation harness** (how a candidate is checked
+against the contract), the **registry** (which artifacts a
+deployment resolves), and the **PCS-Daemon** (the action layer
+that drives promotion and dispatch). Without PCS, the seven
+substrate pillars are independent services; with PCS, they
+compose into a platform a customer can run.
+
+PCS is the eighth pillar per `[FM-MCC-0011]` and lives at §6 (not
+§5.8) because of its scale — the contract surface is rich enough
+to merit its own section. MCC at §5.8 is the **host frame**, not
+a pillar; PCS at §6 is the **action layer**, the actual eighth
+pillar.
+
+**Dependencies.**
+
+- `[FM-INV-0001]` (No bypass) and `[FM-INV-0002]` (Fail strict) apply — Registry-bound artifacts **shall not** be resolvable without conforming to the plugin contract; harness failure halts the operation.
+- PCS plugins are loaded into MCC per the MCC plugin contract `[FM-MCC-0006]`; the cardinal-rule plugin shape per `[FM-PCS-0001]` is a strict superset of the MCC plugin contract.
+- All Registry-bound executable artifacts pass DPG validation per `[FM-DPG-0009]` as part of their pre-promotion lifecycle.
+- PCS-Daemon holds its own IAM-issued principal-id per `[FM-IAM-0006]` and consumes the identity-context contract per `[FM-IAM-0011]`.
+- PCS emits state-affecting events as `pcs.*` records to ACT via the `[FM-ACT-0009]` ack contract and the `[FM-ACT-0004]` taxonomy; the `pcs.policy.divergence` event class governing the deviation machinery (per `[FM-PGE-0011]`) is part of this stream.
+- PCS workflows that require workload placement consult CRB per `[FM-CRB-0003]`; the eligibility-tier + isolation-tier coupling per `[FM-CRB-0009]` applies.
+
+#### `[FM-PCS-0001]` Cardinal rule — strict superset of vendor plugins
+
+A PCS plugin **shall** be a **strict superset** of an Anthropic
+Claude Code plugin AND an OpenAI Codex plugin. A PCS plugin
+**shall** validate as a conformant plugin under both vendor
+specifications before any PCS-specific governance is applied.
+
+The cardinal rule is the structural property every downstream
+value-prop (portability, vendor-marketplace projection, operator
+choice of IDE) chains back to. It works because agents have a
+grain: their native vocabulary is MCP and the vendor plugin
+frameworks. A PCS plugin speaks that vocabulary without a
+translation layer.
+
+**Vendor-spec divergence arbitration.** When the two vendor specs
+conflict (same configuration path, different semantics; a feature
+in one not in the other), the strict-superset becomes
+unsatisfiable for the affected artifact class. The cardinal rule
+**shall** yield first: the project ships the divergent class as
+**per-vendor variants** for that class only (e.g., the agent
+definition emits separately per vendor), and the conflict is
+registered in Appendix F per §F.2 as a deviation against this
+requirement until upstream reconciliation lands. Vendor-tooling
+versions delegated to in the Tier-0 harness check per
+`[FM-PCS-0008]` **shall** be pinned in the deployment's BOM per
+`[FM-PCS-0013]` so the validator behavior is reproducible at the
+BOM version.
+
+*Verification: Conformance-test* — the harness submits a sample
+PCS plugin and asserts it validates under both vendor specs at the
+pinned BOM versions; submits a plugin that conflicts in one vendor
+spec but not the other and asserts the conflict produces a
+per-vendor-variant emission with the Appendix F deviation
+registered.
+
+#### `[FM-PCS-0002]` Plugin on-disk structure
+
+A PCS plugin **shall** be a directory satisfying the canonical
+on-disk layout. Three top-level directories are vendor-required
+and one is PCS-required:
+
+- `.claude-plugin/plugin.json` — Anthropic-owned manifest;
+  verbatim per Anthropic's plugin spec.
+- `.codex-plugin/plugin.json` — OpenAI-owned manifest; verbatim
+  per OpenAI's plugin spec.
+- `.pcs/plugin.pcs.json` — PCS extension territory: provenance,
+  signature chain, BOM references, **`policy:` block** (per
+  `[FM-PCS-0007]`).
+
+Per-component directories (`workflows/`, `skills/<name>/SKILL.md`,
+`hooks/hooks.json`, `.mcp.json`, `agents/<name>.{md,toml}`,
+`README.md`) **shall** follow the open Agent Skills standard and
+the vendor-defined per-component conventions; the plugin
+validates as a Claude Code AND Codex plugin out of the box.
+
+The vendor directories **shall not** be modified to add PCS
+extensions; PCS extensions live in `.pcs/` exclusively. This
+preserves the cardinal-rule property per `[FM-PCS-0001]` —
+vendor tooling sees a normal vendor plugin; PCS tooling sees
+plugin + PCS metadata.
+
+*Verification: Static-check + Conformance-test* — Static-check
+verifies the three top-level manifests present and conforming to
+their respective schemas; Conformance-test exercises plugin
+discovery via vendor tooling and asserts the plugin validates
+under each vendor spec independently.
+
+#### `[FM-PCS-0003]` Executable artifact classes
+
+PCS recognizes a **bounded enumeration** of executable artifact
+classes: **skill**, **runbook**, **workflow**, **hook**, **MCP
+server**, **agent**. Each is the unit of capability the mesh
+runs; each **shall** be governed by the PCS contract (contents +
+test + deploy) per this §6. Extension to this enumeration
+requires the argued-case discipline per `[FM-INV-0003.2]`.
+
+The artifact-class enumeration is exhaustive at this Standard's
+publication. **Runbooks, workflows, and skills are PCS-governed
+executables; they are not AKB corpus per the AKB scope boundary**
+— an AIR or design note *about* a runbook is AKB corpus per
+`[FM-AKB-0012]`; the runbook itself is PCS-governed per this
+requirement. Conflating the two has produced real defects in
+prior project work; the boundary is structural.
+
+*Verification: Inspection + Static-check* — Inspection of every
+plugin's `.pcs/plugin.pcs.json` confirms each declared component
+maps to one of the enumerated artifact classes; Static-check
+rejects any plugin declaring an artifact class outside the
+enumeration without a corresponding Appendix F argued-case entry.
+
+#### `[FM-PCS-0004]` Skill spec — stateless capability declaration
+
+A **skill** is a pure, stateless declaration of inputs, outputs,
+and capability requirements. The skill schema **shall** contain
+no orchestration, state, role-context, or vendor-specific
+vocabulary fields. The litmus test (per the canonical skill spec
+at `devel/spec-drafts/pcs/spec/03-skill-spec.md`) **shall** apply
+at registration: every skill schema field passes the lexical
+check (no vendor vocabulary), executor check (still makes sense
+if the underlying runner is swapped from an LLM to a
+deterministic process), and what-vs-how check (describes *what
+capability* the skill requires, not *how* the substrate provides
+it).
+
+Each skill **shall** declare its **side-effect profile** per
+`[FM-PCS-0007]` and capability requirements per the substrate's
+capability advertisement.
+
+*Verification: Static-check + Conformance-test* — Static-check
+verifies the skill schema against the canonical JSON Schema;
+Conformance-test exercises the litmus checks against each
+schema field and asserts no field admits vendor-specific or
+state-bearing semantics.
+
+#### `[FM-PCS-0005]` Runbook spec — substrate-aware operational primitives
+
+A **runbook** is a substrate-aware operational primitive. Unlike
+skills (which are substrate-agnostic), runbooks **may** reference
+specific shells, tools, and execution mechanisms; this is
+intentional — runbooks are the layer where substrate-aware
+operational knowledge is encoded so skills don't have to carry
+it. Skills compose against runbooks; runbooks compose against the
+substrate.
+
+The substrate-awareness boundary is bidirectional: a skill
+**shall not** carry substrate-specific fields (per the litmus
+test in `[FM-PCS-0004]`); a runbook **shall** declare the
+substrate it targets so the validation harness can verify the
+substrate is present in the deployment's declared profile.
+
+*Verification: Conformance-test* — the harness submits a runbook
+declaring a substrate the deployment does not provide and asserts
+registration fails with a clear substrate-mismatch reason; submits
+a runbook that targets a present substrate and asserts
+registration succeeds.
+
+#### `[FM-PCS-0006]` Workflow spec — composed, parameterized, lifecycle-bound
+
+A **workflow** is a composed, parameterized, version-controlled
+operation — the unit a customer or user asks for. A workflow
+**shall** declare:
+
+1. **Parameters** (env, identity, version pins);
+2. **Lifecycle phases** (pre-check → execute → post-validate);
+3. **Component pins** (exact versions of skills / hooks / MCPs /
+   agents / runbooks composed);
+4. **Dependencies** on other workflows or pillar substrates;
+5. **Provenance** — AIR / CLCA references where the workflow
+   exists in response to a prior incident.
+
+Workflow versions **shall** be immutable post-publication
+(reproducibility is non-negotiable; any change is a new version).
+Workflows **shall** pass through the lifecycle per
+`[FM-PCS-0012]` before becoming resolvable from the registry.
+
+*Verification: Static-check + Conformance-test* — Static-check
+verifies workflow schema conformance; Conformance-test exercises
+the lifecycle states and asserts a version's component pins do
+not change between Validated and Withdrawn (modulo standard
+versioning of the workflow itself).
+
+#### `[FM-PCS-0007]` Per-artifact metadata + `policy:` block
+
+Every executable artifact (skill, runbook, workflow, hook, MCP
+server, agent) **shall** carry the following metadata at
+registration:
+
+- **`owner`** — non-empty principal-id or role per `[FM-IAM-0011]`.
+- **`version`** — semver `^\d+\.\d+\.\d+$`.
+- **`lifecycle_state`** — bounded enum per `[FM-PCS-0012]`.
+- **`trust_tier`** — bounded enum: `experimental` / `community`
+  / `blessed` / `core`.
+- **`effect`** — bounded enum: `pure` / `mutate_local` /
+  `mutate_external`.
+- **`is_idempotent`** — boolean.
+- **`requires_capabilities`** — list of capability identifiers
+  checked symmetrically against substrate advertisements at
+  pre-execution per `[FM-PCS-0010]`.
+
+The **`policy:` block** in `.pcs/plugin.pcs.json` (per
+`[FM-PCS-0002]`) **shall** declare the plugin's capability surface
+in one auditable place: tools exposed, sandbox mode required,
+network access needed, hooks fired, identity scopes accepted. The
+`policy:` block is a **declaration**, not an enforcement contract
+— per `[FM-INV-0005]` the platform enforcement floor is
+authoritative regardless of plugin declaration; per `[FM-PGE-0010]`
+PGE applies its floor regardless; per `[FM-PGE-0011]` divergence
+between plugin declaration and platform enforcement is audited as
+the `policy-block-mismatch` divergence_type.
+
+*Verification: Static-check + Conformance-test* — Static-check
+verifies all metadata fields present and conforming; Conformance-
+test submits a plugin whose `policy:` block declares fewer
+gates than the platform enforces and asserts the divergence event
+is emitted per `[FM-PGE-0011]`.
+
+#### `[FM-PCS-0008]` Tiered validation harness
+
+The validation harness **shall** be tiered, with Tier 0 and Tier 1
+as **hard gates** (failure blocks registry entry) and Tier 2–4 as
+**badges** (informational; do not block):
+
+- **Tier 0 — Vendor base** (HARD GATE) — validates as Claude Code
+  AND Codex plugin per `[FM-PCS-0001]`. Delegated to the
+  pinned-vendor-CLI versions in the BOM.
+- **Tier 1 — PCS Core** (HARD GATE) — `.pcs/plugin.pcs.json`
+  valid; signature chain anchored to the deployment's pinned
+  registry trust root; declared workflows + BOM references
+  resolve; per-artifact metadata per `[FM-PCS-0007]` complete.
+- **Tier 2 — Cross-vendor portability** (Badge) — both vendor
+  manifests emit cleanly; component variants present where
+  required by the cardinal-rule arbitration per `[FM-PCS-0001]`.
+- **Tier 3 — Workflow conformance** (Badge) — parameter
+  contracts, lifecycle valid, cross-references resolve.
+- **Tier 4 — Operational** (Badge) — security scan signed,
+  signature freshness, runtime smoke test.
+
+The harness **shall** invoke DPG validation per `[FM-DPG-0009]`
+for executable workloads as part of Tier 4 (or earlier where the
+artifact class requires it) — the dev-to-production trust boundary
+applied to executables means the Registry contains only artifacts
+that have passed DPG's four mandatory validation gates per
+`[FM-DPG-0004]` for those that include runtime tests.
+
+Delegating Tier 0 to vendor tooling means PCS gets vendor spec
+updates for free; the tradeoff is **vendor-spec drift becomes an
+external forcing function**, mitigated by the BOM-pinning
+discipline per `[FM-PCS-0013]`.
+
+*Verification: Conformance-test* — the harness exercises a sample
+plugin through each tier; asserts T0 / T1 failure blocks registry
+entry; asserts T2–T4 failure records the badge state without
+blocking; asserts the BOM-pinned vendor-CLI version is the one
+invoked at T0.
+
+#### `[FM-PCS-0009]` Registration gate
+
+A new artifact entering the registry **shall** pass the
+**Registration gate** at submission. The gate **shall** check:
+
+- Schema validity (all required fields present, types correct);
+- Name matches filename pattern (`^[a-z][a-z0-9_-]*$`);
+- Version is valid semver;
+- `owner` non-empty;
+- `effect` ∈ {`pure`, `mutate_local`, `mutate_external`};
+- Idempotency constraint per the side-effect profile;
+- Lifecycle / trust-tier coupling: `lifecycle_state = "draft"`
+  forces `trust_tier = "experimental"`;
+- Mutation-vs-tier risk constraint: `effect = "mutate_external"
+  + trust_tier = "experimental"` requires explicit
+  `acknowledged_external_risk: true`.
+
+Each check is **blocking** at the Error severity (rejects
+registration). Warning-severity checks are logged but do not
+block.
+
+*Verification: Conformance-test* — the harness submits artifacts
+violating each Error-severity check in turn and asserts rejection;
+submits a clean artifact and asserts acceptance.
+
+#### `[FM-PCS-0010]` Pre-execution gate
+
+Before any registered artifact executes, the **Pre-execution
+gate** **shall** check:
+
+- **Lifecycle**: `lifecycle_state != "draft"` (draft artifacts
+  cannot execute in production);
+- **Deprecation**: `lifecycle_state == "deprecated"` emits a
+  warning + logs the deprecation event but does not block
+  execution;
+- **Capability handshake**: every entry in
+  `requires_capabilities` is present in the deployment's
+  declared execution profile;
+- **Trust-tier vs operation classification**: a
+  `trust_tier: experimental` artifact **shall not** execute a
+  catastrophic-class operation per `[FM-INV-0004]`;
+- **Identity-context per `[FM-IAM-0011]`**: caller principal-id
+  has the scope declared in the artifact's `requires_scopes`.
+
+A check failure halts the execution per `[FM-INV-0002]`. The
+gate is **authoritative** — the platform floor cannot be opted
+out of by the plugin's `policy:` declaration per
+`[FM-INV-0005]` and `[FM-PGE-0010]`.
+
+*Verification: Conformance-test* — the harness exercises each
+check via a violating artifact + a clean artifact; asserts
+violators halt at the gate; asserts the gate cannot be bypassed
+by relaxing the plugin's `policy:` declaration.
+
+#### `[FM-PCS-0011]` Pre-promotion gate
+
+Trust-tier promotion (e.g., `community` → `blessed` → `core`)
+**shall** pass through the **Pre-promotion gate**. The gate
+**shall** verify the promotion requirements declared in the
+deployment's promotion policy registry — review count, test
+results, signed approvals, optional CLCA history. The promotion
+itself is a state mutation that **shall** be recorded in ACT per
+`[FM-PCS-0017]`.
+
+Promotion to `core` **shall** be classified catastrophic-class
+per `[FM-INV-0004]` and require K-of-N multi-signature
+attestation per FM-INV-0004's runtime quorum mechanism.
+
+*Verification: Conformance-test* — the harness exercises a
+promotion attempt missing required approvals and asserts denial;
+exercises a `core`-tier promotion without K-of-N quorum and
+asserts denial; exercises a clean promotion and asserts the
+event is recorded in ACT.
+
+#### `[FM-PCS-0012]` Plugin lifecycle states
+
+A plugin or workflow version **shall** move through explicit
+lifecycle states; each transition **shall** be a signed event
+recorded in ACT per `[FM-PCS-0017]`:
+
+```
+Draft → Validating → Validated → Published → Deprecated → Withdrawn → Archived → Purged
+              ↓ (fail)                                ↑ (emergency from any active state)
+            Failed → back to Draft
+```
+
+Resolvability from the registry per consumer:
+
+| State | Resolvable by consumers? |
+|-------|--------------------------|
+| Draft / Validating / Failed / Validated | No |
+| Published | Yes |
+| Deprecated | Yes (with warning per `[FM-PCS-0010]`) |
+| Withdrawn | Yes (legacy resolution only) |
+| Archived | Yes (explicit pinning only) |
+| Purged | No (bytes deleted; ACT audit-log entry remains) |
+
+Bytes can be removed at `Purged`; the audit chain per
+`[FM-ACT-0001]` + `[FM-ACT-0005]` **shall** preserve the
+lifecycle-event history for the purged version indefinitely
+(the `act.retention.expired` re-anchoring per `[FM-ACT-0005]`
+applies if retention policy removes the historical events).
+
+*Verification: Conformance-test* — the harness exercises each
+state transition and asserts the ACT event is recorded;
+exercises a Purge and asserts the bytes are removed AND the
+ACT chain is preserved with the re-anchoring at the boundary.
+
+#### `[FM-PCS-0013]` Registry contract — mesh-internal, BOM-pinned
+
+The PCS registry **shall** be **mesh-internal** — each
+deployment runs its own PCS registry; PCS **shall not** operate
+a public catalog-of-the-world. The trust model is bounded
+per-deployment: every publisher is an onboarded identity per
+`[FM-IAM-0007]` Roster.
+
+The registry **shall** carry a **BOM** (Bill of Materials) — a
+versioned, signed artifact pinning a coherent plugin set + the
+vendor-CLI versions Tier-0 delegates to per `[FM-PCS-0008]`. A
+deployment installs from a BOM; upgrades happen by bumping the
+BOM version (Linux distro / kubeadm / Helm-chart pattern). The
+BOM **shall** be signed against the deployment's pinned project
+signing root (per the upstream supply-chain trust bootstrap
+discipline documented in HDBK §2.8); local verification is
+mandatory; no callbacks.
+
+Cross-registry resolution **shall not** be permitted —
+registries do not federate; per-deployment namespace collision
+is not possible because registries are isolated.
+
+*Verification: Conformance-test* — the harness exercises a BOM-
+pinned install and asserts every constituent plugin signature
+verifies against the registry's pinned trust root; exercises a
+BOM bump and asserts atomic transition (all plugins update or
+none does); asserts cross-registry resolution attempts are
+rejected.
+
+#### `[FM-PCS-0014]` Namespace + prefix reservation
+
+Plugin coordinates **shall** follow Maven-style hierarchical
+naming: `<namespace>:<artifact>:<version>` (e.g.,
+`fiducial-mesh-deployment:vault-bootstrap:1.4.2`,
+`<tenant>:<workflow>:<version>`).
+
+Prefixes **shall** be reserved per the NuGet-style discipline:
+mesh-internal namespaces (`fiducial-mesh-*`) reserved by the
+mesh maintainers; tenant namespaces reserved at onboarding
+backed by DNS control (ACME / Sigstore patterns over the
+deployment's Vault PKI per `[FM-IAM-0006]`). Anyone publishing
+under a reserved prefix without the matching signing key
+**shall** be rejected at the Registration gate per
+`[FM-PCS-0009]`.
+
+Vendor-marketplace projection (e.g., `claude plugin marketplace
+add fiducial-mesh@marketplace`) **shall** flatten the
+hierarchical coordinate to fit the vendor's flat-namespace
+constraint (e.g., `fiducial-mesh-deployment-vault-bootstrap`);
+the flattening **shall** be reversible by the inverse mapping
+declared in the marketplace projection manifest.
+
+*Verification: Conformance-test* — the harness exercises a
+prefix-violation publish attempt and asserts rejection;
+exercises a tenant-namespace publish from the matching signing
+identity and asserts acceptance; exercises the marketplace
+projection round-trip and asserts the flattened coordinate maps
+back to the hierarchical original.
+
+#### `[FM-PCS-0015]` PCS-Daemon — runs the action layer
+
+PCS-Daemon is the action-layer service that drives the
+promotion lifecycle, dispatches workflows, and coordinates with
+the harness, registry, and the substrate pillars. The Daemon
+**shall**:
+
+1. Hold its own IAM-issued principal-id per `[FM-IAM-0006]`
+   (job code: `pcs-daemon` or equivalent); **shall not** use
+   operator or requester credentials.
+2. Consume execution requests via IBX per the worker-pool
+   dispatch contract `[FM-IBX-0007]` / `[FM-IBX-0009]`; Daemons
+   are the **Worker archetype** (many concurrent sessions of one
+   identity, narrow authority).
+3. Invoke DPG validation per `[FM-DPG-0009]` for executable
+   workloads during the pre-promotion lifecycle state.
+4. Apply per-decision PGE policy per `[FM-PGE-0008]`.
+5. Reconcile lost completions via a `pcs.lost_completion`
+   reconciliation sweep paralleling the `[FM-DPG-0011]` pattern.
+
+A Daemon session terminated mid-flight **shall** preserve
+audit-event emission through claim release per the worker-pool
+mid-action-safe-termination contract from `[FM-IBX-0007]`.
+
+*Verification: Conformance-test* — the harness exercises a
+Daemon-driven plugin promotion and asserts each lifecycle event
+lands in ACT with the Daemon's principal-id; terminates a Daemon
+session mid-execution and asserts the lost-completion
+reconciliation sweep recovers the fact of loss with the
+corresponding `pcs.lost_completion` event emitted.
+
+#### `[FM-PCS-0016]` Operational-state transitional clause
+
+PCS is **design-stage at this Standard's publication** — the
+Daemon is under construction; the registry contract is partial;
+the harness is the lab's existing CI + the `subagent-guard.sh`
+hook precedent. A deployment **may** operate under the
+**convention pattern** as a recognized **transitional deviation**
+until PCS reaches operational state — the convention being:
+plugin shape per the cardinal rule + manual harness invocation
+via the existing CI + ad-hoc Judge approval for promotions, all
+without the Daemon-mediated action layer.
+
+The transitional deviation **shall**:
+
+1. Be registered in Appendix F per §F.2 with explicit sunset
+   condition: "PCS-Daemon operational per `[FM-PCS-0015]` —
+   Daemon-mediated promotion, dispatch, and reconciliation
+   across the deployment's executable artifact set."
+2. Emit a divergence event to ACT per `[FM-INV-0005.2]` with
+   `divergence_type = "pcs-convention-pattern"` per
+   `[FM-PGE-0011]` discriminator (canonical emitter: PGE, via
+   the policy that classifies convention-period operations as
+   non-Daemon-conformant) for every promotion / dispatch made
+   under the convention.
+3. Be reviewed at each major Standard release; deviation expiry
+   **shall** be enforced when PCS-Daemon is declared
+   operational. Mirror of the seven prior transitional clauses
+   (`[FM-IBX-0010]`, `[FM-IAM-0014]`, `[FM-PGE-0005]` Gate-2,
+   `[FM-ACT-0008]`, `[FM-DPG-0013]`, `[FM-CRB-0010]`,
+   `[FM-MCC-0012]`, `[FM-INV-0006.1]`).
+
+A deployment operating under the convention deviation **shall
+not** be claimed conformant to `[FM-PCS-0015]` on the basis of
+the convention — it is conformant to the deviation clause only.
+
+PCS is currently the largest spec-to-build admission per the
+HDBK §1.3.1 honest-bootstrap clause; this transitional clause
+formalizes the gap that clause names.
+
+*Verification (operational): Conformance-test* — when PCS-Daemon
+is built, the multi-profile harness exercises the full promotion
+lifecycle and asserts the `pcs.*` event sequence is emitted per
+`[FM-PCS-0017]`.
+*Verification (deviation period): Inspection of deviation
+registry* — deviation entry present in Appendix F with sunset
+condition; divergence events emitted per item 2 above.
+
+The active `divergence_type` subtype count is now **10** (the
+prior 9 plus this addition).
+
+#### `[FM-PCS-0017]` Audit emission via ACT
+
+PCS **shall** emit `pcs.*` events to ACT via the `[FM-ACT-0009]`
+ack contract, drawn from the `[FM-ACT-0004]` event-type
+taxonomy:
+
+- `pcs.registration` — Registration gate verdict (per
+  `[FM-PCS-0009]`).
+- `pcs.lifecycle_transition` — any plugin / workflow lifecycle
+  state change (per `[FM-PCS-0012]`).
+- `pcs.promotion` — trust-tier promotion event (per
+  `[FM-PCS-0011]`).
+- `pcs.policy.divergence` — declared-vs-enforced divergence
+  per `[FM-PGE-0011]` (PCS contributes the
+  `policy-block-mismatch` subtype as the plugin's
+  declaration source).
+- `pcs.lost_completion` — Daemon reconciliation sweep recovery
+  event per `[FM-PCS-0015]`.
+
+Per `[FM-ACT-0009]`, a state-affecting operation **shall not**
+be considered complete until ACT acknowledges the corresponding
+event; lack-of-ack or negative-ack **shall** cause the
+operation to fail strict.
+
+*Verification: Conformance-test* — the harness exercises each
+event class on the corresponding state mutation; asserts the
+ACT ack contract is honored; asserts every promotion has
+exactly one terminal `pcs.promotion` event in ACT.
+
+#### `[FM-PCS-0018]` PCS telemetry emission
+
+PCS **shall** emit OTLP-format traces, metrics, and logs for
+its own operational observability. Span names **shall** follow
+the `mesh.pcs.*` namespace (e.g., `mesh.pcs.registration`,
+`mesh.pcs.harness.tier_evaluate`, `mesh.pcs.promotion`,
+`mesh.pcs.daemon.dispatch`, `mesh.pcs.reconciliation.sweep`).
+
+Required metrics **shall** include at minimum:
+`registrations_total` (counter, labeled by outcome),
+`harness_tier_pass_rate` (gauge, labeled by tier),
+`promotion_events_total` (counter, labeled by from-tier /
+to-tier), `daemon_in_flight_dispatches` (gauge),
+`reconciliation_swept_total` (counter), `bom_drift_count`
+(gauge — the count of plugins whose installed version diverges
+from the BOM-pinned version).
+
+The operational telemetry stream (`mesh.pcs.*`) is distinct
+from the audit-event stream (`pcs.*` per `[FM-PCS-0017]`); the
+two flow to different sinks (operational OTLP vs ACT event
+store).
+
+*Verification: Conformance-test* — the harness invokes
+representative PCS operations and asserts emission of the
+required span / metric / log records to the operational OTLP
+sink with the `mesh.pcs.*` namespace.
+
+### §6.1 PCS Conformance Profile
+
+The PCS pillar's substrate substitutability claim covers exactly
+the rows in this Conformance Profile.
+
+| Seam | Bound requirement(s) | Sovereign reference (version floor) | Supported alternatives | Test Set |
+|------|---------------------|-------------------------------------|------------------------|----------|
+| Plugin storage + manifest | `[FM-PCS-0002]`, `[FM-PCS-0007]` | Git-tracked file tree (vendor manifests + `.pcs/plugin.pcs.json` + per-component YAML/MD); JSON Schema validation of `.pcs/` manifest | Any version-controlled file substrate with JSON Schema validation (GitLab, self-hosted Gitea, mirrored git) | `pcs-storage-v1` |
+| Validation harness backend | `[FM-PCS-0008]` | Pinned vendor-CLI delegation for Tier 0 (Claude Code CLI + Codex CLI at BOM-pinned versions); PCS validator for Tier 1; DPG-invoked test runners for Tier 4 | Any vendor-CLI version-pinning substrate; alternative PCS validator implementations conforming to the test set | `pcs-harness-v1` |
+| Registry substrate | `[FM-PCS-0013]`, `[FM-PCS-0014]` | Event-sourced PostgreSQL (same substrate as IBX `[FM-IBX-0009]`); per-deployment isolated; BOM artifacts stored with content-hash addressing | PostgreSQL 17+ with Sigstore/Cosign for artifact signature verification; alternative event-sourced substrates conforming to the registry contract | `pcs-registry-v1` |
+| Telemetry sink | `[FM-PCS-0018]` | OTLP-on-the-wire (any OTLP-compatible backend) | Grafana/Prometheus/Tempo, Azure Monitor, Datadog, OCI Monitoring | `pcs-telemetry-v1` |
+
+Out-of-set substrates **shall not** be claimed supported.
+Extending the profile requires the argued-case discipline per
+`[FM-INV-0003.2]` and a multi-profile conformance run proving
+the new substrate passes the PCS test suite.
 
 ---
 
