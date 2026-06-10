@@ -1,9 +1,9 @@
 ---
 title: "FIDUCIAL-MESH-STD-001 — Fiducial Mesh Platform Standard"
 doc_type: standard
-status: draft
-version: v0.1
-date: 2026-06-09
+status: released
+version: v1.0
+date: 2026-06-10
 authors:
   - "Fiducial Mesh Group"
 companion_to: FIDUCIAL-MESH-HDBK-001.md
@@ -6287,7 +6287,7 @@ matching ACT events exist for every deviation entry whose
 
 ---
 
-*End of FIDUCIAL-MESH-STD-001 v0.1.*
+*End of FIDUCIAL-MESH-STD-001 v1.0.*
 
 This Standard is the source of truth for the normative requirements
 Fiducial Mesh implementations satisfy. The companion handbook

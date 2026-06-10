@@ -69,7 +69,9 @@ The Standard is organized NASA-STD-style:
 | Pass-4 STD | STD-001 complete + post-Pass-3-fold | Einstein first-principles | #94 | Merged |
 | Pass-5 STD | STD-001 post-Pass-4-fold | Einstein second-order first-principles | #95 | Merged |
 | Pass-6 STD | STD-001 post-Pass-5-fold | Einstein third-order first-principles | #96 | Merged |
-| **Pass-7 STD** | **STD-001 post-Pass-6-fold (Einstein sign-off + Thompson trust-boundary acknowledgment)** | **Einstein sign-off** | **#97 (in flight)** | **In flight** |
+| Pass-7 STD | STD-001 post-Pass-6-fold (Einstein sign-off + Thompson trust-boundary acknowledgment) | Einstein sign-off | #97 | Merged |
+
+**Release status:** **v1.0 released 2026-06-10.** Tag: `v1.0`. The seven-pass review chain is closed; Einstein's verbatim sign-off ("The Fiducial Mesh v1.0 Standard is a rigorous, testable, and air-tight contract. The mechanics are proven. You are cleared for Phase 4.0.") is recorded in PR #97. `main` is the release branch — no direct commits. Any subsequent changes land on feature branches and are reviewed before merge.
 
 The complete STD-001 covers 8 pillars + MCC host frame + 6 invariants + 11 active divergence_type subtypes + named quorum verifier. HDBK-001 is the companion. Pass-4 STD is Einstein's first-principles pass on the post-Pass-3 artifact — focused on what only fundamental-limit reading finds (DAG reachability, CAP/FLP, Little's Law, Nyquist, orthogonality, Lamport, cryptographic domain separation, Halting problem). Reviewed via attached-files (no GH access for Einstein).
 
