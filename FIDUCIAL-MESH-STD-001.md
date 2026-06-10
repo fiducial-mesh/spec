@@ -5576,6 +5576,51 @@ updates for free; the tradeoff is **vendor-spec drift becomes an
 external forcing function**, mitigated by the BOM-pinning
 discipline per `[FM-PCS-0013]` + the Tier-0/1 isolation above.
 
+**Trust-boundary axiom (Thompson "Trusting Trust" limit).** The
+Tier-0 evaluation delegates parsing to BOM-pinned vendor tooling
+(Claude Code / Codex CLI binaries) executing inside a DPG-grade
+ephemeral boundary per `[FM-DPG-0002]`. This is the strongest
+trust posture software can provide *given closed-source vendor
+binaries in the validation chain*. It is not, and cannot be, a
+guarantee against a compromised vendor compiler — per Thompson,
+*Reflections on Trusting Trust* (1984): a malicious compiler can
+recognize the validation environment and emit benign telemetry
+while compiling malicious runtime behavior; no purely-software
+analysis of the resulting binary can detect this, because the
+analysis tooling was itself compiled by the same suspect chain.
+
+This Standard explicitly acknowledges Thompson's limit as the
+**irreducible trust-boundary axiom** of the mesh: the formal
+contract this Standard provides terminates at the binary
+artifacts delegated to in the BOM. Beyond that boundary the
+trust rests on **physical axioms** (silicon provenance,
+trusted-hardware boot, reproducible builds from audited source
+on bootstrappable compilers) — not on this Standard. The
+architecture has correctly pushed the boundary as far out as
+software can reach:
+
+- **BOM-pinning per `[FM-PCS-0013]`** bounds the attack surface
+  to a specific, named, deployment-reviewable set of binaries —
+  not "whatever the vendor ships at evaluation time";
+- **Tier-0/1 DPG-grade ephemeral isolation per `[FM-DPG-0002]`**
+  bounds the *blast radius* of any compromised tooling to the
+  per-evaluation ephemeral boundary — a compromised vendor CLI
+  cannot persist past the boundary's destruction and cannot
+  reach the harness host or production state;
+- **Empirical N≥2 + environment-indistinguishability per
+  `[FM-DPG-0010]`** raises the bar for a "smart" supply-chain
+  payload: the payload must defect without being able to
+  distinguish test-run-K from production-run, which is the
+  Volkswagen-emissions-class defense codified.
+
+Deployments requiring guarantees *beyond* the trust-boundary
+axiom **shall** procure the relevant binaries from
+reproducible-build pipelines bootstrapped on trusted hardware
+and audited source — outside the scope of this Standard. The
+Standard names the boundary so the operator knows where the
+formal proof ends and physical-axiom trust begins; it does not
+pretend the boundary is closable in software.
+
 *Verification: Conformance-test* — the harness exercises a sample
 plugin through each tier; asserts T0 / T1 failure blocks registry
 entry; asserts T2–T4 failure records the badge state without

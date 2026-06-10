@@ -1169,6 +1169,70 @@ the DPG ephemeral boundary as the second guardrail). The
 identical containment outcomes across every conformance-claimed
 substrate.
 
+### 2.7.1 Where the formal proof ends — the Thompson trust-boundary axiom
+
+The tiered harness is the strongest trust posture *software can
+provide* given closed-source vendor tooling in the validation
+chain. Tier-0 delegates parsing to the BOM-pinned vendor CLIs
+(Claude Code, Codex) inside a DPG-grade ephemeral boundary; the
+pre-isolation lexical gate kills the work-factor-amplification
+DoS upstream of that boundary; the empirical N≥2 +
+environment-indistinguishability defense in DPG raises the bar
+on supply-chain payloads that try to behave-switch when they
+detect testing. Stack the layers and the formal contract this
+Standard provides is *closed* — up to one irreducible boundary.
+
+That boundary is Ken Thompson's, named in *Reflections on
+Trusting Trust* (1984): a malicious compiler can recognize a
+validation environment and emit benign telemetry while
+compiling malicious runtime behavior into the binaries it
+produces. No purely-software analysis of those binaries can
+detect the deception, because the analysis tooling was itself
+compiled by the same chain. The supply chain terminates at
+silicon and the compiler that built the tools — *not* at the
+last gate the harness can run.
+
+`[FM-PCS-0008]` names this explicitly as the **trust-boundary
+axiom** of the mesh. The architecture has pushed the boundary
+as far out as software can reach:
+
+- **BOM-pinning** (`[FM-PCS-0013]`) bounds the attack surface
+  to a specific, named, deployment-reviewable set of binaries —
+  not "whatever the vendor ships at evaluation time." A
+  compromised vendor release does not automatically infect a
+  Mesh on a pinned older version.
+- **Tier-0/1 ephemeral isolation** (`[FM-DPG-0002]`) bounds the
+  *blast radius* of any compromised tooling to the per-
+  evaluation ephemeral boundary. The boundary is single-use
+  and destroyed after every evaluation; a compromised vendor
+  CLI cannot persist past the boundary's destruction and
+  cannot reach the harness host or production state.
+- **Empirical N≥2 + environment-indistinguishability**
+  (`[FM-DPG-0010]`) is the Volkswagen-emissions-class defense
+  codified — a supply-chain payload that tries to defect only
+  in production has to defect without being able to
+  distinguish test-run-K from production-run, since the
+  substrate makes the runs bit-identical from inside the
+  boundary.
+
+What this Standard cannot do is *replace* trust in the
+underlying compiler chain with a formal proof. Deployments
+requiring guarantees beyond the axiom must procure the
+relevant binaries from reproducible-build pipelines
+bootstrapped on trusted hardware and audited source —
+disciplines outside the scope of this Standard. The Standard
+names the boundary so the operator knows where the formal
+proof ends and physical-axiom trust begins; it does not
+pretend the boundary is closable in software.
+
+This is the chain-close on the multi-pass review of v0.1: the
+mesh contract is closed against the architectural failure
+modes a first-principles read can produce — Confused Deputy,
+CAP/FLP, Halting, Observer Effect, Amdahl, Capability
+Revocation, Charron-Bost — and explicitly named against the
+one bedrock limit that physics-of-computation says cannot be
+closed in software.
+
 ## 2.8 The registry, marketplaces, BOMs
 
 **Mesh-internal, not public.** Each Mesh runs its own PCS registry.
