@@ -65,9 +65,10 @@ The Standard is organized NASA-STD-style:
 | Pass-2 HDBK | HDBK-001 | Patton adversarial | #90 | Merged |
 | STD companion | STD-001 (Shamir precision + model-substrate seam) | Watson + Bob+panel | #91 | Merged |
 | PR-B-PCS | STD-001 §6 PCS (eighth pillar) | Watson + Bob+panel | #92 | Merged |
-| **Pass-3 STD** | **STD-001 complete (with §6 PCS)** | **Patton adversarial — final** | **#93 (in flight)** | **In flight** |
+| Pass-3 STD | STD-001 complete (with §6 PCS) | Patton adversarial | #93 | Merged |
+| **Pass-4 STD** | **STD-001 complete + post-Pass-3-fold** | **Einstein first-principles** | **#94 (in flight)** | **In flight** |
 
-The complete STD-001 covers 8 pillars + MCC host frame + 6 invariants. HDBK-001 is the companion. Pass-3 STD is Patton's adversarial pass on the now-complete spec — focused on §6 PCS as net-new material and on the cross-pillar consequences of the inflated deviation machinery (10 active divergence_type subtypes, 3 new since Patton's last STD pass).
+The complete STD-001 covers 8 pillars + MCC host frame + 6 invariants + 11 active divergence_type subtypes + named quorum verifier. HDBK-001 is the companion. Pass-4 STD is Einstein's first-principles pass on the post-Pass-3 artifact — focused on what only fundamental-limit reading finds (DAG reachability, CAP/FLP, Little's Law, Nyquist, orthogonality, Lamport, cryptographic domain separation, Halting problem). Reviewed via attached-files (no GH access for Einstein).
 
 Reserved sections are placeholders with the dependencies that already
 bind them (e.g., the audit-emission requirements every pillar
