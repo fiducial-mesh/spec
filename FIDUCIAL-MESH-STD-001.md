@@ -1818,6 +1818,97 @@ the deployment's ARCA-custody role + the IAM-administration role,
 recorded in ACT. The attestation is corroborative — it does **not**
 substitute for the mechanical Conformance-test.
 
+#### `[FM-IAM-0015]` Delegation Token — cross-async-boundary capability transfer
+
+IAM **shall** mint **Delegation Tokens** as the cryptographic
+primitive for transferring execution authority across asynchronous
+process boundaries. A Delegation Token represents a *delegating
+principal's* authorization scoped to a *delegated operation*,
+held by a *trusted intermediary* that resumes the operation on
+the delegator's behalf — without the intermediary impersonating
+the delegator and without the intermediary acquiring the
+delegator's broader authority.
+
+Every cross-async-boundary capability transfer in the mesh —
+including but not limited to the `[FM-PCS-0011]` quorum-pending
+async-saga resume per item 4 — **shall** carry a Delegation
+Token rather than have the intermediary present its own
+principal-id or forge the delegator's credential. Both
+alternatives are non-conforming: the intermediary self-
+authorizing strips the original caller's authorization context
+and grants whatever authority the intermediary holds (typically
+broader); the intermediary forging the caller's credential
+violates `[FM-IAM-0006]` Vault in-boundary signing. The
+Delegation Token is the structural defense per the
+Confused-Deputy class of attacks.
+
+A Delegation Token **shall** carry:
+
+1. **`delegator_principal_id`** — the original caller, the
+   identity whose authority is being delegated. The Token does
+   not grant the delegator's full authority; it grants
+   exactly-and-only the scope per item 3.
+2. **`delegate_principal_id`** — the intermediary that holds
+   and presents the Token (e.g., the registry's
+   `pcs-registry` principal-id for PCS-0011 resume; future
+   intermediaries register their own delegate principal-ids).
+3. **`scope`** — a strict-subset of the delegator's authority,
+   bounded to the specific operation being resumed (e.g., for
+   PCS-0011 resume: the specific promotion operation identified
+   by `idempotency_key`; not all promotions, not other
+   operations). The scope **shall** be expressed in the same
+   policy-evaluable form `[FM-PGE-0008]` consumes.
+4. **`bound_idempotency_key`** — the originating operation's
+   idempotency key per `[FM-IBX-0007]` (for PCS-0011 resumes,
+   the original worker-pool claim key recorded in the
+   pending-state per `[FM-PCS-0011]` item 1). A Token without
+   this binding is non-conforming; the binding is what
+   prevents replay across operations.
+5. **`expiry`** — a strict-after timestamp evaluated per the
+   `[FM-INV-0004.2]` time-model discipline (verifier-side
+   evaluation with skew tolerance; never delegator-side). A
+   Token **shall not** be honored after expiry.
+6. **`signature`** — a Vault-issued signature over the prior
+   fields per `[FM-IAM-0006]` in-boundary signing. The
+   delegator's identity authorizes the Token's mint; the
+   intermediary cannot mint a Token on the delegator's behalf
+   without the delegator's signing path being invoked.
+
+PGE per `[FM-PGE-0008]` **shall** evaluate a Token-bearing
+request against the **Token's scope**, not the delegate's
+broader authority and not the delegator's broader authority.
+The Token is the precise capability being delegated; nothing
+else is.
+
+ACT per `[FM-ACT-0003]` attribution **shall** record both
+identities on Token-bearing events: `principal-id` = the
+delegating principal (per item 1; the operation is authorized
+by the delegator); `acting_principal-id` = the delegate (per
+item 2; the intermediary executed the operation). Auditors
+reading the trail see both: who authorized + who acted.
+Single-identity attribution would lose the delegation
+provenance; both-identity attribution preserves it.
+
+Delegation Tokens **shall not** be transitively re-delegated —
+the delegate cannot mint a sub-Token granting a further
+intermediary the same scope. Transitive delegation would
+permit token-laundering chains that defeat the per-Token
+audit attribution; re-delegation requires the original
+delegator to mint a fresh Token to the new intermediary,
+which makes the new chain explicit in the audit trail.
+
+*Verification: Conformance-test* — the harness exercises a
+PCS-0011 quorum-pending resume and asserts the fresh dispatch
+carries a Delegation Token bound to the original idempotency
+key; submits a Token-bearing request with mismatched
+`bound_idempotency_key` and asserts rejection; submits a
+Token past expiry and asserts rejection; submits a
+Token-bearing request and asserts ACT records both
+`principal-id` (delegator) and `acting_principal-id`
+(delegate); attempts to re-delegate a Token transitively and
+asserts rejection; verifies PGE evaluates against the Token's
+scope, not the delegate's broader authority.
+
 ### §5.2.1 IAM Conformance Profile
 
 The IAM pillar's substrate substitutability claim covers exactly the
@@ -2348,6 +2439,36 @@ The verifier **shall**:
    the structured result; PGE **shall** verify the verifier's
    signature and **shall not** accept an unsigned or
    verifier-signature-invalid result.
+
+   **Per-evaluation challenge nonce.** When the verifier opens
+   a quorum evaluation for an operation, it **shall** mint a
+   unique per-evaluation `challenge_nonce` (cryptographically
+   random; recorded against the open evaluation in the
+   consensus substrate per item 4). Every attestation submitted
+   for that evaluation **shall** be a signature over
+   `{attester_principal_id, operation_identifier, challenge_nonce,
+   attestation_expiry, attester_role}` — the nonce binds the
+   attestation to the specific active evaluation. The verifier
+   **shall** reject any attestation whose signed payload does
+   not include the current evaluation's `challenge_nonce`; an
+   intercepted attestation from a prior evaluation of the same
+   operation (e.g., a request that was Judge-denied and
+   re-attempted within the `[FM-INV-0004.2]` skew window)
+   carries the prior evaluation's nonce and is rejected. Without
+   the nonce binding, a static-payload signature would be
+   replayable inside the temporal validity window;
+   the nonce closes the replay vector.
+
+   For evaluations that resume across an async-saga boundary per
+   `[FM-PCS-0011]` item 4, the `challenge_nonce` MAY be the
+   same as the originating operation's
+   `bound_idempotency_key` per `[FM-IAM-0015]` (the
+   idempotency-key and the verifier nonce both identify the
+   active evaluation; using the same value preserves cross-
+   boundary correlation while satisfying the nonce-binding
+   requirement). The Token's bound_idempotency_key + the
+   attestation's challenge_nonce + the verifier's signed result
+   all reference the same evaluation identity end-to-end.
 4. Be **horizontally scalable** but **logically single-sourced
    per operation** — multiple verifier instances may collect
    attestations for distinct operations concurrently; for any
@@ -5418,16 +5539,27 @@ the gate **shall**:
    pending-state record), not by trusting an ephemeral runner to
    resurrect the original execution. Specifically: the registry,
    on receiving the verifier-signed result, atomically (a)
-   marks the pending-state record as `verified`, (b) generates a
-   new IBX worker-pool claim with `parent_idempotency_key` set
-   to the original idempotency key (preventing duplicate
-   resume), and (c) emits the dispatch. The new dispatch
-   acquires a fresh worker-pool claim and applies the
-   promotion. **Network partition between verifier-signed and
+   marks the pending-state record as `verified`, (b) mints an
+   IAM **Delegation Token** per `[FM-IAM-0015]` with
+   `delegator_principal_id` = the original caller's
+   `principal-id` recorded in the pending-state per item 1,
+   `delegate_principal_id` = the registry's own principal-id,
+   `scope` = the specific promotion operation,
+   `bound_idempotency_key` = the original idempotency key
+   (which serves both as F-E-02's duplicate-resume guard AND as
+   F-E-14's verifier nonce — see item 3), (c) generates a new
+   IBX worker-pool claim with `parent_idempotency_key` set to
+   the original idempotency key, and (d) emits the dispatch
+   under the Delegation Token. The downstream gate per
+   `[FM-PCS-0010]` evaluates the Token-bearing dispatch against
+   the Token's scope per `[FM-IAM-0015]` — the registry presents
+   neither its own broader authority nor a forged caller
+   credential. **Network partition between verifier-signed and
    registry-acked-dispatch is survivable** because the verifier-
    signed result is durable in ACT per `[FM-PGE-0015]`'s audit
    stream — on partition recovery, the registry replays from the
-   durable verified result; no in-memory state is required to
+   durable verified result and re-mints the Token from the same
+   pending-state record; no in-memory state is required to
    resume.
 5. On quorum timeout per `[FM-INV-0004.2]`, emit a
    `pcs.promotion.quorum_timeout` event to ACT and discard the
