@@ -2718,34 +2718,67 @@ the chain initial event is **not unanchored**:
   sole permitted predecessor that is itself unattributed;
   subsequent links require full attribution per `[FM-ACT-0003]`.
 - **Every subsequent session** (any session N ≥ 2 of any pillar)
-  **shall** chain-link its initial event to the **chain-checkpoint
-  with the highest monotonic sequence number** issued by the ACT
-  event store for that pillar at the time the session begins. To
-  enable this, ACT **shall** issue every `act.chain_checkpoint`
-  event a strictly-monotonic per-pillar sequence number
-  (Lamport-style logical timestamp; the sequence is total within
-  the pillar's chain, not across pillars) and the chain-link
-  field on the session's initial event **shall** reference the
-  checkpoint by `(pillar, sequence_number, checkpoint_hash)` —
-  not by wall-clock "most-recent." In a distributed mesh,
-  "most-recent" by wall-clock is undefined without a global
-  atomic clock per the relativity-of-simultaneity property of
-  distributed systems; the monotonic sequence number provides
-  the strict total ordering chain reconstruction depends on,
-  and the `(pillar, sequence_number, checkpoint_hash)` triple
-  is deterministically resolvable across implementations. This
-  makes session insertion and session deletion tamper-evident:
-  a fabricated session whose initial event does not chain to a
-  real `(pillar, sequence_number, checkpoint_hash)` fails chain
+  **shall** chain-link its initial event to the **causal frontier**
+  of `act.chain_checkpoint` events for that pillar at the time
+  the session begins. The causal frontier is the set of all
+  chain-checkpoints that have no successor checkpoint visible
+  to the session-initiating ACT instance — i.e., the maximal
+  antichain of the per-pillar checkpoint DAG under the
+  vector-clock partial order. The chain-link field on the
+  session's initial event **shall** reference the frontier by
+  `(pillar, frontier_hash, {checkpoint_hash, ...})` where
+  `frontier_hash` is a deterministic Merkle-style hash over
+  the lexicographically-sorted set of frontier checkpoint
+  hashes.
+
+  ACT **shall** assign every `act.chain_checkpoint` event a
+  **vector-clock logical timestamp** (one component per ACT
+  issuer participating in the pillar's chain). The ordering
+  between two checkpoints is the partial order induced by
+  vector-clock dominance; checkpoints whose vector clocks are
+  incomparable are *concurrent*, and a session beginning while
+  concurrent checkpoints exist **shall** anchor to all of them
+  (the frontier), not to an arbitrarily-chosen one. ACT
+  **shall not** require a strict total order across the
+  pillar's checkpoint chain — strict total order would require
+  a single global checkpoint issuer per pillar, which would
+  impose an Amdahl serialization bottleneck on the pillar's
+  audit throughput and a single point of failure on the chain
+  itself. Partial order plus frontier anchoring is sufficient
+  for the tamper-evidence property the chain provides; strict
+  total order is not required by that property and is
+  incompatible with horizontal scaling of ACT issuers.
+
+  Chain reconstruction across the partially-ordered chain
+  remains deterministic: the verifier walks each session's
+  initial event back to its anchored frontier set, then walks
+  each frontier checkpoint back through its vector-clock
+  predecessors, and accepts the reconstruction iff every
+  predecessor link resolves to a real checkpoint and every
+  checkpoint's vector clock dominates the union of its
+  declared predecessors' vector clocks. "Most-recent" by
+  wall-clock is undefined without a global atomic clock per
+  the relativity-of-simultaneity property of distributed
+  systems; vector-clock-induced causal order plus frontier
+  anchoring is the causal substitute that does not require
+  one.
+
+  This makes session insertion and session deletion tamper-
+  evident: a fabricated session whose initial event does not
+  chain to a real frontier checkpoint set fails chain
   verification; a deleted session whose checkpoint reference
-  would have been the next-session predecessor breaks the next
-  session's initial-event chain.
+  was a member of a subsequent session's anchored frontier
+  breaks that session's initial-event chain. Concurrency does
+  not weaken either property — the frontier captures every
+  causally-prior checkpoint with no visible successor, so a
+  deletion at any vector-clock position is detected by the
+  next session that would have anchored to it.
 
 A chain whose initial event does not trace back to either a
 genesis-event anchor (first session) or a previously-emitted
-`act.chain_checkpoint` event referenced by its
-`(pillar, sequence_number, checkpoint_hash)` triple (sessions
-N ≥ 2) is non-conforming.
+set of `act.chain_checkpoint` events referenced by its
+`(pillar, frontier_hash, {checkpoint_hash, ...})` causal-
+frontier anchor (sessions N ≥ 2) is non-conforming.
 
 **Retention-boundary re-anchoring.** When the `[FM-ACT-0011]`
 retention-expiration ceremony removes a chain predecessor, the
@@ -2763,14 +2796,23 @@ boundary semantics. The same re-anchoring discipline applies at
 the `[FM-ACT-0010]` cold-storage tier boundary when implemented.
 
 *Verification: Static-check + Conformance-test* — Static-check
-verifies hash-chain field presence in the event schema; the harness
-constructs a tampered event in storage (e.g., by direct substrate
-write outside the ACT API) and asserts chain re-verification detects
-the tampering at the next checkpoint; verifies the first runtime
-event after genesis chain-links to the genesis hash; exercises the
-`[FM-ACT-0011]` ceremony on a chain-bearing session and asserts
-chain re-verification across the expiration boundary passes via the
-`act.retention.expired` re-anchor.
+verifies hash-chain field presence in the event schema and the
+vector-clock + frontier-anchor fields on `act.chain_checkpoint`
+and session-initial events; the harness constructs a tampered
+event in storage (e.g., by direct substrate write outside the
+ACT API) and asserts chain re-verification detects the tampering
+at the next checkpoint; verifies the first runtime event after
+genesis chain-links to the genesis hash; **issues two
+concurrent `act.chain_checkpoint` events from distinct ACT
+issuers (incomparable vector clocks) and asserts the next
+session anchors to BOTH via the causal-frontier reference, not
+to one arbitrarily-chosen winner; deletes one of the two
+concurrent checkpoints post-anchor and asserts the next
+session's chain verification fails on the missing frontier
+member**; exercises the `[FM-ACT-0011]` ceremony on a
+chain-bearing session and asserts chain re-verification across
+the expiration boundary passes via the `act.retention.expired`
+re-anchor.
 
 #### `[FM-ACT-0006]` Hash algorithm policy
 
@@ -3880,6 +3922,58 @@ confidence at promotion-time cost). For `numerical-drift-only`
 declarations, the tolerance bound **shall** be declared per
 artifact and the empirical test **shall** verify outputs stay
 within tolerance across the N runs.
+
+**Execution-environment indistinguishability (Observer-Effect
+defense).** The empirical N≥2 test defeats *blind* stochasticity
+but not *observation-dependent* stochasticity: an adversarial
+payload can probe its execution environment (`clock_gettime`,
+process metadata, run-counter env vars, DPG-specific markers) to
+detect that it is being tested, behave deterministically for the
+N test runs, and defect on the production run. To close this
+attack class, DPG **shall** present an
+**execution-environment indistinguishable** boundary across all
+N test runs **AND** the subsequent production run for the same
+declared-deterministic artifact. Specifically:
+
+1. **Time + entropy mediation.** DPG **shall** mediate access to
+   wall-clock time, process metadata (PID, parent PID,
+   container/VM identifiers), and entropy sources (`/dev/urandom`,
+   `RDRAND`, network jitter) such that the values observable from
+   inside the boundary are produced by DPG itself, not by the
+   underlying host. The mediation **shall** be enforced at the
+   substrate layer (e.g., seccomp/BPF filtering of `clock_gettime`,
+   `getpid`, `read(/dev/urandom)`, etc.); enforcement at the
+   workload layer is bypassable and non-conformant.
+2. **Bit-identical environment across the N+1 invocations.** The
+   time values, process metadata, entropy seeds, and any other
+   substrate-mediated value observable to the workload **shall**
+   be bit-identical across the N test runs and the production
+   run for the same artifact. The verifier-side environment
+   record **shall** be cryptographically committed at the first
+   test run and re-supplied verbatim to the subsequent N−1 test
+   runs + the production run.
+3. **No DPG-marker leakage.** The execution-environment
+   indistinguishability **shall** extend to negative markers:
+   the workload **shall not** be able to detect that it is
+   running under DPG (no DPG-specific env vars, no DPG
+   filesystem markers, no DPG-pattern in `/proc`). A workload
+   probing for DPG-specific signals to behavior-switch **shall**
+   observe the same signals in the production run; the signals
+   are not "DPG-only."
+
+The combination — substrate-mediated time/proc/entropy + bit-
+identical environment record across N+1 invocations + no
+DPG-marker leakage — makes test runs and production runs
+*physically identical from inside the boundary*. The
+observer-effect defense is structural: a workload that cannot
+distinguish test from production cannot defect on production
+without defecting on test, and the empirical N test catches the
+defection.
+
+A DPG implementation that satisfies the empirical N≥2 test but
+not the environment-indistinguishability requirement is non-
+conformant — the test would catch blind stochasticity but admit
+the Volkswagen-emissions-class attack.
 
 *Verification: Conformance-test* — the harness runs the same
 sample execution twice under identical inputs and asserts
