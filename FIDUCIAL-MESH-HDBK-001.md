@@ -90,9 +90,9 @@ Go for CRB + DPG, no C# anywhere), the **AIR/CLCA discipline**
 × workflow composition — pillar code stays generic OSS, customer's
 workflow encodes their substrate choice), the **agents-own-deployment
 posture** (no human-following install procedures; agents read the
-plugins and execute), the **documentation model** (this spec + user
-guide + workflow matrix), and the **dogfood story** (KI7MT lab as
-tenant #1).
+plugins and execute), the **documentation model** (Standard +
+Handbook + user guide + workflow matrix per §4.7), and the
+**dogfood story** (KI7MT lab as tenant #1).
 
 ### 5. Appendices
 Reference material: glossary, language map per pillar, conformance
@@ -141,7 +141,7 @@ rather than glossing it.
 
 ## 1.2 The problem the mesh solves
 
-Two failure modes drive every design choice in this spec:
+Two failure modes drive every design choice in the mesh:
 
 **A pure-agent mesh fails in regulated environments.** Accountability
 must ultimately terminate in a person the law can hold responsible. You
@@ -267,6 +267,25 @@ The discipline has three operational consequences:
   divergence-event emission. The deviation does not redefine the
   requirement; it acknowledges the gap until the gap closes.
 
+**Honest bootstrap acknowledgment.** The motto is the steady-state
+contract; it does not describe the project's current state cleanly.
+A hostile reading is fair: several pillars were under construction
+before their normative codification landed (IBX POC-in-production
+predates `[FM-IBX-*]` numbered requirements; IAM code-complete
+predates `[FM-IAM-0014]` operational-state declaration; MCC backend
+BUILT precedes `[FM-MCC-0006]` plugin contract maturity), and PCS
+— the platform's operational core — is **§6 Reserved**: a
+whole-section absence, not just requirement-level gaps. The
+deviation machinery covers requirement-level gaps cleanly; §6
+Reserved is **tracked debt** with a single closure condition (§6
+authored as the eighth pillar with full Conformance Profile). The
+in-flight built pillars migrate under their declared transitional
+deviations until each operational-state condition is met. The motto
+does not yet describe today; it describes the steady state the
+project is migrating toward, and the deviation discipline + §6
+debt registration are how the gap is named without dissolving the
+contract.
+
 This is the discipline that turns the capability/constraint duality
 into a contract a customer can hold the project to.
 
@@ -298,16 +317,30 @@ authenticated principal — no "trusted because internal") and **fail
 strict** (under error, ambiguity, unavailability, or unverifiable state,
 the system halts).
 
-The compliance regimes (SOX, HIPAA, FIPS, defense, finance) map cleanly
-*because they were written for human-and-system organizations*. The mesh
-satisfies them by reconstructing the accountability fabric they assume.
-The framing is deliberately *not exotic*: a well-run regulated
-organization already is an orchestration mesh of principals operating
-under identity, authority, segregation of duties, audit, and escalation.
-The mesh reconstructs that same fabric and makes agents first-class
-principals within it. To an auditor: **the AI is held to the same
-standard of identity, authorization, and auditability you already hold
-your employees to.**
+The compliance regimes (SOX, HIPAA, FIPS, defense, finance) are
+**designed to map cleanly** — they were written for
+human-and-system organizations, and the mesh reconstructs the
+accountability fabric they assume. The framing is deliberately
+*not exotic*: a well-run regulated organization already is an
+orchestration mesh of principals operating under identity,
+authority, segregation of duties, audit, and escalation. The mesh
+reconstructs that same fabric and makes agents first-class
+principals within it. To an auditor, the design thesis is: **the
+AI is held to the same standard of identity, authorization, and
+auditability you already hold your employees to.**
+
+**Honest open question — formal acceptance.** Whether a regulator
+or audit firm actually accepts agent identities as principals
+satisfying SoD / SOX-class controls is a **validation goal, not a
+fact yet established**. No regulator has yet certified the
+mapping; no audit firm has issued a SOC report against a
+Fiducial-Mesh-managed agent fleet acting as a regulated principal.
+The dogfood deployment (§4.8) is unregulated and therefore cannot
+evidence the mapping by itself. The design is *intended to present
+to an auditor in the vocabulary the regimes already use*; **formal
+acceptance is one of the project's open hard parts** and a serious
+regulated-industry CIO will treat it as such. The HDBK names the
+gap rather than implying it's closed.
 
 **Bound STD requirements.** The HR mapping is realized through the
 IAM pillar's numbered contract: ARCA as offline issuance authority
@@ -626,10 +659,20 @@ capability requires the argued-case + quorum path.** Concretely:
   capability surface; the maintainer provisions each with an argued case
 - Plugins compose within that surface — they invoke skills / hooks /
   MCP servers / agents the pillars already expose
-- An MCP server in a plugin is bounded by PGE policy (allowed tools),
-  DPG sandbox (execution boundary), and IAM scope (calling agent's
-  authority) — it cannot introduce capabilities the mesh doesn't already
-  constrain
+- An MCP server in a plugin is **targeted** to be bounded by PGE
+  policy (allowed tools), DPG sandbox (execution boundary), and IAM
+  scope (calling agent's authority) — when DPG-hosted MCP execution
+  is operational, the MCP server runs inside the boundary and the
+  containment claim holds. **Present gap, explicit:** today MCP
+  servers run as host-resident processes with host capability (the
+  lab's 14-server fleet is the precedent), and DPG itself operates
+  under the `subagent-worktree-precursor` transitional deviation per
+  `[FM-DPG-0013]`. Until DPG-hosted MCP execution lands, the
+  containment is provided by the plugin manifest's `policy:`
+  declaration (per §2.4) + the validation harness review + PGE
+  intent-side enforcement at IBX submission per `[FM-PGE-0005]`
+  Gate 1 — execution-side Gate 2 sunsets when `[FM-DPG-0005]` is
+  operational
 - Workflows compose plugins — same containment, no net-new capability
 - Net-new capability at the platform level (new pillar, extended
   substrate matrix, new agent surface) requires an argued case at the
@@ -650,15 +693,33 @@ entry schema is §F.1 of the Standard's normative Appendix F.
 **For any capability whose mis-use would be catastrophic, the mesh
 distributes the authority across independent identities — by
 architecture, not by policy.** Single-identity wielding of such
-capabilities is structurally impossible, not policy-restricted.
+capabilities is **non-conformant by construction**: a single
+identity attempting the operation produces only one attestation,
+the verifier counts attestations, and the operation does not apply
+without K-of-N.
 
-The pattern is Shamir's Secret Sharing applied to governance —
-direct extension of the Vault unseal model. Authority is split into N
-shards; K-of-N independent identities must independently attest before
-the operation applies. Each shard-holder is a different human role
-(CISO / CCO / GC / CTO / Security Officer / etc.) with custody of their
-own signing key (their own keyring or HSM; never shared storage).
-Single-identity compromise does not enable the operation.
+The pattern is **K-of-N signed attestations enforced by an
+independent verifier** — multi-signature authorization, structurally
+parallel to the Vault unseal model. K-of-N independent identities
+must independently sign attestations before the verifier applies the
+operation; each attester holds their own signing key (their own
+keyring or HSM; never shared storage), and each is a different
+human role (CISO / CCO / GC / CTO / Security Officer / etc.). A
+compromise of any single identity yields at most one attestation;
+the verifier still requires the remaining K-1.
+
+The mesh-init quorum-bootstrap ceremony per `[FM-INV-0004.4]`
+**does** use Shamir's Secret Sharing for the quorum-authority
+master at initialization — that's where the literal shard splitting
+lives. Runtime operations (apply / revoke an overlay, mass identity
+action, ARCA revocation) use the multi-signature attestation pattern,
+not shard reconstruction. The HDBK does not conflate the two; the
+init-time ceremony is shard-based, the runtime gate is
+attestation-counting. A compromised verifier proceeding without
+sufficient attestations is a runtime-side defect classified per
+`[FM-INV-0005]` (platform enforcement floor is authoritative) — not
+something the multi-signature pattern itself defends against;
+verifier integrity is the load-bearing assumption stated explicitly.
 
 **Capabilities in this class** (non-exhaustive):
 
@@ -751,7 +812,7 @@ covers the divergence-as-signal pattern).
 
 ---
 
-## 1.8 How to read the rest of this spec
+## 1.8 How to read the rest of this Handbook
 
 The spec is one document, organized top-down with PCS as the central
 theme:
@@ -773,14 +834,17 @@ theme:
   reference, cross-pillar binding matrix.
 
 The three foundational invariants in §1.7 govern every pillar and
-every workflow in the parts that follow. Where the rest of the spec
-describes specific mechanisms, the invariants are the floor those
-mechanisms cannot go below.
+every workflow in the parts that follow — and are codified
+normatively in STD-001 §4 (`[FM-INV-0001]` through
+`[FM-INV-0005]`). Where the rest of this Handbook describes specific
+mechanisms, the invariants are the floor those mechanisms cannot go
+below; the STD requirements are the contract that gates conformance.
 
 **Working notes preserved for provenance** — design dialogue, AIR
-reports, draft material that produced this spec — remain in
+reports, draft material that produced the Standard + this Handbook
+— remain in
 [`devel/spec-drafts/`](https://github.com/fiducial-mesh/devel/tree/main/spec-drafts).
-They are not part of the canon; this single spec is.
+They are not part of the canon; the canon is STD-001 + this Handbook.
 
 ---
 
@@ -862,6 +926,55 @@ Claude Code + Codex gets these for free.
 manifest) and the Copilot Extensions API (remote HTTP-service +
 GitHub App backend). Different artifact models, deliberately not
 targeted.
+
+**Vendor-spec divergence — the honest hard part of the cardinal
+rule.** The cardinal rule depends on two evolving proprietary
+specs (Claude Code, Codex) staying compatible enough that
+"strict superset of both" remains satisfiable. Three real risks
+the HDBK names rather than assumes away:
+
+1. **The two vendor specs can conflict** — same configuration
+   path, different semantics; a feature in one not in the other;
+   incompatible MCP transport changes. When that happens, the
+   "validates under both" gate becomes unsatisfiable for the
+   affected artifact class.
+2. **Vendor spec drift is an external forcing function** on a
+   platform whose §1.2 thesis is that those exact counterparties
+   have misaligned incentives. The cardinal rule rides their R&D
+   for free *and* inherits their roadmap changes for free —
+   including changes that work against the mesh's portability
+   claim.
+3. **Tier-0 (the harness's hard gate per §2.7) executes
+   third-party vendor tooling** that changes without mesh review.
+   That's a supply-chain seam *inside the validator* — every Tier-0
+   pass implicitly trusts the vendor's current validator state.
+
+**The arbitration discipline.**
+
+- **Vendor tooling versions are pinned in the BOM** (per §2.8) —
+  the BOM declares which vendor-CLI version Tier-0 delegates to,
+  so the mesh validator behavior is reproducible at the BOM
+  version. An untested vendor-CLI version is not a Tier-0 input.
+- **Conflict-arbitration rule when the strict-superset becomes
+  unsatisfiable**: the affected artifact class falls back to a
+  declared **per-vendor variant** for that class only (e.g., the
+  agent definition emits separately to `.claude/agents/*.md` and
+  `.codex/agents/*.toml` with the divergent semantic encoded per
+  vendor). The rule of thumb: when conflict appears, **the cardinal
+  rule yields first**, the project ships the divergent class as
+  per-vendor variants, and the conflict is registered in Appendix
+  F of the affected pillar's deployment as a deviation against the
+  cardinal rule until upstream reconciliation lands.
+- **Vendor-spec-drift surveillance** is operator-side: each new
+  vendor-CLI release goes through a BOM-bump review before becoming
+  the Tier-0 default; the validator behavior delta is documented
+  and reviewed.
+
+This is not the project's preferred state — the cardinal rule's
+value depends on the superset being satisfiable. But pretending the
+divergence cannot happen is exactly the over-claim a hostile
+auditor exploits; naming the arbitration up-front is what makes the
+discipline survive contact with vendor reality.
 
 ## 2.4 Plugin shape and addressing
 
@@ -1092,12 +1205,60 @@ A customer installs from a BOM; upgrades happen by bumping the BOM
 version, pulling every constituent plugin atomically. Linux distro /
 `kubeadm` / Helm chart pattern.
 
+**Upstream-distribution trust bootstrap (the supply-chain hard
+part).** The local-verifier / no-callback property covers the
+*customer's own* mesh registry — within a deployment, every artifact
+is signed against that deployment's Vault PKI and verifiable
+locally. **It does not cover how the customer comes to trust the
+public reference plugins (`fiducial-mesh-*` namespaces) in the
+first place.** That trust has to be bootstrapped, and the
+bootstrap is a real supply-chain seam the hostile auditor reads
+for first:
+
+- **Project signing root.** Public reference plugins are signed by
+  a **project-level signing root** maintained by the Fiducial Mesh
+  Group; the public key is published with the project's release
+  artifacts and pinned in the customer's mesh registry at
+  onboarding. The customer's verifier then validates downstream
+  plugin signatures against the pinned project root, locally, no
+  callback.
+- **Pinning ceremony.** The pinning step itself is a one-time
+  trust-on-first-pin ceremony — the operator confirms the project
+  root fingerprint against an out-of-band channel (the project's
+  GitHub release page, the published key fingerprint in the project
+  README, a printed fingerprint in the release announcement). After
+  pinning, the trust is local; before pinning, the trust is on the
+  operator verifying the fingerprint correctly. This is the
+  irreducible bootstrap step; the HDBK names it explicitly rather
+  than glossing it.
+- **Key rotation.** A project-root key rotation is itself a
+  signed-by-old-key announcement plus a new key fingerprint; the
+  customer's registry pins the rotation event and trusts forward
+  from the new key. Rotation cadence is operator-configurable; the
+  project's recommended cadence is annual.
+- **Key compromise.** If the project signing root is compromised
+  (worst case), every customer's registry pins are invalidated and
+  the project publishes a new root through every available
+  out-of-band channel. Customers re-pin from the new root. There
+  is no automatic recovery — a project-root compromise is a
+  catastrophic-class event that puts every downstream customer
+  into a re-pinning ceremony. The HDBK names this honestly rather
+  than implying the local-verifier model eliminates supply-chain
+  risk.
+
 **Bound STD requirements.** Every artifact entering the registry
 passes through DPG validation for executable artifacts per
 `[FM-DPG-0009]` (Registry-bound executable validation) — the
 PCS-Daemon pre-promotion state invokes DPG; the Daemon shall not
 bypass DPG for executable workloads. This is the dev-to-production
-trust boundary applied to executables.
+trust boundary applied to executables. The upstream-distribution
+trust bootstrap above sits *above* the per-deployment registry —
+it's the seam between the project's public artifacts and the
+customer's pinned local trust state. STD §6 (Reserved) will codify
+the per-deployment registry contract; the project-signing-root
+discipline lives in this Handbook for now and will land in the
+Standard's release-engineering requirements when those are
+authored.
 
 ## 2.9 Substrate matrix × workflow — customization without forking
 
@@ -1140,9 +1301,17 @@ incident → ACT telemetry → AIR drafted in AKB → CLCA action
                           every agent picks up improved workflow next exec
 ```
 
-The workflow IS the propagation — "fixed it locally, didn't propagate"
-is structurally impossible. Ford 8D / manufacturing CLCA applied to AI
-operations. Every workflow version traces back to the AIR that
+The workflow IS the propagation — "fixed it locally, didn't
+propagate" is **structurally surfaced as non-conformance**, not
+literally impossible: an operator with root on the customer's own
+hardware can patch a host directly outside the workflow loop, and
+the mesh cannot remove shell access on hardware it does not own.
+What the loop guarantees is that the local fix is **detectable
+(divergence shows up in ACT) and non-conformant (the deployment is
+operating outside its declared workflow)** — the propagation
+discipline is enforceable by audit and CLCA, not by physically
+preventing the local fix. Ford 8D / manufacturing CLCA applied to
+AI operations. Every workflow version traces back to the AIR that
 motivated it. Mesh customers get one mechanical loop instead of
 incident-report-in-PagerDuty + post-mortem-in-Confluence +
 action-items-in-Jira + runbook-update-in-GitHub-wiki +
@@ -1170,10 +1339,18 @@ A fresh agent (Claude Code, Codex) + the `fiducial-mesh-deployment`
 plugin → run the install workflow → end-state is a running mesh. No
 external installer. No custom binary. The agent IS the installer.
 
-The only irreducibly human step is `vault operator init` on the host
-that becomes Vault-of-record — the unseal keys and root token can't
-route through an agent (agent-out-of-secret-path). After that,
-everything is workflow execution: `vault-pki-bootstrap` →
+The irreducibly human steps are **the trust-root mint and the
+mesh-init quorum ceremony** — both require multiple humans, neither
+routes through an agent. `vault operator init` on the host that
+becomes Vault-of-record produces the unseal keys + root token
+(agent-out-of-secret-path), AND the parallel
+`[FM-INV-0004.4]` mesh-init quorum-bootstrap ceremony requires N
+independent identity holders physically present (or
+attested-presence equivalent), each receiving a single Shamir shard
+of the quorum-authority master, signing the initial role
+assignments, and emitting the founding genesis-class event to ACT
+per `[FM-INV-0004.5]`. After these ceremonies complete, everything
+else is workflow execution: `vault-pki-bootstrap` →
 `iam-bootstrap` → `pillar-deploy:ibx` → `pillar-deploy:akb` →
 `pillar-deploy:pcs-registry` (now PCS-managed from here on).
 
@@ -1251,13 +1428,20 @@ audit-attestable via the `mcc.judge_gate_confirm` event) is
 
 # Part 3 — The Pillars
 
-Eight pillars. PCS reaches each via its published interface (skills,
-MCP tools, hooks) — pillars stay zero-coupled, standalone-installable,
-and substrate-pluggable. Each section names the substrate matrix (the
-seam contract — customer chooses among supported substrates) and what
-PCS workflows do with the pillar. The **normative spec** for each
-pillar lives in STD-001 §5.x (per-pillar numbered requirements +
-Conformance Profile). The substrate matrices in this Part are
+**Seven substrate pillars + the MCC host frame.** This Part
+documents the seven substrate pillars (IBX, AKB, ACT, IAM, PGE,
+CRB, DPG, in §§3.1–3.7) and MCC (§3.8) as the host frame that
+hosts them. The eighth and final pillar — **PCS** — is the action
+layer covered in Part 2 and lives normatively in STD-001 **§6**
+(currently Reserved). Pillar count is **8** per `[FM-MCC-0011]`;
+MCC is host, not pillar #9. PCS reaches each pillar via its
+published interface (skills, MCP tools, hooks) — pillars stay
+zero-coupled, standalone-installable, and substrate-pluggable.
+Each section names the substrate matrix (the seam contract —
+customer chooses among supported substrates) and what PCS workflows
+do with the pillar. The **normative spec** for each pillar lives
+in STD-001 §5.x (per-pillar numbered requirements + Conformance
+Profile). The substrate matrices in this Part are
 **illustrative**; the authoritative substitutability claim per
 pillar is the STD's **§5.x.1 Conformance Profile** with its Test
 Set column. Where this Handbook substrate matrix and the STD
@@ -1271,9 +1455,14 @@ PGE, CRB, and the Judge gate route *through* IBX to reach Workforce.
 The PCT (Principal Control Token, nine-field schema) is an IBX message;
 that's why PCT lives in IBX rather than expanding PCS scope.
 
-**Status**: POC-in-production today (`agent-inbox-mcp` server +
-`inbox-ui` Wails desktop app + `messages.inbox` ClickHouse table).
-**Normative spec**: STD-001 §5.1 (12 requirements + Conformance
+**Status**: in-production on the PG-backed deployment
+(`agent-inbox-mcp` server + `inbox-ui` Wails desktop app +
+event-sourced PostgreSQL on `infra-pg-1`). The earlier
+`messages.inbox` ClickHouse-table POC is superseded as pre-matrix
+history — its ClickHouse substrate fell outside the
+substrate-matrix's claim-queue contract (transactional SKIP-LOCKED;
+OLAP unsuitable), which is why the in-production deployment is on
+PG. **Normative spec**: STD-001 §5.1 (12 requirements + Conformance
 Profile). Authoring drafts retained in `devel/spec-drafts/IBX-SPEC.md`
 as historical reference.
 
@@ -1829,6 +2018,75 @@ AI operations. The mesh makes it mechanical because the workflow IS
 the propagation — there is no separate "rollout" step that can be
 skipped.
 
+## 4.4.1 Judge-gate failure modes
+
+The Judge gate is the single most load-bearing element of the human
+side of the mesh — it shows up in §1.6 (first-class architectural
+element), §2.12 (Judge surface in MCC), §3.1 (server-enforced at
+IBX submission per `[FM-IBX-0003]`). An architecture whose thesis is
+"humans supply judgment at the gates that matter" has to take the
+failure modes of that judgment seriously. The Judge is human; the
+attack surface is operator attention and cognitive load.
+
+**Approval fatigue.** A Judge faced with N approvals per day past
+some threshold will start approving by pattern-match rather than
+review. The risk is not laziness; it's that human attention is a
+finite resource and a flood of low-stakes approvals erodes the
+attention available for the high-stakes ones. **Mitigation**: rate
+ceilings on approval-event emission per principal-id per window
+(operator-configurable; default rate flagged as a
+`pcs.policy.divergence` event when exceeded); per-priority sorting
+in MCC so high-stakes batches are visually distinct from routine
+ones.
+
+**Approval-spam attack.** An adversary (or a malfunctioning agent)
+floods the Judge surface with low-stakes approval requests to mask
+a single high-stakes one in the noise. **Mitigation**: ACT
+analytics on approval-request velocity per requesting identity;
+the divergence-event class for anomalous approval-spam patterns
+fires before the high-stakes request reaches the Judge surface;
+the operator gets the signal, not the per-request spam.
+
+**Injection-shaped message content.** An agent crafts a PCT body
+designed to read as routine to a human reviewer while triggering
+a non-routine action when applied. The Judge sees plausible text;
+the system enforces a different effect. **Mitigation**: the MCC
+approval pane **shall** display the structured effect of the
+operation (target identity, scope, what-changes-where), not just
+the natural-language `task` field. The Judge approves the effect,
+not the prose. The structured display is bound to `[FM-MCC-0010]`
+Judge-gate hook's uniform UX with typed re-attestation of the
+target value (not yes/no click).
+
+**Second-Judge thresholds for anomalous batches.** When an
+approval batch exceeds operator-configured thresholds (rate;
+single-requester concentration; same-target-class concentration),
+the Judge gate **shall** escalate to a second-Judge requirement
+before any of the batch applies. This converts a single-Judge
+fatigue compromise into a multi-Judge attack surface that costs
+proportionally more for the adversary.
+
+**ACT analytics on approval patterns.** ACT's three-consumer-class
+access pattern per `[FM-ACT-0007]` includes Detection — the Judge-
+gate's approval stream is exactly the kind of behavioral-anomaly
+detection workload the Detect Layer is for. When the Detect Layer
+is operational per `[FM-ACT-0008]`, approval-pattern anomalies
+(rate spikes, requester-concentration, target-concentration,
+time-of-day shifts) emit `act.detection_signal` events that route
+to the operator surface. The operator sees the pattern, not just
+the events.
+
+**Bound STD requirements.** Server-enforced Judge gate =
+`[FM-IBX-0003]`; Judge-gate hook with uniform typed re-attestation
+= `[FM-MCC-0010]`; ACT three-consumer-class support including
+Detection = `[FM-ACT-0007]`; Detect Layer transitional clause
+governing the analytics maturity =
+`[FM-ACT-0008]`. **The mitigations above** are intended to land as
+operational deployment guidance and as future numbered
+requirements on MCC's Judge-gate UX (rate ceilings, structured
+effect display, second-Judge thresholds) when the §6 PCS
+workflow gate-management requirements are written.
+
 ## 4.5 Customer extends without forking
 
 The substrate-matrix × workflow composition is described mechanically
@@ -1874,18 +2132,22 @@ agent what they want. The agent reads the plugin and executes the
 workflow. The operator approves what needs Judge-gating; everything
 else is mechanical.
 
-The only irreducibly-human step is the bootstrap trust-root mint
-(`vault operator init` — agent-out-of-secret-path; §2.11). After that,
-everything is workflow execution.
+The irreducibly-human steps are **the bootstrap trust-root mint
+(`vault operator init` — agent-out-of-secret-path) and the
+mesh-init quorum ceremony** (multi-human; `[FM-INV-0004.4]`); both
+sit outside the workflow-execution model by design and are detailed
+in §2.11. After those ceremonies, everything else is workflow
+execution.
 
 ## 4.7 Documentation model
 
-The mesh ships **three documentation artifacts, total:**
+The mesh ships **four documentation artifacts, total:**
 
 | Artifact | What it answers | Audience |
 |----------|----------------|----------|
-| **The spec** (this document) | "What IS the system?" — formal contract | Implementers, auditors, alternative-implementations, future agent sessions |
-| **The user guide** | "What DOES the system do?" — conceptual narrative | Operators, architects, evaluating customers |
+| **The Standard** (`FIDUCIAL-MESH-STD-001`) | "What IS the system?" — formal contract; numbered requirements with Verification lines | Implementers, auditors, alternative-implementations, future agent sessions |
+| **The Handbook** (`FIDUCIAL-MESH-HDBK-001`, *this document*) | "Why is the system shaped this way?" — non-normative rationale, worked examples, design history | Architects, evaluating customers, operators reading STD against context |
+| **The user guide** | "What DOES the system do?" — conceptual operations narrative | Operators, evaluating customers |
 | **The workflow matrix** | "How do I DO things?" — registry-derived executable index | Anyone running a Mesh |
 
 **No traditional admin guide. No step-by-step install procedure. No
@@ -1908,9 +2170,19 @@ admin docs."
 
 ## 4.8 The dogfood story — KI7MT lab as tenant #1
 
-The KI7MT AI Lab is structurally just one specific Mesh deployment —
-the one where Fiducial Mesh itself is built. Same PCS registry, same
-validation harness, same governance gates as any customer deployment.
+The KI7MT AI Lab is structurally **becoming** one specific Mesh
+deployment — the one where Fiducial Mesh itself is built. The
+target shape is: same PCS registry, same validation harness, same
+governance gates as any customer deployment. **Today's honest
+state**: the lab dogfoods the pillars that exist (IBX, IAM scaffold,
+MCC backend, AKB partial — each under its own declared transitional
+deviation per the §3.x status lines), and the PCS layer that
+mechanically anchors the dogfood claim is **§6 Reserved** — design
+stage. The "tenant #1 by construction" framing is true *as the PCS
+layer lands*; today it is true for the pillars already operational
+under their deviations, and aspirational for the PCS layer that
+will land it fully when §6 is written.
+
 Lab projects are tenants in the Lab Mesh: `ki7mt-lab-fm-dev` (mesh
 development), `ki7mt-lab-ionis` (IONIS-AI), `ki7mt-lab-qsograph`
 (QSO-Graph MCP fleet), `ki7mt-lab-substrate` (substrate operations),
@@ -1931,9 +2203,16 @@ practice:
 | Plugins | Yes | Yes (cross-vendor common core) | Yes (GPLv3, public) | Public OSS reference plugins in `fiducial-mesh-*` namespaces |
 | Workflows | No (deployment-specific) | No (hostnames, paths, IPs baked in) | Operator-owned (private by default) | Stays in the operator's mesh registry |
 
-KI7MT Lab dogfoods the same artifacts every customer gets. The
-workflows we use daily become the proof. "The lab IS the reference
-implementation" — mechanically true at the PCS layer.
+KI7MT Lab dogfoods the same artifacts every customer gets — for the
+pillars that exist, under their declared deviations. The workflows
+the lab uses daily become the proof for those pillars. "The lab IS
+the reference implementation" — **mechanically true at the PCS
+layer once §6 lands**; mechanically true today only for the
+pillars that have landed normatively (IBX §5.1, IAM §5.2 under the
+identity-by-brief deviation, MCC §5.8 host frame under the
+partial-load deviation, AKB §5.5 under partial-load) and the
+deviations they operate under. Naming the present-tense gap is the
+honesty the dogfood claim earns.
 
 ---
 
