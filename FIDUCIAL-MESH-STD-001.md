@@ -2161,6 +2161,27 @@ unloaded set, the fallback-emitter rule is **generic**:
    Appendix F entry **shall** state which emission mode (MCC
    fallback per item 1; attestation cadence per this item)
    applies to each active deviation.
+
+   **Granularity-eligibility constraint (Nyquist defense).**
+   The attestation-cadence floor is sampling at a low frequency
+   relative to per-session emission; subtypes whose CLCA-trigger
+   derivation per `[FM-INV-0005.2]` depends on **per-session
+   temporal resolution** (notably `vendor-hosted-reasoning`,
+   which requires per-session granularity to make usage patterns
+   visible to audit) **shall not** be eligible for the
+   attestation-cadence fallback — a weekly aggregate sample
+   mathematically aliases the per-session signal per the
+   Nyquist-Shannon sampling theorem, rendering the audit blind
+   to the surge patterns the per-session emission was designed
+   to surface. If neither PGE nor MCC can emit a subtype that
+   requires per-session granularity, the affected workload class
+   **shall** fail-strict per `[FM-INV-0002]` rather than silently
+   lose audit resolution. The deviation registry per §F.2
+   **shall** declare, per active subtype, whether the subtype is
+   per-session-granularity-required (eligible only for items 1
+   fallback or operational canonical emitter) or
+   per-deviation-window-aggregate-sufficient (eligible for any
+   emission mode including this item 2 floor).
 3. **Equivalence for consumers.** Fallback-emitted events
    (whether MCC frame per item 1 or attestation-cadence per item
    2) satisfy `[FM-INV-0005.2]` audit requirements identically
@@ -2549,20 +2570,34 @@ the chain initial event is **not unanchored**:
   sole permitted predecessor that is itself unattributed;
   subsequent links require full attribution per `[FM-ACT-0003]`.
 - **Every subsequent session** (any session N ≥ 2 of any pillar)
-  **shall** chain-link its initial event to the hash of the
-  **most-recent `act.chain_checkpoint` event** for that pillar at
-  the time the session begins, providing the verifiable
-  predecessor for sessions whose first event would otherwise be
-  unanchored. This makes session insertion and session deletion
-  tamper-evident: a fabricated session whose initial event does
-  not chain to a real checkpoint hash fails chain verification;
-  a deleted session whose checkpoint hash would have been the
-  predecessor for the next session breaks the next session's
-  initial-event chain.
+  **shall** chain-link its initial event to the **chain-checkpoint
+  with the highest monotonic sequence number** issued by the ACT
+  event store for that pillar at the time the session begins. To
+  enable this, ACT **shall** issue every `act.chain_checkpoint`
+  event a strictly-monotonic per-pillar sequence number
+  (Lamport-style logical timestamp; the sequence is total within
+  the pillar's chain, not across pillars) and the chain-link
+  field on the session's initial event **shall** reference the
+  checkpoint by `(pillar, sequence_number, checkpoint_hash)` —
+  not by wall-clock "most-recent." In a distributed mesh,
+  "most-recent" by wall-clock is undefined without a global
+  atomic clock per the relativity-of-simultaneity property of
+  distributed systems; the monotonic sequence number provides
+  the strict total ordering chain reconstruction depends on,
+  and the `(pillar, sequence_number, checkpoint_hash)` triple
+  is deterministically resolvable across implementations. This
+  makes session insertion and session deletion tamper-evident:
+  a fabricated session whose initial event does not chain to a
+  real `(pillar, sequence_number, checkpoint_hash)` fails chain
+  verification; a deleted session whose checkpoint reference
+  would have been the next-session predecessor breaks the next
+  session's initial-event chain.
 
 A chain whose initial event does not trace back to either a
 genesis-event anchor (first session) or a previously-emitted
-`act.chain_checkpoint` event (sessions N ≥ 2) is non-conforming.
+`act.chain_checkpoint` event referenced by its
+`(pillar, sequence_number, checkpoint_hash)` triple (sessions
+N ≥ 2) is non-conforming.
 
 **Retention-boundary re-anchoring.** When the `[FM-ACT-0011]`
 retention-expiration ceremony removes a chain predecessor, the
@@ -3670,11 +3705,45 @@ enumeration: `deterministic`, `numerical-drift-only`,
 ACT, test-result interpretation) **shall** read the declared
 level rather than assuming `deterministic`.
 
+**Empirical-verification requirement (Halting-problem defense).**
+The determinism declaration is a *claim by the submitter*; an
+agent (or human) can incorrectly declare a stochastic workload
+as `deterministic` (unseeded RNG, network-timing dependence,
+race-condition-bearing concurrency). Static analysis cannot
+prove determinism of an arbitrary Turing-complete program (the
+Halting problem; Gödel's incompleteness applied to determinism
+as a predicate). Therefore: any execution artifact declaring
+`deterministic` **shall** be empirically verified by DPG during
+the pre-promotion lifecycle per `[FM-DPG-0009]` — DPG **shall**
+execute the artifact **N ≥ 2 times** under identical declared
+inputs + identical bounds, and **shall** verify that the output
+hashes are identical across runs. If the output hashes diverge,
+the declaration is rejected and the artifact's
+`determinism level` **shall** be re-classified to
+`numerical-drift-only` (if the divergence is bounded numerical
+noise per a declared tolerance) or `nondeterministic` (otherwise).
+The verifier-side empirical test is the structural defense
+against the declaration-vs-reality gap; the spec accepts no
+declaration without it for `deterministic`-class workloads.
+
+The N value is operator-configurable per deployment (default
+N = 2; high-stakes deployments may require N ≥ 5 for additional
+confidence at promotion-time cost). For `numerical-drift-only`
+declarations, the tolerance bound **shall** be declared per
+artifact and the empirical test **shall** verify outputs stay
+within tolerance across the N runs.
+
 *Verification: Conformance-test* — the harness runs the same
 sample execution twice under identical inputs and asserts
 identical outputs for `deterministic`-declared workloads; runs a
 CUDA workload twice and asserts the execution record's declared
-determinism level matches the observed reduction-order behavior.
+determinism level matches the observed reduction-order behavior;
+**submits an artifact declaring `deterministic` that actually
+uses unseeded RNG and asserts the N≥2 empirical test catches
+the divergence and re-classifies the declaration; submits an
+artifact declaring `numerical-drift-only` with a tolerance and
+asserts the empirical test verifies outputs stay within
+tolerance**.
 
 #### `[FM-DPG-0011]` Reconciliation sweep for lost completions
 
