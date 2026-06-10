@@ -456,7 +456,9 @@ runtime multi-sig pattern: a compromised verifier that proceeds
 with fewer than K attestations is a runtime-side defect classified
 per `[FM-INV-0005]` (platform enforcement floor is authoritative).
 The multi-sig pattern itself does not defend against verifier
-compromise; the platform-floor invariant does.
+compromise; the platform-floor invariant does. The verifier is
+**named, owned, audited, and instrumented** as a PGE sub-component
+per `[FM-PGE-0015]` — not an unspecified runtime service.
 
 Catastrophic-class capabilities include, non-exhaustively: applying
 or revoking a policy overlay; revoking the ARCA root CA; minting a
@@ -1835,7 +1837,11 @@ without audit.
 For operations classified as catastrophic-class per `[FM-INV-0004]`,
 PGE **shall** require K-of-N quorum attestation before issuing an
 `allow` decision. The quorum-verification path is per `[FM-INV-0004]`;
-PGE is the enforcement point that consumes the verified quorum result.
+the **quorum verifier** that collects, validates, and signs the
+verified result is the named PGE sub-component per `[FM-PGE-0015]`;
+PGE per this requirement consumes the verifier's structured signed
+result and **shall** verify the verifier's signature before
+accepting the result as a basis for `allow`.
 
 A catastrophic-class operation request that lacks K-of-N quorum at
 decision time **shall** be denied independent of policy; presence
@@ -2036,6 +2042,83 @@ PGE operations and asserts emission of expected span/metric/log
 records to a test OTLP sink with required attributes present;
 confirms the `mesh.pge.*` namespace.
 
+#### `[FM-PGE-0015]` Quorum verifier — named PGE sub-component
+
+The **quorum verifier** is the runtime component that, for every
+catastrophic-class operation per `[FM-INV-0004]`, **collects
+attestations from independent identities, evaluates each
+attestation's expiry per `[FM-INV-0004.2]`, validates role-coverage
+per `[FM-INV-0004.3]`, and produces the verified K-of-N result PGE
+consumes per `[FM-PGE-0009]`**. The verifier is the load-bearing
+component whose integrity `[FM-INV-0004]` names; it **shall** be
+an owned, audited, instrumented PGE sub-component, not an
+unspecified service.
+
+The verifier **shall**:
+
+1. Hold its own IAM-issued principal-id per `[FM-IAM-0006]` (job
+   code: `pge-quorum-verifier` or equivalent); **shall not** use
+   the operator's or any attester's credentials.
+2. Collect attestations from independent identities through an
+   authenticated submission surface; verify each attestation's
+   signature against the IAM identity context per `[FM-IAM-0011]`;
+   verify each attestation's expiry per `[FM-INV-0004.2]` using
+   the verifier-side clock per that requirement's time-model
+   discipline; verify role-coverage per `[FM-INV-0004.3]`.
+3. Produce a **structured verified-quorum result** containing:
+   the operation identifier, the K threshold, the attester
+   identities, the role-coverage assertion, the verifier's
+   signature over the result. PGE per `[FM-PGE-0009]` consumes
+   the structured result; PGE **shall** verify the verifier's
+   signature and **shall not** accept an unsigned or
+   verifier-signature-invalid result.
+4. Be **horizontally scalable** but **logically single-sourced
+   per operation** — multiple verifier instances may collect
+   attestations for distinct operations concurrently; for any
+   single operation, exactly one verifier instance **shall** be
+   the source of the verified-quorum result. Concurrent verifier
+   instances racing on the same operation **shall** be detected
+   and resolved deterministically (e.g., by leader election on
+   the operation identifier).
+5. Emit `pge.quorum.attestation_collected`,
+   `pge.quorum.attestation_expired`,
+   `pge.quorum.role_coverage_failed`, `pge.quorum.verified`, and
+   `pge.quorum.rejected` events to ACT per the `[FM-ACT-0009]`
+   ack contract — the verifier's own audit stream.
+6. Emit `mesh.pge.quorum.*` operational telemetry (collection
+   latency, attestation-expiry rate, verified-quorum-rate,
+   verifier-leader-election events) to the OTLP sink per
+   `[FM-PGE-0014]`.
+
+**Catastrophic-class operations during the `[FM-PCS-0016]`
+convention deviation.** The PCS-0016 convention window relaxes
+`[FM-PCS-0015]` (PCS-Daemon dispatch) but **does not** relax
+`[FM-PCS-0011]` or `[FM-INV-0004]`. Core-tier promotion remains
+catastrophic-class regardless of Daemon state and **shall not**
+be applied without a quorum-verified result from `[FM-PGE-0015]`.
+A deployment operating under the PCS-0016 convention deviation
+**may** route core-tier promotion attestations through any
+interim mechanism (paper signatures + manual ACT entry by a
+documented operator-of-record process; out-of-band signed
+attestations submitted by the operator to the verifier) — but
+the verifier **shall** still produce the structured signed
+result, PGE **shall** still consume it, and a solo-Judge
+promotion of a core-tier artifact **shall** be classified
+non-conforming per `[FM-INV-0004]`. The PCS-0016 deviation
+permits the Daemon-mediated dispatch to be absent; it does not
+permit the quorum gate to be absent.
+
+*Verification: Conformance-test* — the harness exercises a
+catastrophic-class operation with K-1 attestations and asserts
+the verifier produces no verified-quorum result; with K
+attestations from distinct identities asserts a signed result;
+with K attestations one of which is expired per
+`[FM-INV-0004.2]` asserts no verified-quorum result; under
+concurrent verifier instances racing on the same operation
+asserts deterministic resolution; under `[FM-PCS-0016]`
+convention deviation asserts core-tier promotion via solo-Judge
+(no verifier-produced result) is rejected.
+
 ### §5.3.1 PGE Conformance Profile
 
 The PGE pillar's substrate substitutability claim covers exactly the
@@ -2049,6 +2132,7 @@ implementations.
 | Policy evaluation engine | `[FM-PGE-0001]`, `[FM-PGE-0002]`, `[FM-PGE-0013]` | Distributed per-surface enforcement composed of: a build-time test-runtime policy suite exercising the rule corpus, a runtime tool-call guard hook on the agent surface, and a CI release gate | OPA (Open Policy Agent) 0.60+ with Rego eval, Cedar runtime with declarative policy engine, per-pillar embedded policy engines, hybrid centralized + per-surface | `pge-engine-v1` |
 | Enforcement surface | `[FM-PGE-0005]`, `[FM-PGE-0007]`, `[FM-PGE-0009]`, `[FM-PGE-0010]` | Distributed multi-surface — PreToolUse hook + IBX submission chokepoint + DPG ephemeral boundary + CI release gate + per-server test suite | OPA-sidecar middleware at IBX/DPG, Cedar runtime sidecar, custom enforcement library per-pillar, hybrid | `pge-enforcement-v1` |
 | Overlay consumption | `[FM-PGE-0012]` | Signed overlay bundles consumed from PCS registry (§6 when landed) | Any signed bundle format declared conformant by PCS (§6 + Appendix B when landed) | `pge-overlay-v1` |
+| Quorum verifier | `[FM-PGE-0015]` | Named PGE sub-component running with its own IAM-issued principal-id; structured signed verified-quorum result consumed by `[FM-PGE-0009]`; horizontally scalable with leader election per operation identifier | Any quorum-verifier implementation satisfying the structured-signed-result contract + the IAM-attribution + ACT audit stream + leader-election deterministic-resolution properties | `pge-quorum-verifier-v1` |
 | Telemetry sink | `[FM-PGE-0014]` | OTLP-on-the-wire (any OTLP-compatible backend per ACT §5.4) | Grafana/Prometheus/Tempo, Azure Monitor, Datadog, OCI Monitoring | `pge-telemetry-v1` |
 
 Out-of-set substrates **shall not** be claimed supported. Extending
