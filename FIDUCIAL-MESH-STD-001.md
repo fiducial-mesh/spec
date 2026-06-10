@@ -631,9 +631,15 @@ A genesis event **shall**:
 5. Be the **only** ACT events permitted to bypass `[FM-ACT-0003]`
    attribution. Once any genesis ceremony per item 2 completes,
    subsequent events of that ceremony's class **shall not** be
-   emittable — the genesis class is one-shot per `genesis_subtype`
-   per deployment lifetime. A second `mesh-init-quorum-bootstrap`
-   event in the same deployment is non-conforming.
+   emittable **except** as a quorum-attested re-issuance per
+   item 6 that carries a non-empty `supersedes_genesis` reference
+   to a prior genesis event of the same subtype. A second
+   `mesh-init-quorum-bootstrap` event without a valid
+   `supersedes_genesis` reference + quorum attestation is
+   non-conforming; a quorum-attested re-issuance with a valid
+   `supersedes_genesis` reference is conforming per item 6 and
+   is the **only** path by which a second event of any genesis
+   subtype is permitted.
 6. Be classified catastrophic-class per `[FM-INV-0004]` — a re-
    issuance ceremony for a previously-emitted genesis subtype (e.g.,
    re-bootstrapping the IAM root after a compromise) **shall** itself
@@ -662,8 +668,12 @@ attestation and are present in ACT before any IAM-attributed
 event; Conformance-test exercises the first runtime session after
 genesis and asserts its chain initial event references the
 genesis event's hash as predecessor; attempts to emit a second
-`mesh-init-quorum-bootstrap` event in the same deployment and
-asserts rejection; verifies any other class of unattributed
+`mesh-init-quorum-bootstrap` event **without** a valid
+`supersedes_genesis` reference + quorum attestation and asserts
+rejection; emits a quorum-attested re-issuance per item 6 with a
+valid `supersedes_genesis` reference and asserts the event is
+accepted AND the head-of-supersedes-chain resolution per item 6
+returns the new event; verifies any other class of unattributed
 event submission is rejected.
 
 ### §4.4 Platform enforcement floor
@@ -4766,11 +4776,28 @@ submits a clean artifact and asserts acceptance.
 Before any registered artifact executes, the **Pre-execution
 gate** **shall** check:
 
-- **Lifecycle**: `lifecycle_state != "draft"` (draft artifacts
-  cannot execute in production);
-- **Deprecation**: `lifecycle_state == "deprecated"` emits a
-  warning + logs the deprecation event but does not block
-  execution;
+- **Lifecycle**: the gate **shall** enumerate every state from
+  `[FM-PCS-0012]` and decide execution per-state explicitly:
+  Draft / Validating / Failed / Validated **shall** block
+  (non-resolvable upstream; defense in depth at the gate);
+  Published **shall** permit; Deprecated **shall** permit with
+  warning + deprecation-event emission; Withdrawn **shall**
+  permit only when invoked through the explicit legacy-resolution
+  path; Archived **shall** permit only when invoked via explicit
+  pinning; **Quarantined shall block (compromised state;
+  non-resolvable by every consumer class)**; Purged **shall**
+  block (bytes deleted; cannot execute). **Any future lifecycle
+  state not enumerated above shall default-deny per
+  `[FM-INV-0005.1]`** — unclassified ≠ safe.
+- **Signature / hash verification against BOM-pinned record**:
+  the gate **shall** verify the artifact's content hash and
+  signature chain against the BOM-pinned record per
+  `[FM-PCS-0013]` at execution time, not only at registration.
+  Registry-substrate compromise between registration and
+  execution otherwise serves modified bytes through a passing
+  gate — the MCC-0003 TOCTOU lesson per `[FM-MCC-0003]` applies
+  at the PCS layer as well; the version revalidation pattern
+  generalizes.
 - **Capability handshake**: every entry in
   `requires_capabilities` is present in the deployment's
   declared execution profile;
@@ -4788,7 +4815,11 @@ out of by the plugin's `policy:` declaration per
 *Verification: Conformance-test* — the harness exercises each
 check via a violating artifact + a clean artifact; asserts
 violators halt at the gate; asserts the gate cannot be bypassed
-by relaxing the plugin's `policy:` declaration.
+by relaxing the plugin's `policy:` declaration; exercises an
+artifact whose content hash diverges from the BOM-pinned record
+between registration and execution and asserts the gate halts
+the execution; exercises Quarantined-state and unclassified-state
+artifacts and asserts default-deny.
 
 #### `[FM-PCS-0011]` Pre-promotion gate
 
@@ -4818,8 +4849,8 @@ recorded in ACT per `[FM-PCS-0017]`:
 
 ```
 Draft → Validating → Validated → Published → Deprecated → Withdrawn → Archived → Purged
-              ↓ (fail)                                ↑ (emergency from any active state)
-            Failed → back to Draft
+              ↓ (fail)                                ↓ (emergency)
+            Failed → back to Draft                  Quarantined → Purged (after forensic-window expiry)
 ```
 
 Resolvability from the registry per consumer:
@@ -4831,7 +4862,20 @@ Resolvability from the registry per consumer:
 | Deprecated | Yes (with warning per `[FM-PCS-0010]`) |
 | Withdrawn | Yes (legacy resolution only) |
 | Archived | Yes (explicit pinning only) |
+| **Quarantined** | **No (compromised / emergency-revoked; bytes retained for forensics; non-resolvable by every consumer class)** |
 | Purged | No (bytes deleted; ACT audit-log entry remains) |
+
+**Emergency transitions** from any active state (Draft / Validated
+/ Published / Deprecated / Withdrawn / Archived) target
+**Quarantined**, not Withdrawn. Withdrawn is the *graceful*
+retirement state (legacy consumers can still resolve);
+**Quarantined is the *compromised* state — non-resolvable by every
+consumer class**, bytes retained for forensics until an
+operator-configurable forensic-window expires and the artifact
+transitions to Purged. A compromised plugin that emergency-revoked
+to Withdrawn would continue executing for any legacy or pinned
+consumer until Purge destroyed the forensic bytes; the Quarantined
+state closes that path.
 
 Bytes can be removed at `Purged`; the audit chain per
 `[FM-ACT-0001]` + `[FM-ACT-0005]` **shall** preserve the
@@ -4840,8 +4884,11 @@ lifecycle-event history for the purged version indefinitely
 applies if retention policy removes the historical events).
 
 *Verification: Conformance-test* — the harness exercises each
-state transition and asserts the ACT event is recorded;
-exercises a Purge and asserts the bytes are removed AND the
+state transition and asserts the ACT event is recorded; exercises
+an emergency transition and asserts the target is Quarantined (not
+Withdrawn) with the artifact non-resolvable by every consumer
+class; exercises a Quarantined → Purged transition after the
+forensic-window expiry and asserts the bytes are removed AND the
 ACT chain is preserved with the re-anchoring at the boundary.
 
 #### `[FM-PCS-0013]` Registry contract — mesh-internal, BOM-pinned
