@@ -33,7 +33,7 @@ The Standard is organized NASA-STD-style:
 | §3 | Acronyms & Definitions | Complete |
 | §4 | Top-Level Invariants (`FM-INV-NNNN`) | Complete |
 | §5 | Pillar requirements — 7 substrate pillars (§§5.1–5.7) + MCC host frame (§5.8) | Filled |
-| §6 | **PCS** — the eighth pillar (plugin & workflow requirements) | Reserved |
+| §6 | **PCS** — the eighth pillar (plugin & workflow requirements) | Filled |
 | §7 | Operational requirements | Reserved |
 | App. A | PCT Schema (normative) | Complete |
 | App. B–E | Manifest schema, namespace conventions, cross-pillar binding, regulatory crosswalk | Reserved |
@@ -51,9 +51,9 @@ The Standard is organized NASA-STD-style:
 | 5.6 | **DPG** — Deterministic Proving Ground (pillar) | Filled (14 requirements + Conformance Profile) |
 | 5.7 | **CRB** — Compute Resource Broker (pillar) | Filled (13 requirements + Conformance Profile) |
 | 5.8 | **MCC** — Mesh Control Center (**host frame**, not a pillar; see `[FM-MCC-0011]`) | Filled (14 requirements + Conformance Profile) |
-| 6 | **PCS** — Platform Control System (the eighth pillar) | Reserved |
+| 6 | **PCS** — Platform Control System (the eighth pillar) | Filled (18 requirements + Conformance Profile) |
 
-§5 is complete — 7 substrate pillars (§§5.1–5.7) + the MCC host frame (§5.8). The eighth and final pillar, **PCS**, lives in §6 (reserved). Pillar count is 8; MCC is host, not pillar #9.
+**Spec is complete.** §5 covers 7 substrate pillars (§§5.1–5.7) + the MCC host frame (§5.8); §6 covers the eighth pillar, **PCS**. Pillar count is 8; MCC is host, not pillar #9. All 8 pillars have numbered requirements + a Conformance Profile.
 
 **Review chain status:**
 
