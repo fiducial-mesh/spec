@@ -420,20 +420,58 @@ or ambiguous test blocks merge.
 
 #### `[FM-INV-0004]` Quorum authority for catastrophic-class capabilities
 
-For any capability classified as catastrophic-class, authority **shall**
-be distributed across N independent identities via Shamir K-of-N
-quorum. Single-identity wielding of a catastrophic-class capability
-**shall** be structurally impossible — not merely policy-restricted.
+For any capability classified as catastrophic-class, authority
+**shall** be distributed across N independent identities via
+**K-of-N multi-signature attestation enforced by an independent
+verifier**. Single-identity wielding of a catastrophic-class
+capability **shall** be **non-conformant by construction** — the
+verifier counts attestations and the operation does not apply
+without K-of-N signatures from independent identities.
 
-Catastrophic-class capabilities include, non-exhaustively: applying or
-revoking a policy overlay; revoking the ARCA root CA; minting a new
-overlay-author identity; rotating the trust-root key chain; mass
-identity action affecting the entire workforce; substrate decommission
-or irreversible data destruction.
+**Mechanism precision.** Two distinct mechanisms appear under the
+quorum authority discipline; they are not the same and **shall not**
+be conflated:
 
-*Verification: Conformance-test* — the harness submits a
-catastrophic-class operation request signed by fewer than K independent
-identities and asserts the operation is not applied.
+- **Mesh-init quorum-bootstrap ceremony per `[FM-INV-0004.4]`** —
+  uses **Shamir's Secret Sharing** to split the quorum-authority
+  master at initialization. K-of-N independent holders receive
+  cryptographic shards; the master can be reconstructed only when
+  K shards are presented together. This is the *init-time*
+  Shamir-shard model, parallel to the Vault unseal pattern.
+- **Runtime catastrophic-class operations** (applying or revoking
+  policy overlays; mass identity action; ARCA revocation;
+  substrate decommission, etc.) — use **K-of-N multi-signature
+  attestation counting**. K independent identities each sign an
+  attestation; the verifier counts attestations and applies the
+  operation only when K signatures are present. Nothing is
+  reconstructed from shards at runtime.
+
+The Standard binds both patterns; the *which-applies-when* is
+mechanical and depends only on whether the operation is the
+init-time ceremony per `[FM-INV-0004.4]` (Shamir) or a runtime
+catastrophic-class operation (multi-sig attestation).
+
+**Verifier integrity** is the load-bearing assumption for the
+runtime multi-sig pattern: a compromised verifier that proceeds
+with fewer than K attestations is a runtime-side defect classified
+per `[FM-INV-0005]` (platform enforcement floor is authoritative).
+The multi-sig pattern itself does not defend against verifier
+compromise; the platform-floor invariant does.
+
+Catastrophic-class capabilities include, non-exhaustively: applying
+or revoking a policy overlay; revoking the ARCA root CA; minting a
+new overlay-author identity; rotating the trust-root key chain;
+mass identity action affecting the entire workforce; substrate
+decommission or irreversible data destruction.
+
+*Verification: Conformance-test* — the harness submits a runtime
+catastrophic-class operation request signed by fewer than K
+independent identities and asserts the operation is not applied;
+exercises the mesh-init quorum-bootstrap ceremony per
+`[FM-INV-0004.4]` and asserts shard-based reconstruction requires
+K independent holders presenting shards; verifies the
+verifier-integrity assumption is documented in the deployment's
+attestation per `[FM-INV-0005]`.
 
 ##### `[FM-INV-0004.1]` Asymmetric apply-vs-revoke thresholds
 
@@ -704,6 +742,129 @@ the registry covers at minimum {catastrophic-class operations per
 `[FM-INV-0004]`, judge-gated operations per `[FM-INV-0005]`, and the
 explicit state-affecting operation list each pillar specification
 declares in its §5 requirements when landed}.
+
+### §4.5 Reasoning-runtime substrate
+
+#### `[FM-INV-0006]` Reasoning-runtime substrate seam
+
+The **reasoning runtime** — the inference engine the deployment's
+agents themselves run on — is a deployment-level substrate seam
+parallel to the persistent-store, secret-store, and identity-
+provider seams. Its substitutability is contract-relevant: where
+the reasoning runs determines what content reaches what
+counterparty. The Standard binds this seam at the deployment
+level, not at any individual pillar.
+
+**Why this binds at invariant level** (rather than as a pillar-
+level Conformance Profile seam). The persistent-store, secret-
+store, and identity-provider seams are **sovereignty-neutral** —
+PostgreSQL vs Oracle vs MySQL, HashiCorp Vault vs Azure Key Vault
+vs AWS KMS, Samba AD vs Microsoft Entra vs OpenLDAP are all
+contract-substitutable choices that do not, by themselves,
+change what content reaches what counterparty (the deployment
+operator chooses substrates within their trust boundary; the
+substrate doesn't reach back out). The reasoning-runtime seam is
+**sovereignty-determining**: it admits exactly three closed
+classes — `sovereign-local-inference`, `vendor-hosted-reasoning`,
+`hybrid` — and the choice between them determines whether prompts
+and working context leave the customer trust boundary at all.
+That binary (data-egress yes/no) is a deployment-wide invariant,
+not a pillar-implementation detail; every deployment **shall**
+declare its position in the trichotomy, and the declaration is
+what makes the air-gap claim of the adjacent invariants
+(`[FM-INV-0001]` no-bypass-on-pillar-paths) coherent with the
+deployment's reasoning substrate.
+
+The substrate seam **shall** be declared by every deployment at
+attestation per `[FM-INV-0005]` and per §F.3 of the registry-
+integrity requirements. The declaration **shall** name:
+
+1. **Runtime substrate class** — `sovereign-local-inference` /
+   `vendor-hosted-reasoning` / `hybrid` per the deployment's
+   workload-class assignment (per-workload-class declaration
+   permitted; e.g., doer-tier on local inference,
+   escalation-tier on vendor-hosted reasoning).
+2. **Sovereign reference**: local inference (the reasoning model
+   runs inside the customer trust boundary; no callback;
+   prompts + working context never leave the boundary).
+3. **Data-flow consequence** for any workload class not on the
+   sovereign reference — what content reaches the vendor, under
+   whose identity, with what retention, and what the vendor's
+   stated data-handling commitments are.
+
+A deployment whose reasoning runtime is the sovereign reference
+across every workload class is **conformant** to this requirement.
+A deployment with any workload class on a non-sovereign reasoning
+runtime is **operating under a recognized deviation** per
+`[FM-INV-0006.1]`.
+
+*Verification: Inspection of deployment attestation + Conformance-test
+of per-workload-class declaration coverage* — Inspection of the
+deployment's attestation record per §F.3 confirms the three required
+fields are present (runtime substrate class drawn from the closed
+trichotomy; sovereign reference named; data-flow consequence
+documented for every workload class not on the sovereign reference);
+Conformance-test verifies the per-workload-class assignment covers
+every workload class the deployment routes to a reasoning runtime
+— an undeclared workload class is non-conforming; verifies a
+workload class declared `sovereign-local-inference` does not emit
+`vendor-hosted-reasoning` divergence events per `[FM-INV-0006.1]`
+item 2 over the attestation window.
+
+##### `[FM-INV-0006.1]` Vendor-hosted reasoning — transitional deviation
+
+A deployment **may** operate one or more workload classes on a
+**vendor-hosted reasoning runtime** (e.g., Anthropic Claude Code /
+Codex / equivalent vendor-cloud inference services) as a
+recognized **transitional deviation** until sovereign local
+inference is operational for the affected workload class. The
+deviation **shall**:
+
+1. Be registered in Appendix F per §F.2 with explicit sunset
+   condition: "sovereign local inference operational per
+   `[FM-INV-0006]` Sovereign reference for the affected workload
+   class — model substrate inside the customer trust boundary; no
+   callback for that class."
+2. Emit a divergence event to ACT per `[FM-INV-0005.2]` with
+   `divergence_type = "vendor-hosted-reasoning"` per
+   `[FM-PGE-0011]` discriminator (canonical emitter: PGE, via the
+   policy that classifies the session's reasoning-runtime
+   substrate as non-sovereign) for **every session** under the
+   deviation. Per-session emission is the granularity — the
+   deviation is per-workload-class, but the audit signal is
+   per-session so the deployment's actual usage pattern is visible
+   in ACT.
+3. Document, in the Appendix F entry per §F.2 `deviation_scope`
+   field, the **data-flow consequence** required by `[FM-INV-0006]`
+   item 3 — what content reaches the vendor + identity attribution
+   + retention + vendor's data-handling commitments.
+4. Be reviewed at each major Standard release; deviation expiry
+   **shall** be enforced when sovereign local inference is
+   declared operational for the affected workload class. Mirror
+   of the `[FM-IBX-0010]` / `[FM-IAM-0014]` / `[FM-PGE-0005]`
+   Gate-2 / `[FM-ACT-0008]` / `[FM-DPG-0013]` / `[FM-CRB-0010]` /
+   `[FM-MCC-0012]` transitional pattern.
+
+A deployment operating under the vendor-hosted-reasoning deviation
+**shall not** be claimed conformant to `[FM-INV-0006]` Sovereign
+reference on the basis of the deviation — it is conformant to the
+deviation clause only for the affected workload classes. Saying so
+plainly is the hostile-auditor baseline: vendor-hosted reasoning
+**is** data egress to the vendor regardless of how careful
+prompt-engineering is, and the deviation discipline names that
+honestly rather than implying the air-gap claim of `[FM-INV-0001]`
+adjacent invariants extends to the reasoning runtime.
+
+*Verification (operational): Conformance-test* — when sovereign
+local inference is operational for a workload class, the harness
+exercises representative sessions and asserts no
+vendor-hosted-reasoning divergence events are emitted for that
+class.
+*Verification (deviation period): Inspection of deviation registry
++ Conformance-test of per-session emission* — Appendix F entry
+present with sunset condition + data-flow consequence; per-session
+`vendor-hosted-reasoning` divergence events emitted to ACT for
+every session of the affected workload class.
 
 ---
 
@@ -1738,6 +1899,7 @@ when emitted by its canonical pillar:
 | `crb-codified-by-convention` | **PGE (per `[FM-CRB-0010]` transitional clause)** | Dispatch decision made under operator/agent convention; CRB broker daemon not yet operational |
 | `mcc-partial-load` | **PGE (per `[FM-MCC-0012]` transitional clause)** | Dispatch targets a pillar not yet loaded into MCC as a plugin |
 | `akb-fail-open-on-irreversible-hook` | **AKB (per `[FM-AKB-0011]` infra-decision-side escalation)** | AKB retrieval failed-open on a `[FM-AKB-0010]` domain-2 hook (`git push`, `gh pr`, deploy, substrate config) — the irreversible-step moment a suppressed warning is most load-bearing |
+| `vendor-hosted-reasoning` | **PGE (per `[FM-INV-0006.1]` transitional clause)** | The session's reasoning runtime is a vendor-hosted inference service (Anthropic Claude Code, OpenAI Codex, equivalent) rather than the sovereign-local-inference reference — prompts and working context reach the vendor; per-session emission so the deployment's actual usage pattern is visible in ACT |
 | (future subtypes) | Their respective canonical emitter pillar | Per the requirement that introduces the subtype |
 
 **Pattern note.** PGE is the canonical emitter for substrate-policy and
