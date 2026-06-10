@@ -1873,6 +1873,59 @@ A Delegation Token **shall** carry:
    delegator's identity authorizes the Token's mint; the
    intermediary cannot mint a Token on the delegator's behalf
    without the delegator's signing path being invoked.
+7. **`bound_delegator_identity_context_version`** — the
+   `Identity-context version` (field 6 of the identity context
+   per `[FM-IAM-0011]`) of the `delegator_principal_id` at the
+   moment the Token was minted. This field is the cryptographic
+   binding between the Token and the delegator's state at the
+   mint instant; the use-time revalidation per the block below
+   reads this field and compares it to the delegator's current
+   version.
+
+**Bound-delegator identity-context revalidation
+(Revocation-asymmetry defense).** A signed capability token is
+stateless: its intrinsic validity (signature + scope + expiry)
+is invariant from the mint instant to the expiry instant. Per
+the Revocation Problem in capability-based security, a
+stateless token cannot mathematically reflect state changes —
+suspend / resume / terminate / role-change per `[FM-IAM-0004]`
+/ `[FM-IAM-0005]` / `[FM-IAM-0011]` — that occur to the
+`delegator_principal_id` between mint and use. Therefore: PGE
+per `[FM-PGE-0008]` evaluating a Token-bearing request **shall**
+synchronously look up the `delegator_principal_id`'s current
+`Identity-context version` from IAM per `[FM-IAM-0011]` and
+**shall** reject the Token if either of the following holds:
+
+1. The current version differs from
+   `bound_delegator_identity_context_version` — the
+   delegator's state has changed since mint (suspend /
+   role-change / scope-revoke / terminate per `[FM-IAM-0005]`
+   / `[FM-IAM-0011]` items 3+6 increment the version), and the
+   Token's authorization context is stale.
+2. The delegator's current `Status` is not `active` per
+   `[FM-IAM-0011]` item 3 — the delegator is suspended or
+   terminated, and per the existing `[FM-IAM-0011]` discipline
+   a non-`active` status causes PGE to deny independent of
+   policy. The Token cannot extend authority a revoked
+   identity no longer holds.
+
+The version-check **shall** be performed on every evaluation
+of the Token, not cached. The Token is a *capability*; its
+authorization context is *liveness-bound* to the delegator's
+identity state. A Token that has not expired is not
+sufficient evidence of current authorization; the version
+revalidation is the synchronous freshness check that makes
+the Token's authorization liveness real rather than an async
+guarantee against the inherently async revocation channel.
+
+This pattern mirrors `[FM-MCC-0003]`'s identity-context-
+version revalidation on the auth-cache verbatim — both are
+applications of the same primitive: wherever a stateless
+credential outlives the instant of issuance, the verifier
+re-reads the authorizing identity's current version
+synchronously at use-time. The mesh deliberately reuses the
+one primitive across both surfaces rather than introducing a
+second revocation mechanism.
 
 PGE per `[FM-PGE-0008]` **shall** evaluate a Token-bearing
 request against the **Token's scope**, not the delegate's
@@ -1907,7 +1960,19 @@ Token-bearing request and asserts ACT records both
 `principal-id` (delegator) and `acting_principal-id`
 (delegate); attempts to re-delegate a Token transitively and
 asserts rejection; verifies PGE evaluates against the Token's
-scope, not the delegate's broader authority.
+scope, not the delegate's broader authority. **Revocation
+asymmetry**: mints a Token at T0 with the delegator
+`active`; suspends the `delegator_principal_id` at T0 + ε per
+`[FM-IAM-0005]`; presents the Token before its `expiry`
+elapses and asserts PGE rejects on the version mismatch
+(suspend bumped the `Identity-context version` per
+`[FM-IAM-0011]` items 3+6); resumes the delegator (which
+bumps the version again) and asserts a *fresh* Token minted
+post-resume succeeds while the pre-suspend Token still fails.
+Asserts the same rejection occurs if the delegator's
+`Status` is `terminated` at use-time even when the version
+field has not been compared (the non-`active` status check
+per `[FM-IAM-0011]` item 3 is independently sufficient).
 
 ### §5.2.1 IAM Conformance Profile
 
@@ -2748,6 +2813,34 @@ the chain initial event is **not unanchored**:
   for the tamper-evidence property the chain provides; strict
   total order is not required by that property and is
   incompatible with horizontal scaling of ACT issuers.
+
+  **Vector-clock dimension bound.** The vector clock's
+  dimension N (the number of components per timestamp) carries
+  a strict information-theoretic lower bound: per Charron-Bost
+  (1991), any mechanism that characterizes exact happens-before
+  causality across N participants requires per-event timestamps
+  of size at least N. The bound cannot be compressed below O(N)
+  without losing causality. Therefore: the set of vector-clock
+  participants — i.e., the issuers whose component a
+  `chain_checkpoint`'s timestamp carries — **shall** be the
+  **bounded, stable topology of the ACT storage nodes /
+  partitions** for that pillar's chain, NOT the ephemeral
+  upstream agent sessions emitting the audit events. ACT
+  storage-node count is small and stable across a deployment
+  (typically single-digit per pillar; bounded by the substrate
+  partition layout); ephemeral session count is unbounded and
+  would explode the per-event vector-clock overhead toward
+  megabytes per `chain_checkpoint`, eventually saturating the
+  substrate's row-size limit. ACT implementations **shall**
+  publish the participant-set composition (the stable
+  storage-node topology) in their conformance attestation so
+  the dimension is auditably bounded. Deployments wanting
+  per-session causality at a finer granularity **shall** adopt
+  a documented compressed-causality scheme (e.g., interval
+  tree clocks or bounded matrix clocks) rather than naïvely
+  growing the participant set — the bound stays O(N) on
+  whatever participant set is declared, and the declared set
+  must remain bounded.
 
   Chain reconstruction across the partially-ordered chain
   remains deterministic: the verifier walks each session's
