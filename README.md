@@ -59,12 +59,15 @@ The Standard is organized NASA-STD-style:
 
 | Pass | Doc | Reviewer | PR | Status |
 |------|-----|----------|-----|--------|
-| Pass-1 STD | STD-001 | Watson + Bob+panel | #87 | Merged |
+| Pass-1 STD | STD-001 (7 substrate pillars + MCC host) | Watson + Bob+panel | #87 | Merged |
 | Pass-2 STD | STD-001 | Patton adversarial | #88 | Merged |
 | Pass-1 HDBK | HDBK-001 (refresh) | Watson + Bob+panel | #89 | Merged |
-| **Pass-2 HDBK** | HDBK-001 | **Patton adversarial** | **#90 (this PR — in flight)** | **In flight** |
+| Pass-2 HDBK | HDBK-001 | Patton adversarial | #90 | Merged |
+| STD companion | STD-001 (Shamir precision + model-substrate seam) | Watson + Bob+panel | #91 | Merged |
+| PR-B-PCS | STD-001 §6 PCS (eighth pillar) | Watson + Bob+panel | #92 | Merged |
+| **Pass-3 STD** | **STD-001 complete (with §6 PCS)** | **Patton adversarial — final** | **#93 (in flight)** | **In flight** |
 
-STD ↔ HDBK pair is complete and navigable both directions (125/125 cross-reference coverage); STD requirements each carry a Verification line; Pass-2-HDBK closes the four-pass review chain.
+The complete STD-001 covers 8 pillars + MCC host frame + 6 invariants. HDBK-001 is the companion. Pass-3 STD is Patton's adversarial pass on the now-complete spec — focused on §6 PCS as net-new material and on the cross-pillar consequences of the inflated deviation machinery (10 active divergence_type subtypes, 3 new since Patton's last STD pass).
 
 Reserved sections are placeholders with the dependencies that already
 bind them (e.g., the audit-emission requirements every pillar
