@@ -1,9 +1,9 @@
 ---
 title: "FIDUCIAL-MESH-HDBK-001 — Fiducial Mesh Handbook"
 doc_type: handbook
-status: draft
-version: v0.1
-date: 2026-06-09
+status: released
+version: v1.0
+date: 2026-06-10
 authors:
   - "Fiducial Mesh Group"
 companion_to: FIDUCIAL-MESH-STD-001.md
@@ -1225,7 +1225,7 @@ names the boundary so the operator knows where the formal
 proof ends and physical-axiom trust begins; it does not
 pretend the boundary is closable in software.
 
-This is the chain-close on the multi-pass review of v0.1: the
+This is the chain-close on the multi-pass review of v1.0: the
 mesh contract is closed against the architectural failure
 modes a first-principles read can produce — Confused Deputy,
 CAP/FLP, Halting, Observer Effect, Amdahl, Capability
@@ -2077,12 +2077,12 @@ Language map (canonical reference in Appendix B):
 reference source code but does not bind a canonical mesh component.
 
 **Build / runtime substrate** per `DELIVERY-PACKAGING.md` § OS
-dual-tier: RHEL-compatible family only in v0.1 (Rocky 9.7+ / Alma
+dual-tier: RHEL-compatible family only in v1.0 (Rocky 9.7+ / Alma
 9.7+ / RHEL 9.7+ / UBI 9.7+). `ubuntu-latest` is **not acceptable**
 as the runner / container base / install host for any pillar's
 reference CI or shipped artifacts. The constraint exists because
 **the project validates the FIPS-clean and audit-substrate claims
-on one family — the RHEL family — for v0.1**; cross-distro builds
+on one family — the RHEL family — for v1.0**; cross-distro builds
 (Ubuntu Pro ships FIPS-validated modules, for instance) can produce
 conforming substrates on the same Standard requirements, but the
 project's reference validation isn't run there. Cross-distro test
@@ -2428,7 +2428,7 @@ canon.
    ack sequence; lack-of-ack or negative-ack causes fail-strict per
    `[FM-INV-0002]` / `[FM-INV-0002.1]`.
 6. **RHEL-compatible build / runtime substrate** — Rocky 9.7+ /
-   Alma 9.7+ / RHEL 9.7+ / UBI 9.7+ only in v0.1; no
+   Alma 9.7+ / RHEL 9.7+ / UBI 9.7+ only in v1.0; no
    `ubuntu-latest`. This is a project-level reference-implementation
    choice per the STD/HDBK boundary (§1.5); the Standard is
    substrate-pluggable per STD §1 — a customer's regulated build
@@ -2632,7 +2632,7 @@ all superseded by the current canon but retained for provenance):
 
 ---
 
-*End of Fiducial Mesh Handbook v0.1.*
+*End of Fiducial Mesh Handbook v1.0.*
 
 The Handbook is the rationale / worked-example / narrative
 companion to the normative Standard (`FIDUCIAL-MESH-STD-001`).

@@ -56,7 +56,7 @@ $(STD_OUT): $(STD)
 	@pandoc $(STD) $(PANDOC_COMMON) \
 		-V title="FIDUCIAL-MESH-STD-001 — Fiducial Mesh Platform Standard" \
 		-V author="Fiducial Mesh Group" \
-		-V date="2026-06-09" \
+		-V date="2026-06-10" \
 		-o $(STD_OUT) 2> $(STD_LOG) || (echo "STD PDF build failed — see $(STD_LOG)" && exit 1)
 	@echo "Built: $(STD_OUT)"
 	@warn=$$(grep -c "Missing character" $(STD_LOG) 2>/dev/null || echo 0); \
@@ -69,7 +69,7 @@ $(HDBK_OUT): $(HDBK)
 	@pandoc $(HDBK) $(PANDOC_COMMON) \
 		-V title="FIDUCIAL-MESH-HDBK-001 — Fiducial Mesh Handbook" \
 		-V author="Fiducial Mesh Group" \
-		-V date="2026-06-09" \
+		-V date="2026-06-10" \
 		-o $(HDBK_OUT) 2> $(HDBK_LOG) || (echo "HDBK PDF build failed — see $(HDBK_LOG)" && exit 1)
 	@echo "Built: $(HDBK_OUT)"
 	@warn=$$(grep -c "Missing character" $(HDBK_LOG) 2>/dev/null || echo 0); \
