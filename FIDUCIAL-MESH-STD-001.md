@@ -278,10 +278,26 @@ operation by virtue of network location, container co-residency, or
 implementation language. There **shall not** exist a "trusted because
 internal" path. No standing god-rights account **shall** exist; no
 bootstrap path that runs before identity verification is operational
-**shall** exist.
+**shall** exist, **except** the closed genesis-ceremony transport
+carve-out per `[FM-INV-0004.5]`. The genesis-transport carve-out is
+the sole permitted pre-identity bootstrap path: a one-shot ceremony
+endpoint (per `genesis_subtype`) authenticated by the
+holder-fingerprint attestation per `[FM-INV-0004.5]` item 3 rather
+than by IAM-issued principal-id. Outside this carve-out, no other
+pre-identity path **shall** exist; the carve-out is closed under the
+three subtypes enumerated in `[FM-INV-0004.5]` item 2 and is
+referenced by `[FM-MCC-0003]` (auth on every call) and
+`[FM-MCC-0005]` (IAM-first load order) as the bounded exception they
+honor.
 
 *Verification: Conformance-test* — the harness exercises representative
-operation paths without a valid principal and asserts denial.
+operation paths without a valid principal and asserts denial;
+exercises a genesis-ceremony submission per the holder-fingerprint
+attestation path per `[FM-INV-0004.5]` and asserts acceptance;
+exercises any other pre-identity bootstrap path attempt (a
+post-genesis runtime submission claiming to be a genesis event; a
+genesis-class event of a subtype not in the closed enumeration) and
+asserts denial.
 
 #### `[FM-INV-0002]` Fail strict
 
@@ -709,35 +725,97 @@ applies.
 ##### `[FM-INV-0005.2]` Divergence between declaration and enforcement is auditable
 
 A **divergence event** is defined as any runtime occurrence where the
-operation about to be executed would be permitted by the calling
-plugin's declared policy block (or by the absence of declaration) but
-is denied or gated by the platform's enforcement floor. Each divergence
-event **shall** be emitted to the ACT pillar as a single ACT
-audit-event class `pcs.policy.divergence` with the following required
-attributes:
+platform's enforcement floor (or the deviation-discipline machinery)
+identifies a state worth recording for audit: the operation about to
+be executed would be permitted by the calling plugin's declared
+policy block but the platform denies; the deployment is operating
+under a recognized transitional deviation; the canonical-emitter
+condition fires; etc. Each divergence event **shall** be emitted to
+the ACT pillar as a single ACT audit-event class
+`pcs.policy.divergence` (the name is **legacy** — the namespace
+predates the deployment-state and arbitration subtypes; the event
+class scope is the full set of `divergence_type` subtypes
+enumerated in the `[FM-PGE-0011]` discriminator table, not only
+PCS-originated declaration mismatches).
 
-- `plugin_id` — the plugin's coordinate (namespace:artifact:version)
-- `operation` — the platform-classified operation name
-- `plugin_declared` — what the plugin's policy block declared (or
-  `null` for omission)
-- `platform_enforced` — what the platform floor applied
-- `caller_identity` — the calling principal
-- `timestamp`, `trace_id`, `span_id` per `[FM-INV-0001]` audit
-  invariants
+**Subtype families and required attributes.** The `divergence_type`
+subtypes partition into two **attribute families**; required
+attributes per family:
+
+- **Declaration-divergence family** — `divergence_type` ∈
+  {`policy-block-mismatch`, `vendor-spec-conflict`,
+  `akb-fail-open-on-irreversible-hook`}: events that involve a
+  plugin's declaration vs the platform's enforced floor (or AKB's
+  fail-open observable from the hook). Required attributes:
+  `plugin_id` (the plugin's coordinate
+  `namespace:artifact:version`), `operation` (the
+  platform-classified operation or hook trigger), `plugin_declared`
+  (what the plugin's policy block / behavior declared, or `null`
+  for omission), `platform_enforced` (what the platform floor or
+  hook policy applied), `caller_identity` (the calling principal),
+  `timestamp`, `trace_id`, `span_id` per `[FM-INV-0001]` audit
+  invariants.
+
+- **Deployment-state family** — `divergence_type` ∈
+  {`identity-by-brief`, `gate-2-supplemental-only`,
+  `detect-layer-not-operational`, `subagent-worktree-precursor`,
+  `crb-codified-by-convention`, `mcc-partial-load`,
+  `vendor-hosted-reasoning`, `pcs-convention-pattern`}: events
+  recording that the deployment is operating under a recognized
+  transitional deviation. Required attributes: `deployment_state`
+  (the operator-attestation declared state per §F.3 covering the
+  affected workload class or pillar), `deviation_entry_id` (the
+  Appendix F entry per §F.2 that authorizes the deviation),
+  `triggering_context` (per-subtype payload — e.g., session-id
+  for vendor-hosted-reasoning, dispatch-id for
+  pcs-convention-pattern), `timestamp`, `trace_id`, `span_id`. The
+  declaration-divergence attributes (`plugin_id`, `operation`,
+  `plugin_declared`, `platform_enforced`) **shall not** be
+  required for this family; an event of this family **shall not**
+  carry null-stuffed values for those attributes.
+
+The ACT event schema for `pcs.policy.divergence` **shall**
+recognize both families and validate per-family required-attribute
+coverage; a deployment-state-family event submitted with
+declaration-family attributes (or vice versa) is non-conforming
+and **shall** be rejected by the ACT ingest path.
 
 A **CLCA trigger** is defined as a count of `pcs.policy.divergence`
-events emitted by a single `plugin_id` within an operator-configured
-window exceeding an operator-configured threshold. Default values
-(when no operator configuration is supplied): window = 24 hours,
-threshold = 10 events. When the threshold is exceeded, the platform
-**shall** emit a derived event `pcs.policy.divergence.clca-trigger`
-to ACT with the offending `plugin_id` and the triggering event count;
+events **of a single `divergence_type` subtype** (not the
+unqualified event class) emitted within an operator-configured
+window exceeding an operator-configured threshold. The
+single-source-of-truth derivation rule is per-subtype: the
+canonical emitter named in the `[FM-PGE-0011]` discriminator table
+**shall** maintain the count for its subtype; the cross-subtype
+sum does not by itself fire a trigger. Default per-subtype
+threshold values: window = 24 hours, threshold = 10 events. When
+the threshold is exceeded for a specific subtype, the canonical
+emitter **shall** emit a derived event
+`pcs.policy.divergence.clca-trigger` to ACT with the offending
+identifier (`plugin_id` for declaration-divergence family;
+`deployment_state` + `deviation_entry_id` for deployment-state
+family) + the triggering subtype + the triggering event count;
 this derived event is the canonical signal CLCA workflows consume.
 
-*Verification: Conformance-test* — the harness induces a divergence
-event, asserts `pcs.policy.divergence` is emitted with all required
-attributes; then induces threshold-exceeding repetition and asserts
-`pcs.policy.divergence.clca-trigger` is emitted.
+A deployment under a long-running deployment-state-family
+deviation (e.g., `vendor-hosted-reasoning` at >10 sessions/day for
+weeks) **shall not** fire a CLCA trigger from the deviation's
+per-session emission cadence alone — the threshold applies to
+out-of-pattern surges within a subtype, not to steady-state
+declared-deviation traffic. Operator-configured thresholds for
+deployment-state subtypes **may** be set substantially higher than
+the declaration-divergence defaults to reflect this.
+
+*Verification: Conformance-test* — the harness induces a
+declaration-divergence event, asserts `pcs.policy.divergence` is
+emitted with the declaration-family attributes; induces a
+deployment-state event, asserts the deployment-state-family
+attributes are present (and declaration-family attributes are
+not null-stuffed); submits an event with the wrong family's
+attribute set and asserts ACT rejects it; induces
+threshold-exceeding per-subtype repetition and asserts
+`pcs.policy.divergence.clca-trigger` is emitted with the correct
+subtype scope.
 
 ##### `[FM-INV-0005.3]` Enforcement granularity
 
@@ -1570,10 +1648,13 @@ accepted:
   ACT for active `pcs.policy.divergence` events satisfying **all
   three** filter criteria — (a) `divergence_type =
   "identity-by-brief"` **exactly** (not merely the
-  `pcs.policy.divergence` event class, which multiplexes seven
-  active `divergence_type` subtypes per the `[FM-PGE-0011]`
-  discriminator table); (b) emitted by the **canonical emitter
-  IBX** per `[FM-PGE-0011]`'s canonical-emitter rule (records from
+  `pcs.policy.divergence` event class, which multiplexes every
+  active `divergence_type` subtype enumerated in the
+  `[FM-PGE-0011]` discriminator table — that table is the single
+  source of truth for the current count and membership; this
+  requirement does not hardcode either); (b) emitted by the
+  **canonical emitter IBX** per `[FM-PGE-0011]`'s
+  canonical-emitter rule (records from
   other pillars are corroborative-only, not authoritative for this
   query); (c) **active** (not yet sunset per the deviation's
   Appendix F entry per §F.2 `status = active`). The query is
@@ -1916,6 +1997,8 @@ when emitted by its canonical pillar:
 | `mcc-partial-load` | **PGE (per `[FM-MCC-0012]` transitional clause)** | Dispatch targets a pillar not yet loaded into MCC as a plugin |
 | `akb-fail-open-on-irreversible-hook` | **AKB (per `[FM-AKB-0011]` infra-decision-side escalation)** | AKB retrieval failed-open on a `[FM-AKB-0010]` domain-2 hook (`git push`, `gh pr`, deploy, substrate config) — the irreversible-step moment a suppressed warning is most load-bearing |
 | `vendor-hosted-reasoning` | **PGE (per `[FM-INV-0006.1]` transitional clause)** | The session's reasoning runtime is a vendor-hosted inference service (Anthropic Claude Code, OpenAI Codex, equivalent) rather than the sovereign-local-inference reference — prompts and working context reach the vendor; per-session emission so the deployment's actual usage pattern is visible in ACT |
+| `pcs-convention-pattern` | **PGE (per `[FM-PCS-0016]` transitional clause)** | Promotion / dispatch made under the PCS convention pattern (PCS-Daemon not yet operational); the convention deviation classifies the dispatch as non-Daemon-conformant per `[FM-PCS-0015]` |
+| `vendor-spec-conflict` | **PCS (per `[FM-PCS-0001]` cardinal-rule arbitration)** | Strict-superset claim unsatisfiable for an affected artifact class because the two vendor specs (Claude Code, Codex) conflict; the cardinal rule yielded to per-vendor variants per `[FM-PCS-0001]` arbitration; persists until upstream reconciliation lands |
 | (future subtypes) | Their respective canonical emitter pillar | Per the requirement that introduces the subtype |
 
 **Pattern note.** PGE is the canonical emitter for substrate-policy and
@@ -1932,29 +2015,49 @@ deviation classes during which their canonical emitter may not be
 loaded — most notably `mcc-partial-load` per `[FM-MCC-0012]`, which
 explicitly contemplates a deployment where PGE itself has not yet
 been loaded into MCC as a plugin. To prevent the failure mode in
-which the divergence tracking a partial-load state is itself silently
-not emitted because its canonical emitter is part of the unloaded
-set, the **MCC frame** per `[FM-MCC-0001]` **shall** serve as
-**fallback emitter** for any `divergence_type` whose canonical
-emitter is unloaded during the deviation window. Specifically:
+which the divergence tracking a partial-load state is itself
+silently not emitted because its canonical emitter is part of the
+unloaded set, the fallback-emitter rule is **generic**:
 
-- For `mcc-partial-load`, `gate-2-supplemental-only`,
-  `subagent-worktree-precursor`, `crb-codified-by-convention`, and
-  `detect-layer-not-operational`: when PGE is not loaded as an MCC
-  plugin and a dispatch / decision satisfying the divergence
-  condition is routed through MCC, the **MCC frame shall emit the
-  divergence event in PGE's stead**, marking the event
-  `emitter_role = "fallback"` and `originally_canonical = "PGE"`.
-- Fallback-emitted events satisfy `[FM-INV-0005.2]` audit
-  requirements identically to canonical-emitter events. Downstream
-  consumers (e.g., `[FM-IAM-0014]` Condition 4) **shall** treat
-  fallback-emitted events as equivalent to canonical-emitter events
-  for query purposes, with `emitter_role` available as an
-  observability attribute.
-- Once the canonical emitter (PGE) loads into MCC per the
-  `[FM-MCC-0006]` plugin contract, emission authority for the
-  subtype **shall** revert to PGE; the MCC frame **shall not**
-  continue to emit the subtype once PGE is loaded.
+1. **MCC-frame fallback (preferred).** For **any** PGE-canonical
+   `divergence_type` whose triggering condition is observable at
+   the MCC frame and whose canonical emitter (PGE) is unloaded
+   during the deviation window, the **MCC frame** per
+   `[FM-MCC-0001]` **shall** serve as fallback emitter. The
+   emission marks `emitter_role = "fallback"` and
+   `originally_canonical = "PGE"`. Concrete subtypes this covers
+   today: `mcc-partial-load`, `gate-2-supplemental-only`,
+   `subagent-worktree-precursor`, `crb-codified-by-convention`,
+   `detect-layer-not-operational`, `pcs-convention-pattern`,
+   `vendor-hosted-reasoning` — and any future PGE-canonical
+   subtype whose condition is observable at the frame.
+2. **Attestation-cadence floor (when neither PGE nor MCC is in
+   the path).** Under multi-deviation windows where the dispatch
+   does not route through MCC (e.g., a deployment running
+   `mcc-partial-load` + `pcs-convention-pattern` + a workload
+   class whose execution path bypasses MCC entirely), the
+   per-event emission is structurally impossible because no
+   emitter is in the path. In that case the deviation
+   registrant's documented obligation per §F.2 `deviation_scope`
+   **shall** include attestation-cadence emission (mirror of the
+   `[FM-ACT-0008]` pattern) at deployment-attestation time +
+   each operator-configured attestation review cycle, recording
+   the deviation's continued application. The deployment's
+   Appendix F entry **shall** state which emission mode (MCC
+   fallback per item 1; attestation cadence per this item)
+   applies to each active deviation.
+3. **Equivalence for consumers.** Fallback-emitted events
+   (whether MCC frame per item 1 or attestation-cadence per item
+   2) satisfy `[FM-INV-0005.2]` audit requirements identically
+   to canonical-emitter events. Downstream consumers (e.g.,
+   `[FM-IAM-0014]` Condition 4) **shall** treat them as
+   equivalent for query purposes, with `emitter_role` available
+   as an observability attribute.
+4. **Reversion on canonical emitter load.** Once the canonical
+   emitter (PGE) loads into MCC per the `[FM-MCC-0006]` plugin
+   contract, emission authority for the subtype **shall** revert
+   to PGE; the MCC frame **shall not** continue to emit the
+   subtype once PGE is loaded.
 
 The fallback emitter is bounded to deviation windows in which the
 canonical emitter is, by the very deviation being tracked,
@@ -2295,14 +2398,31 @@ count or wall-clock interval); checkpoints aggregate the chain hash
 across the prior session window and **shall** be independently
 verifiable from substrate state without trust in ACT's runtime.
 
-**Genesis-event chain seeding.** The first runtime session of any
-pillar after mesh init **shall** chain-link its initial event to
-the corresponding genesis event's hash per `[FM-INV-0004.5]` item
-4 — the genesis event is the verifiable root anchor of the chain.
-This is the sole permitted predecessor that is itself
-unattributed; subsequent links require full attribution per
-`[FM-ACT-0003]`. A chain that does not trace back to a genesis-
-event anchor for its initial link is non-conforming.
+**Per-session chain initial-event anchoring.** Every session's
+initial event **shall** chain-link to a specified predecessor —
+the chain initial event is **not unanchored**:
+
+- **The first runtime session of any pillar after mesh init**
+  **shall** chain-link its initial event to the corresponding
+  genesis event's hash per `[FM-INV-0004.5]` item 4 (the genesis
+  event is the verifiable root anchor of the chain). This is the
+  sole permitted predecessor that is itself unattributed;
+  subsequent links require full attribution per `[FM-ACT-0003]`.
+- **Every subsequent session** (any session N ≥ 2 of any pillar)
+  **shall** chain-link its initial event to the hash of the
+  **most-recent `act.chain_checkpoint` event** for that pillar at
+  the time the session begins, providing the verifiable
+  predecessor for sessions whose first event would otherwise be
+  unanchored. This makes session insertion and session deletion
+  tamper-evident: a fabricated session whose initial event does
+  not chain to a real checkpoint hash fails chain verification;
+  a deleted session whose checkpoint hash would have been the
+  predecessor for the next session breaks the next session's
+  initial-event chain.
+
+A chain whose initial event does not trace back to either a
+genesis-event anchor (first session) or a previously-emitted
+`act.chain_checkpoint` event (sessions N ≥ 2) is non-conforming.
 
 **Retention-boundary re-anchoring.** When the `[FM-ACT-0011]`
 retention-expiration ceremony removes a chain predecessor, the
@@ -2510,6 +2630,20 @@ emit an `act.retention.expired` event recording the count of removed
 events and the retention rule applied. Direct deletion via substrate
 APIs **shall not** be permitted; expiration is the only documented
 removal path.
+
+**Genesis events are retention-exempt.** Events of the genesis
+class per `[FM-INV-0004.5]` (`mesh-init-quorum-bootstrap`,
+`iam-init-arca-root`, `iam-init-roster-seed`, and any
+quorum-attested re-issuance per item 6 carrying
+`supersedes_genesis`) **shall** be excluded from retention
+expiry — they persist for the deployment's lifetime. Expiring a
+genesis-class event would break the `[FM-INV-0004.5]` item-6
+head-of-supersedes-chain resolution rule and the `[FM-ACT-0005]`
+chain-anchor verification for sessions whose initial event is a
+genesis-event predecessor. Operators **shall not** override
+this exclusion via overlay configuration; the retention-exempt
+status is a property of the genesis event class, not a regulatory
+overlay setting.
 
 *Verification: Static-check + Conformance-test* — Static-check
 verifies retention policy configuration is loaded from PGE overlay;
@@ -2869,12 +3003,26 @@ triggered by an `[FM-AKB-0010]` domain-2 hook **shall**:
 
 1. Emit a `pcs.policy.divergence` event to ACT per
    `[FM-INV-0005.2]` with `divergence_type = "akb-fail-open-on-
-   irreversible-hook"` per `[FM-PGE-0011]` discriminator
-   (canonical emitter: AKB, in line with the pattern note's
-   "first observes the divergence" rule — AKB observes the
-   fail-open synchronously). The event payload **shall** include
-   the triggering hook kind, the principal-id, and the
-   unavailability cause from the `status` field.
+   irreversible-hook"` per `[FM-PGE-0011]` discriminator. AKB
+   is the canonical emitter under partial degradation (when AKB
+   is degraded but still able to emit). **Under total AKB
+   outage** — the strongest variant of the suppression attack
+   this clause exists to close, where AKB cannot emit anything —
+   the canonical emitter is AKB-down so the fallback rule of
+   `[FM-PGE-0011]` applies: the **runtime tool-call hook layer
+   (PGE per `[FM-AKB-0010]`'s `[FM-INV-0001]` runtime-layer
+   enforcement)** is the observer-of-last-resort and **shall**
+   emit the divergence event in AKB's stead, marking the event
+   `emitter_role = "fallback"` and `originally_canonical = "AKB"`.
+   The hook layer observes the fail-open (it issued the query
+   and got back an empty + non-empty-status response or an outage
+   indication); it has full visibility of the triggering hook
+   kind + principal-id + unavailability cause without depending
+   on AKB to emit. The event payload **shall** include the
+   triggering hook kind, the principal-id, and the unavailability
+   cause from the `status` field (or "akb-total-outage" when the
+   fallback emitter is invoked because AKB returned nothing at
+   all).
 2. Be classified by PGE policy as a **soft gate** on the
    irreversible action — the operator (or an operator-
    configurable agent policy) **shall** acknowledge the fail-open
@@ -4396,9 +4544,9 @@ MCC **shall** emit the following `mcc.*` events to ACT via the
 event-type taxonomy:
 
 - `mcc.call_received` — emitted on inbound call before
-  authentication.
+  authentication; **frame-attributed** per the next paragraph.
 - `mcc.auth_denied` — emitted on auth-hook denial per
-  `[FM-MCC-0003]`.
+  `[FM-MCC-0003]`; frame-attributed (see below).
 - `mcc.agent_secret_path_denied` — emitted on agent-out-of-secret-
   path denial per `[FM-MCC-0009]`.
 - `mcc.dispatch_completed` — emitted on plugin dispatch completion
@@ -4418,10 +4566,49 @@ ACT (`dispatch_completed`, `auth_denied`, or
 `agent_secret_path_denied`); a call with no terminal event is a
 no-bypass violation per `[FM-INV-0001]`.
 
+**Pre-auth event attribution + rate-limiting.** `mcc.call_received`
+and `mcc.auth_denied` are emitted **before** the calling
+principal is authenticated, so they cannot carry a verified
+caller `principal-id` per `[FM-ACT-0003]`'s general attribution
+rule. These events **shall** be attributed to the **MCC frame's
+own IAM-issued principal-id** (job code: `mcc-frame` or
+equivalent) — the frame is the verified actor; the inbound caller
+is an unverified counterparty whose claimed identity is recorded
+as an unverified attribute (`claimed_caller_identity`,
+explicitly marked unverified) but not as the event's
+`principal-id`. This satisfies the FM-ACT-0003 attribution
+requirement without falsely attesting to an identity the auth
+hook has not yet verified.
+
+**Audit-amplification DoS defense.** A mandatory durable ACT
+append + synchronous ack for every unauthenticated denial would
+permit an adversary to flood bogus calls and trigger
+backpressure-induced mesh-wide fail-strict per `[FM-ACT-0009]`.
+The frame **shall** apply bounded aggregation / rate-limiting to
+pre-auth denial events: identical denial reasons from the same
+unverified-source class within an operator-configured window
+**shall** be aggregated into a single per-window `mcc.auth_denied`
+event carrying a count + the window bounds, instead of emitted
+per-call. Aggregation in this bounded form **shall not** constitute
+a `[FM-INV-0001]` no-bypass violation — the structural defense
+is that **every call still produces a terminal-event record**
+(individual or aggregated), and the aggregation window is itself
+audit-attestable per `[FM-MCC-0014]` operational telemetry.
+Post-auth events (`dispatch_completed`,
+`agent_secret_path_denied`, `judge_gate_confirm`,
+`plugin_loaded` / `plugin_load_failed`) **shall not** be
+aggregated; they are per-call.
+
 *Verification: Conformance-test* — the harness exercises each
 event type on the corresponding event class; asserts the ACT ack
 contract is honored; asserts every call has exactly one terminal
-event.
+event; submits a flood of unauthenticated denial-producing calls
+and asserts (a) the pre-auth events are aggregated per the
+windowed rule, (b) no mesh-wide fail-strict cascade triggers
+from the unauthenticated traffic, (c) every aggregated event
+carries the count + window bounds, (d) the aggregation-window
+configuration is observable via `mesh.mcc.*` telemetry per
+`[FM-MCC-0014]`.
 
 #### `[FM-MCC-0014]` MCC telemetry emission
 
@@ -4728,23 +4915,41 @@ as **hard gates** (failure blocks registry entry) and Tier 2–4 as
 - **Tier 4 — Operational** (Badge) — security scan signed,
   signature freshness, runtime smoke test.
 
-The harness **shall** invoke DPG validation per `[FM-DPG-0009]`
-for executable workloads as part of Tier 4 (or earlier where the
-artifact class requires it) — the dev-to-production trust boundary
-applied to executables means the Registry contains only artifacts
-that have passed DPG's four mandatory validation gates per
-`[FM-DPG-0004]` for those that include runtime tests.
+**Tier 0 and Tier 1 evaluation shall run inside DPG-grade
+ephemeral isolation per `[FM-DPG-0002]`.** The harness's input —
+an attacker-supplied plugin under evaluation — is **untrusted by
+definition**: a crafted plugin manifest exploiting a parser bug in
+a vendor CLI or in the PCS validator otherwise executes on the
+harness host with the harness's identity *before any gate has
+fired*. BOM-pinning per `[FM-PCS-0013]` makes the vulnerable
+parser version reproducible; it does not make it safe. The
+ephemeral isolation per `[FM-DPG-0002]` is what closes the
+supply-chain compromise vector upstream of every trust decision.
+
+The harness **shall** also invoke DPG validation per
+`[FM-DPG-0009]` for executable workloads as part of Tier 4 (or
+earlier where the artifact class requires it) — the
+dev-to-production trust boundary applied to executables means the
+Registry contains only artifacts that have passed DPG's four
+mandatory validation gates per `[FM-DPG-0004]` for those that
+include runtime tests. Tier-0/Tier-1 isolation and Tier-4 DPG
+validation are distinct: Tier-0/1 isolates the **harness host
+from the candidate input**; Tier-4 isolates the **candidate's
+runtime execution from production state**.
 
 Delegating Tier 0 to vendor tooling means PCS gets vendor spec
 updates for free; the tradeoff is **vendor-spec drift becomes an
 external forcing function**, mitigated by the BOM-pinning
-discipline per `[FM-PCS-0013]`.
+discipline per `[FM-PCS-0013]` + the Tier-0/1 isolation above.
 
 *Verification: Conformance-test* — the harness exercises a sample
 plugin through each tier; asserts T0 / T1 failure blocks registry
 entry; asserts T2–T4 failure records the badge state without
 blocking; asserts the BOM-pinned vendor-CLI version is the one
-invoked at T0.
+invoked at T0; **submits a plugin whose manifest exploits a known
+parser bug and asserts the exploit is contained by the Tier-0/1
+DPG-grade ephemeral isolation (the harness host is unaffected;
+the exploit cannot reach outside the boundary)**.
 
 #### `[FM-PCS-0009]` Registration gate
 
@@ -4833,13 +5038,48 @@ itself is a state mutation that **shall** be recorded in ACT per
 
 Promotion to `core` **shall** be classified catastrophic-class
 per `[FM-INV-0004]` and require K-of-N multi-signature
-attestation per FM-INV-0004's runtime quorum mechanism.
+attestation produced by the named quorum verifier per
+`[FM-PGE-0015]`.
+
+**Quorum-pending is a non-claim-holding state.** Collecting K-of-N
+attestations operates at human-scale latency per the
+`[FM-INV-0004.2]` time-bounded attestation windows, which always
+exceeds the fail-strict deadline per `[FM-INV-0002.1]` (deadline
+shall be strictly shorter than the minimum worker-pool lease per
+`[FM-IBX-0009]`). A pre-promotion gate awaiting quorum **shall
+not** hold the IBX worker-pool claim that triggered the promotion;
+the gate **shall**:
+
+1. Release the worker-pool claim normally per the IBX
+   mid-action-safe termination contract.
+2. Record the promotion request as a **quorum-pending** state in
+   the registry (a non-runtime persistent state, not a held
+   in-flight execution).
+3. On quorum-verifier completion per `[FM-PGE-0015]` (signed
+   verified-quorum result arrives), resume promotion via a new
+   IBX dispatch carrying the verified-result reference; the new
+   dispatch acquires a fresh worker-pool claim and applies the
+   promotion.
+4. On quorum timeout per `[FM-INV-0004.2]`, emit a
+   `pcs.promotion.quorum_timeout` event to ACT and discard the
+   pending state; re-attempt requires a fresh request.
+
+This async-saga pattern prevents the duplicate-execution race
+that holding a claim past the worker-pool lease would create
+(per the `[FM-INV-0002.1]` deadline constraint), and generalizes
+to every catastrophic-class operation under PGE-0009 / PCS-0011 /
+PGE-0012 / ARCA revocation that requires quorum collection inside
+what would otherwise be a worker-pool-held execution.
 
 *Verification: Conformance-test* — the harness exercises a
 promotion attempt missing required approvals and asserts denial;
 exercises a `core`-tier promotion without K-of-N quorum and
 asserts denial; exercises a clean promotion and asserts the
-event is recorded in ACT.
+event is recorded in ACT; exercises a quorum-pending promotion
+and asserts the worker-pool claim is released, the pending state
+is recorded, the quorum-verifier-completion path resumes via a
+fresh dispatch, and no duplicate execution occurs across the
+async-saga boundary.
 
 #### `[FM-PCS-0012]` Plugin lifecycle states
 
@@ -5028,8 +5268,12 @@ lifecycle and asserts the `pcs.*` event sequence is emitted per
 registry* — deviation entry present in Appendix F with sunset
 condition; divergence events emitted per item 2 above.
 
-The active `divergence_type` subtype count is now **10** (the
-prior 9 plus this addition).
+The active `divergence_type` subtype set is enumerated in the
+`[FM-PGE-0011]` discriminator table; this requirement's
+contribution is the `pcs-convention-pattern` subtype, registered
+there with PGE as canonical emitter. Counts are not hardcoded
+in this requirement — the PGE-0011 table is the single source
+of truth.
 
 #### `[FM-PCS-0017]` Audit emission via ACT
 
