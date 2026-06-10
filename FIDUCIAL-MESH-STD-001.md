@@ -610,6 +610,33 @@ all of the following:
    or rotation of members — **shall** themselves require existing
    K-of-N quorum.
 
+**Total quorum loss = new deployment identity.** A total loss of
+the existing quorum-authority membership (e.g., a catastrophic
+event where fewer than K shards survive or fewer than K holders
+remain identifiable) **shall** permanently brick all
+catastrophic-class operations of the affected deployment,
+including the recovery operations enumerated by `[FM-INV-0004.4]`
+item 5 and `[FM-INV-0004.5]` item 6 (both of which require
+existing-membership quorum to operate). The argued-case escape
+hatch per `[FM-INV-0003.2]` is itself catastrophic-class and
+therefore unavailable for the same reason.
+
+A deployment in this state **shall not** be reconstituted under
+the same deployment identity; recovery requires standing up a
+**new deployment** with a fresh mesh-init quorum-bootstrap
+ceremony per this requirement, fresh genesis events per
+`[FM-INV-0004.5]`, and migration of any preservable state under
+the new deployment's audit chain. The prior deployment's identity
+is permanently retired; its ACT history persists for forensics
+but is not under the new deployment's chain.
+
+This is an explicit non-recovery property the spec commits to
+rather than gloss over: a hostile auditor will ask "what's the
+recovery story for total quorum loss?" — the answer is "there
+isn't one for the same deployment identity; recovery is a new
+deployment, which is the design's deliberate trade for the
+quorum-authority guarantees."
+
 *Verification: Inspection* — mesh-init record in ACT is reviewed for
 all five ceremony elements; absence of any element invalidates the
 bootstrap and requires re-ceremony.
@@ -1629,6 +1656,26 @@ This is the requirement that sunsets the `[FM-IBX-0010]` transitional
 deviation (and any analogous deviations in other pillars). When
 `[FM-IAM-0014]` is satisfied, those deviations expire.
 
+**Attribution verifiability during the identity-by-brief window
+inherits the deviation.** During the deviation window — before
+all four conditions hold — every audit-event attribution
+recorded in ACT is **assertion-only**: the `principal-id`
+attribute on events is what the caller asserted, not what was
+cryptographically verified, because the cryptographic
+verification path (`[FM-IAM-0006]` Vault in-boundary signing
+backing the assertions) is not yet operational. This is an
+acceptable bootstrapping reality — the deviation explicitly
+authorizes it — but the consequence **shall** be stated: any
+audit trail recorded during the deviation window inherits the
+deviation's verifiability properties; queries against that
+history (including Condition 4's read of historical
+`identity-by-brief` divergence events) are reading
+assertion-only records, and an auditor evaluating the historical
+trail **shall** treat pre-sunset attribution as inheriting the
+deviation's caveats. Once `[FM-IAM-0014]` is satisfied, post-
+sunset attribution is cryptographically verified; the pre-sunset
+historical record remains in its pre-sunset state.
+
 *Verification: Conformance-test* — all four conditions are
 mechanically verified before operational-state declaration is
 accepted:
@@ -2312,11 +2359,27 @@ Cognitive events **shall** flow into ACT from emitting pillars and
 **shall not** flow back into the mesh's decision pipeline except via
 explicit curator-gated review. ACT is the terminal store for audit
 emission; pillars **shall not** read recent events from ACT to make
-runtime decisions (with the documented exceptions: `[FM-IAM-0014]`
-Condition 4 sunset verification, and `[FM-PGE-0011]` CLCA-trigger
-derivation, both of which are explicit queries against ACT
-specifically because the audit trail IS the source of truth for those
-specific checks).
+runtime decisions, **except** the following documented exceptions —
+each is an explicit query against ACT specifically because the
+audit trail IS the source of truth for that specific check:
+
+- `[FM-IAM-0014]` Condition 4 sunset verification (IAM querying
+  for active `identity-by-brief` divergence events to verify
+  operational-state declaration);
+- `[FM-PGE-0011]` per-subtype CLCA-trigger derivation (PGE
+  counting subtype-scoped divergence events to fire
+  `pcs.policy.divergence.clca-trigger`);
+- `[FM-IBX-0010]` `identity-by-brief` CLCA-trigger derivation
+  (IBX maintaining the per-subtype count for the subtype it
+  canonically emits, per the `[FM-PGE-0011]` per-canonical-emitter
+  CLCA rule);
+- `[FM-INV-0004.5]` runtime genesis-head-of-supersedes resolution
+  (consumers querying "current genesis" for a `genesis_subtype`
+  resolve to the head of the supersedes chain — a read against
+  ACT history that is the source of truth for the resolution).
+
+The list is closed; any other read-from-ACT-into-decision pattern
+is non-conforming.
 
 Curator-review workflows (CLCA action review, AIR drafting,
 compliance audit) **may** read from ACT freely; their outputs
@@ -2571,7 +2634,7 @@ cross-pillar fail-strict is testable from both sides:
    returned only after step 2 completes successfully.
 4. **Proceed.** The upstream pillar's operation **shall not** be
    considered complete until the acknowledgement is received within
-   the timeout bound established by `[FM-INV-0002]`.
+   the fail-strict deadline per `[FM-INV-0002.1]`.
 
 If the acknowledgement is not received within the timeout, or is
 explicitly negative, the upstream operation **shall** fail strict —
@@ -2584,15 +2647,16 @@ than as new events.
 
 ACT **shall not** silently drop events under load. If sustained
 ingest exceeds capacity, ACT **shall** apply backpressure such that
-upstream emissions block (with timeout per `[FM-INV-0002]` →
-fail-strict) rather than complete without persistence. Acknowledging
+upstream emissions block (with timeout per `[FM-INV-0002.1]` →
+fail-strict per `[FM-INV-0002]`) rather than complete without
+persistence. Acknowledging
 a buffered-but-not-yet-durable event **shall not** be permitted.
 
 *Verification: Conformance-test* — the harness induces ACT
 unavailability (substrate down, ingestion saturation, ack-path
 faults) and submits upstream operations across pillars; asserts
 every operation fails strict on lack-of-ack or negative-ack within
-the `[FM-INV-0002]` timeout; restores ACT and asserts operations
+the `[FM-INV-0002.1]` deadline; restores ACT and asserts operations
 resume successfully. Exercises the idempotency contract by
 re-submitting the same `emission_id` and asserts ACT returns the
 prior acknowledgement without producing a second stored event.
@@ -4718,13 +4782,31 @@ in one not in the other), the strict-superset becomes
 unsatisfiable for the affected artifact class. The cardinal rule
 **shall** yield first: the project ships the divergent class as
 **per-vendor variants** for that class only (e.g., the agent
-definition emits separately per vendor), and the conflict is
-registered in Appendix F per §F.2 as a deviation against this
-requirement until upstream reconciliation lands. Vendor-tooling
-versions delegated to in the Tier-0 harness check per
-`[FM-PCS-0008]` **shall** be pinned in the deployment's BOM per
-`[FM-PCS-0013]` so the validator behavior is reproducible at the
-BOM version.
+definition emits separately per vendor). The conflict **shall**
+be registered in Appendix F per §F.2 as a deviation against this
+requirement, with:
+
+- `deviation_clause`: "FM-PCS-0001 cardinal-rule arbitration
+  (vendor-spec conflict)"
+- `sunset_condition`: "upstream vendor-spec reconciliation lands
+  for the affected artifact class such that strict-superset is
+  satisfiable again"
+- `divergence_type`: `vendor-spec-conflict` per the `[FM-PGE-0011]`
+  discriminator table (PCS as canonical emitter)
+- **Per-release re-attestation**: at every major Standard release
+  + every BOM-bump that includes new vendor-CLI versions, the
+  operator **shall** re-attest that the per-vendor-variant set
+  for cardinal-rule-arbitration deviations **has not grown**
+  beyond its prior-release count. An unbounded growth of per-
+  vendor variants would silently decay the strict-superset
+  claim's value per artifact class; the re-attestation makes the
+  decay observable. A variant-set growth without a corresponding
+  deviation entry is non-conforming.
+
+Vendor-tooling versions delegated to in the Tier-0 harness check
+per `[FM-PCS-0008]` **shall** be pinned in the deployment's BOM
+per `[FM-PCS-0013]` so the validator behavior is reproducible at
+the BOM version.
 
 *Verification: Conformance-test* — the harness submits a sample
 PCS plugin and asserts it validates under both vendor specs at the
@@ -4961,7 +5043,18 @@ A new artifact entering the registry **shall** pass the
 - Version is valid semver;
 - `owner` non-empty;
 - `effect` ∈ {`pure`, `mutate_local`, `mutate_external`};
-- Idempotency constraint per the side-effect profile;
+- Idempotency constraint per the side-effect profile: an
+  artifact with `effect = "pure"` **shall** have
+  `is_idempotent = true` (pure operations are by definition
+  idempotent — same inputs, same outputs, no observable side
+  effect on repeat invocation); an artifact with
+  `effect = "mutate_local"` or `"mutate_external"` **may**
+  have either value, but `is_idempotent = false` requires the
+  artifact to declare its **non-idempotency contract** (what
+  changes per invocation) in a structured field the harness can
+  inspect. An artifact whose declared `effect` and
+  `is_idempotent` values violate this constraint **shall** be
+  rejected at registration;
 - Lifecycle / trust-tier coupling: `lifecycle_state = "draft"`
   forces `trust_tier = "experimental"`;
 - Mutation-vs-tier risk constraint: `effect = "mutate_external"
@@ -5149,6 +5242,19 @@ signing root (per the upstream supply-chain trust bootstrap
 discipline documented in HDBK §2.8); local verification is
 mandatory; no callbacks.
 
+**Runtime-vendor-tool binding to the BOM.** The BOM pins the
+vendor-CLI version Tier-0 validates against; the operator's
+*runtime* vendor tooling (the Claude Code / Codex CLI the
+operator's agents are actually invoking against deployed plugins)
+is independently installed and **shall** be either: (a) bound to
+the BOM-pinned version such that validated-at-vX, runs-at-vX, or
+(b) declared as an accepted residual risk in the deployment's
+Appendix F per §F.2 if the runtime vendor-CLI version is
+allowed to drift from the BOM-pinned version. A deployment with
+runtime vendor-CLI drift unbound to the BOM and without an
+Appendix F entry is non-conforming: validated-at-vX-runs-at-vY
+re-introduces the supply-chain seam BOM-pinning closes.
+
 Cross-registry resolution **shall not** be permitted —
 registries do not federate; per-deployment namespace collision
 is not possible because registries are isolated.
@@ -5181,7 +5287,16 @@ add fiducial-mesh@marketplace`) **shall** flatten the
 hierarchical coordinate to fit the vendor's flat-namespace
 constraint (e.g., `fiducial-mesh-deployment-vault-bootstrap`);
 the flattening **shall** be reversible by the inverse mapping
-declared in the marketplace projection manifest.
+declared in the marketplace projection manifest. **Flattening is
+non-injective in general** (hyphens are legal inside segments,
+so `a:b-c` and `a-b:c` collide when flattened to `a-b-c`); the
+projection **shall** apply a marketplace-side collision check at
+projection time, and **shall** reject the projection if two
+distinct hierarchical coordinates from the source registry would
+flatten to the same vendor coordinate. The per-artifact inverse
+mapping does not by itself prevent the collision because the
+mapping is per-artifact; the collision-check at projection time
+is the structural defense.
 
 *Verification: Conformance-test* — the harness exercises a
 prefix-violation publish attempt and asserts rejection;
@@ -5434,11 +5549,15 @@ FedRAMP, ICD 705, etc.). Will be landed alongside §7.*
 ## Appendix F — Argued cases and deviations (normative entry schema)
 
 This Appendix is the normative registry of **argued cases** per
-`[FM-INV-0003.2]` and **recognized deviations** per the transitional
-clauses of `[FM-IBX-0010]`, `[FM-IAM-0014]`, `[FM-PGE-0005]` Gate-2,
-`[FM-ACT-0008]`, `[FM-DPG-0013]`, `[FM-CRB-0010]`, and
-`[FM-MCC-0012]` (and any future requirements that introduce
-deviation clauses by the same pattern).
+`[FM-INV-0003.2]` and **recognized deviations** per the
+transitional clauses of `[FM-IBX-0010]`, `[FM-IAM-0014]`,
+`[FM-PGE-0005]` Gate-2, `[FM-ACT-0008]`, `[FM-DPG-0013]`,
+`[FM-CRB-0010]`, `[FM-MCC-0012]`, `[FM-INV-0006.1]`,
+`[FM-PCS-0016]`, and `[FM-PCS-0001]` (cardinal-rule arbitration)
+— and any future requirements that introduce deviation clauses by
+the same pattern. The single source of truth for the active
+`divergence_type` subtypes corresponding to these clauses is the
+`[FM-PGE-0011]` discriminator table.
 
 The registry itself is **per-deployment** — each conforming
 deployment maintains its own Appendix F as part of its conformance
