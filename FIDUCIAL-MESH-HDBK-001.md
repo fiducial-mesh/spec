@@ -166,8 +166,15 @@ capability half by handing the trust-bearing layer to a counterparty
 whose incentives are misaligned: cloud IdPs, vendor plugin stores,
 managed vector databases, vendor safety filters. None of those vendors
 has any structural reason to make sovereign deployment cheaper, more
-durable, or easier to migrate. **A vendor cannot credibly build
-vendor-neutral infrastructure** because doing so erodes their own moat.
+durable, or easier to migrate. **A vendor whose product depends on
+vendor lock-in is structurally misaligned to build vendor-neutral
+infrastructure** — doing so erodes the moat that justifies their
+valuation. (The general claim is incentive-misalignment, not
+impossibility: Kubernetes is the standing counterexample of a
+vendor commoditizing a rival's moat for strategic reasons. The
+mesh's wager is that the AI-agent-platform space, today, looks
+more like the IdP / vector-DB / safety-filter shape than the
+Kubernetes-vs-AWS shape.)
 The mesh is the sovereign alternative — owned hardware, owned identity,
 owned audit, owned policy enforcement, no callbacks.
 
@@ -396,10 +403,20 @@ later (crypto / PKI / Samba AD integration may push to a different
 runtime) but the case has to be made explicitly and decided, not assumed.
 
 **No C# anywhere in the canon.** The earlier C#-spine assumption is
-retired: Fiducial Mesh is OSS, GPLv3, and C# does not fit that posture.
-Source code in C# may be retained for reference where it exists in the
-lab's history, but no canonical spec component is built in C#, and no
-language map row binds a pillar to C#.
+retired. The real rationale (the previously stated "doesn't fit
+GPLv3 OSS posture" was wrong — .NET is MIT-licensed OSS): the
+mesh's reference implementation chose **runtime uniformity** (one
+language stack across the substrate keeps the dependency surface
+manageable), **single agent-readable codebase** (the agents that
+build and operate the mesh read one stack), and the **framework
+reset** that landed during the 2026-06-08 PCS redesign moved
+canonical components off C# as a deliberate simplification. C# is
+not provisioned as a target language in the project's reference
+implementation; the Standard remains language-neutral per §1, so a
+customer who insists on C# implements the same numbered
+requirements in their stack and is conformant on the same terms.
+Source code in C# may be retained for reference where it exists in
+the lab's history.
 
 **The mesh-CLI / installer** is either a Go static binary OR is
 "Claude Code + PCS plugins is the CLI" (per the Mesh-CLI delivery shape
@@ -742,8 +759,10 @@ are present.
 **Asymmetric thresholds.** Apply (arming) is harder than revoke
 (firing). Apply requires a higher K (e.g., 4-of-5); emergency revoke
 allows lower (e.g., 2-of-5) so rollback isn't blocked by
-quorum-coordination overhead. Hard to ARM the system; one trigger to
-fire it.
+quorum-coordination overhead. Hard to ARM the system; lower
+threshold to fire it (revoke is 2-of-5 by default, not literally a
+single trigger — fewer attestations than apply, but still K-of-N
+multi-signature, not unilateral).
 
 **Time-bounded attestation windows.** An attestation expires if K-of-N
 isn't reached within an operator-configured window. Prevents stale
@@ -1543,12 +1562,17 @@ operational telemetry = `[FM-AKB-0014]`.
 
 ## 3.3 ACT — Agent Cognitive Telemetry
 
-The immutable, locally-hosted audit ledger. Every reasoning span,
-token, tool call, signed action, IAM event, IBX message, quorum vote,
-and Judge approval is emitted to ACT. Unidirectional — agents emit;
-nothing flows back out except via curator review. ACT is what makes
-non-repudiation, per-session forensics, regulatory compliance, and the
-dialectical-engine evidence trail mechanically possible.
+The immutable, locally-hosted audit ledger. Every **observable**
+reasoning span, tool call, signed action, IAM event, IBX message,
+quorum vote, and Judge approval is emitted to ACT.
+(Vendor-hosted reasoning runtimes per §1.5.1 do not expose all
+internal reasoning tokens to the calling process — ACT captures
+what the runtime surfaces, not what it internalizes; this is one
+of the costs of the vendor-hosted-reasoning deviation.)
+Unidirectional — agents emit; nothing flows back out except via
+curator review. ACT is what makes non-repudiation, per-session
+forensics, regulatory compliance, and the dialectical-engine
+evidence trail mechanically possible.
 
 **Status**: **Normative spec**: STD-001 §5.4 (12 requirements +
 Conformance Profile). Reference implementation pending. Authoring
@@ -1930,13 +1954,17 @@ regimes that require FIPS-validated cryptography (FedRAMP-High,
 IL5/IL6, HIPAA-hardened, DoD/SCIF), the substrate must run FIPS-mode
 crypto from initial provisioning — Vault PKI, TLS endpoints, signing
 engines, all on FIPS 140-3 (or 140-2 transitional) validated modules.
-**FIPS-mode cannot be retrofitted onto a substrate that grew up
-non-FIPS.** The validated crypto path is a property of the
+**FIPS-mode retrofitting onto a substrate that grew up non-FIPS is
+ruinously expensive** — possible in principle (re-provision the
+substrate, re-bootstrap PKI, migrate every key under the validated
+modules), but in practice the cost is high enough that FIPS-Day-1
+is the only realistic path for a deployment that anticipates the
+regulated workload. The validated crypto path is a property of the
 implementation pillars (per §3.4), not a policy overlay. Per
-capability-minimization (§1.7.2), if a deployment targets FIPS-regulated
-work, non-FIPS crypto modules must not be provisioned at all — the
-overlay encodes the NIST controls, the substrate provides the validated
-primitives.
+capability-minimization (§1.7.2), if a deployment targets FIPS-
+regulated work, non-FIPS crypto modules must not be provisioned at
+all — the overlay encodes the NIST controls, the substrate
+provides the validated primitives.
 
 **Bound STD requirements.** The security framework's bullet list
 maps directly to numbered STD requirements: credentials in Vault =
@@ -1984,14 +2012,22 @@ Language map (canonical reference in Appendix B):
 **C# is purged from the canon.** Any C# in lab history is retained as
 reference source code but does not bind a canonical mesh component.
 
-**Build / runtime substrate** per `DELIVERY-PACKAGING.md` § OS dual-tier:
-RHEL-compatible family only in v0.1 (Rocky 9.7+ / Alma 9.7+ / RHEL 9.7+
-/ UBI 9.7+). `ubuntu-latest` is **not acceptable** as the runner /
-container base / install host for any pillar's reference CI or
-shipped artifacts. The constraint exists because the mesh's
-FIPS-clean and audit-substrate claims are not credibly verifiable
-from a non-RHEL-family build. Cross-distro test jobs are allowed as
-additive signal, never substitutive.
+**Build / runtime substrate** per `DELIVERY-PACKAGING.md` § OS
+dual-tier: RHEL-compatible family only in v0.1 (Rocky 9.7+ / Alma
+9.7+ / RHEL 9.7+ / UBI 9.7+). `ubuntu-latest` is **not acceptable**
+as the runner / container base / install host for any pillar's
+reference CI or shipped artifacts. The constraint exists because
+**the project validates the FIPS-clean and audit-substrate claims
+on one family — the RHEL family — for v0.1**; cross-distro builds
+(Ubuntu Pro ships FIPS-validated modules, for instance) can produce
+conforming substrates on the same Standard requirements, but the
+project's reference validation isn't run there. Cross-distro test
+jobs are allowed as **additive signal**, never substitutive for
+the validated family. A customer who insists on a different family
+implements the same numbered Standard requirements on their
+substrate and is conformant on the same terms; the conformance
+profile is contract-pluggable per the Standard's substrate-
+substitutability discipline.
 
 **Distribution shape.** Each pillar publishes as a `pip install`able
 Python package (or `go install`able binary for the Go pillars). The
