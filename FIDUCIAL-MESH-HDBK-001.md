@@ -484,6 +484,63 @@ prompt-engineering is. Hostile auditor day-one: *"You said
 air-gapped. Where does the model run?"* — and the honest answer is
 the one above.
 
+## 1.5.2 Reference operating system
+
+Open-source first. RHEL-compliant by gate. The same discipline as the
+language policy: the Standard stays substrate-neutral at the contract
+layer; this Handbook section documents what the project's reference
+implementation runs on and the test it gates against.
+
+> **STD/HDBK boundary.** The Standard does **not** mandate an
+> operating system. The substrate-pluggability invariant per
+> `[FM-STD §1]` and `[FM-INV-0005]` means the conformance test set is
+> OS-blind; a conforming implementation may run on any operating system
+> whose substrate seams satisfy the named test gates. **This Handbook
+> section is the project's reference-implementation choice**, not a
+> conformance requirement. A customer who runs the mesh on a different
+> operating system implements the same numbered Standard requirements
+> on their OS and is conformant on the same terms.
+
+**The reference operating system is a RHEL-compliant distribution.**
+"RHEL-compliant" is the contract: the distribution shall be binary-and-
+ABI compatible with the corresponding Red Hat Enterprise Linux release,
+shall track the same package set in the same versions, and shall pass
+the standard RHEL-compliance test suite (the public Red Hat compatibility
+test plan) for the release the deployment targets.
+
+**Examples (open-source first):** Rocky Linux and AlmaLinux are the
+free-and-open-source examples of the RHEL-compliant class; Red Hat
+Enterprise Linux is the commercial example for shops that prefer the
+vendor-supported path. Any RHEL-compliant distribution that passes the
+gate is a valid reference choice; the test is on compatibility, not on
+vendor.
+
+**Why a RHEL-compliant gate, not a specific distribution name?** The
+platform's substrate stack — Podman / DPG isolation runtime, FreeIPA
+identity tier, the SELinux baseline the security profile assumes,
+Vault / OpenBao + PKCS#11 HSM integration, the systemd lifecycle
+contract — is engineered against the RHEL package set and security
+model. Distributions outside the RHEL-compliant class can be made to
+satisfy the same requirements, but the reference implementation does
+not undertake the per-distribution work to verify each; it gates on
+RHEL-compliance and treats anything passing the gate as substitutable.
+
+**Why this lives in the Handbook, not the Standard.** A normative OS
+mandate would couple the platform to a specific OS family forever and
+break substrate-pluggability for adopters whose procurement does not
+support the RHEL-compliant class. The Standard stays OS-neutral by
+design; the Handbook documents the discipline the project's reference
+implementation uses, which adopters may follow or replace per their own
+substrate. This mirrors the language-policy split in §1.5.
+
+**Platform appliances are scoped separately.** Reference-implementation
+appliances that are not directory members and never will be (Proxmox
+hypervisor, TrueNAS SCALE storage) carry their own embedded operating
+systems and are placed beneath the mesh trust fabric as owned-hardware
+substrate per `[FM-INV-0005]` (`hardware_custody = owned`). The
+RHEL-compliant gate applies to the mesh hosts, not to the platform
+appliances the mesh runs on.
+
 ## 1.6 The eight pillars + four planes
 
 The mesh organizes eight pillars into four planes (see

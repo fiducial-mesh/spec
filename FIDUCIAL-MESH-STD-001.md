@@ -140,6 +140,20 @@ modules) and the *workload runtimes* a pillar must accept — but it
 any pillar. Reference-implementation language choices live in the
 engineering-standards companion document, not in this Standard.
 
+This Standard is **OSS-first by reference convention.** Products
+named in any Conformance Profile's *sovereign-reference* or
+*supported-alternatives* column are **illustrative examples**, not
+endorsements; conformance is established by passing the named
+test set, not by selecting any specific listed product. When a
+seam has both open-source and commercial implementations that
+satisfy the same capability and test set, the sovereign-reference
+column **shall** lead with the open-source option, and commercial
+products **shall** be presented as portability examples — proof
+that the seam is product-neutral, not as a recommendation. This
+convention supports the Standard's open-source posture under
+GPL-3.0 while preserving substrate-pluggability across the full
+named set.
+
 This Standard targets **on-premises sovereign deployment**.
 Vendor-managed cloud substrate is **not in scope**; the architecture
 is air-gapped-ready and exfiltration-hostile by construction.
@@ -1349,7 +1363,7 @@ auto-discovers which test set to execute per declared substrate.
 
 | Seam | Bound requirement(s) | Sovereign reference (version floor) | Supported alternatives | Test Set |
 |------|---------------------|-------------------------------------|------------------------|----------|
-| Routing-audit storage | `[FM-IBX-0008]` | PostgreSQL 17+ | Oracle 19+, MySQL 8+ | `ibx-routing-audit-v1` |
+| Routing-audit storage | `[FM-IBX-0008]` | PostgreSQL 17+ | MariaDB 11+, MySQL 8+, Oracle 19+ | `ibx-routing-audit-v1` |
 | Worker-pool claim queue | `[FM-IBX-0007]`, `[FM-IBX-0009]` | PostgreSQL 17+ | (none currently — OLAP unsuitable; alternatives require transactional claim semantics) | `ibx-claim-queue-v1` |
 | Identity verification | `[FM-IBX-0010]` | Per IAM pillar (§5.2) | Whatever IAM declares conformant | `ibx-identity-v1` (post-IAM); `ibx-identity-deviation-v1` (transitional per `[FM-IBX-0010]` deviation clause) |
 | Telemetry sink | `[FM-IBX-0011]` | OTLP-on-the-wire | Any OTLP-compatible backend declared conformant by ACT (§5.4) | `ibx-telemetry-v1` |
@@ -1984,9 +1998,9 @@ implementations — once IAM is built per `[FM-IAM-0014]`.
 | Seam | Bound requirement(s) | Sovereign reference (version floor) | Supported alternatives | Test Set |
 |------|---------------------|-------------------------------------|------------------------|----------|
 | ARCA — offline issuance | `[FM-IAM-0001]`, `[FM-IAM-0002]`, `[FM-IAM-0003]` | smallstep CA (offline mode) — pending Tier-0 ceremony ratification | HashiCorp Vault PKI (offline-mode), AWS Private CA, Azure Key Vault HSM-backed CA, custom OpenSSL offline stack | `iam-arca-v1` |
-| Vault — credential store + in-boundary signing | `[FM-IAM-0006]`, `[FM-IAM-0008]` | HashiCorp Vault (Tier-0 with PKCS#11 HSM; Tier-2 soft-mode) | Azure Key Vault (HSM Tier-0), AWS KMS + Secrets Manager (CloudHSM Tier-0), OCI Vault (dedicated HSM), Thales CipherTrust Manager, standalone PKCS#11 HSM on-prem | `iam-vault-v1` |
-| Roster — identity store | `[FM-IAM-0007]`, `[FM-IAM-0008]`, `[FM-IAM-0010]` | Standalone Roster adapter (lab starting point) | Active Directory, LDAP / OpenLDAP, Microsoft Entra ID, Keycloak, AWS Cognito, Auth0, custom JSON-on-disk with Publish-pipeline write discipline | `iam-roster-v1` |
-| IdP federation | `[FM-IAM-0009]` | Lab Roster (single-adapter starting point, AD-shaped) | LDAP, AD (on-prem), Microsoft Entra ID with Conditional Access, OIDC providers (Okta, Auth0, Google Workspace), PIV-CAC, AWS IAM Identity Center | `iam-idp-v1` |
+| Vault — credential store + in-boundary signing | `[FM-IAM-0006]`, `[FM-IAM-0008]` | OpenBao or HashiCorp Vault (Tier-0 with PKCS#11 HSM; Tier-2 soft-mode) | Standalone PKCS#11 HSM on-prem, Thales CipherTrust Manager, Azure Key Vault (HSM Tier-0), AWS KMS + Secrets Manager (CloudHSM Tier-0), OCI Vault (dedicated HSM) | `iam-vault-v1` |
+| Roster — identity store | `[FM-IAM-0007]`, `[FM-IAM-0008]`, `[FM-IAM-0010]` | Standalone Roster adapter (lab starting point) | FreeIPA, OpenLDAP, Keycloak, Samba AD, custom JSON-on-disk with Publish-pipeline write discipline, Active Directory, Microsoft Entra ID, AWS Cognito, Auth0 | `iam-roster-v1` |
+| IdP federation | `[FM-IAM-0009]` | Lab Roster (single-adapter starting point) | FreeIPA, OpenLDAP, Keycloak, OIDC providers (Authentik, Dex), PIV-CAC, AD (on-prem), Microsoft Entra ID with Conditional Access, Okta, Auth0, AWS IAM Identity Center | `iam-idp-v1` |
 | Identity-context lookup (PGE seam) | `[FM-IAM-0011]` | In-pillar Roster identity resolver (returns context only; no allow\|deny) | Any identity-store adapter exposing the six-element context per `[FM-IAM-0011]` — LDAP-attribute mapper, Active Directory attribute query, OIDC userinfo + claim mapping, custom Roster adapter | `iam-identity-context-v1` |
 | Telemetry sink | `[FM-IAM-0012]` | OTLP-on-the-wire (any OTLP-compatible backend per ACT §5.4) | Grafana/Prometheus/Tempo, Azure Monitor, Datadog, OCI Monitoring, AWS CloudWatch (with OTLP adapter) | `iam-telemetry-v1` |
 
@@ -5244,9 +5258,9 @@ language.
 | Seam | Bound requirement(s) | Sovereign reference (version floor) | Supported alternatives | Test Set |
 |------|---------------------|-------------------------------------|------------------------|----------|
 | Transport (HTTP + MCP) | `[FM-MCC-0001]`, `[FM-MCC-0002]` | HTTPS-only HTTP server + MCP-over-TLS transport, both routing to the same plugin operation set | Any HTTPS-capable server + MCP-compatible transport satisfying the single-endpoint property | `mcc-transport-v1` |
-| Relational database (transactional, JSONB-equivalent) | `[FM-MCC-0004]` | PostgreSQL 17+ | Oracle 19+, MySQL 8+ — any relational substrate satisfying the IBX claim-queue and the IAM identity-store contracts | `mcc-database-v1` |
-| Secret store (HTTPS-accessible, audit-loggable, revocable) | `[FM-MCC-0004]`, `[FM-IAM-0006]` | HashiCorp Vault (Tier-0 with PKCS#11 HSM; Tier-2 soft-mode) per the IAM Conformance Profile | Azure Key Vault (HSM Tier-0), AWS KMS + Secrets Manager (CloudHSM Tier-0), OCI Vault (dedicated HSM), Thales CipherTrust Manager, standalone PKCS#11 HSM on-prem | `mcc-secret-store-v1` |
-| Identity provider (federated; SAML/OIDC/LDAP-capable) | `[FM-MCC-0003]`, `[FM-MCC-0007]`, `[FM-IAM-0011]` | Samba AD / Microsoft AD (federation per the IAM identity-provider seam) | Microsoft Entra, OpenLDAP, Keycloak, FreeIPA, any SAML/OIDC/LDAP-capable identity provider | `mcc-identity-provider-v1` |
+| Relational database (transactional, JSONB-equivalent) | `[FM-MCC-0004]` | PostgreSQL 17+ | MariaDB 11+, MySQL 8+, Oracle 19+ — any relational substrate satisfying the IBX claim-queue and the IAM identity-store contracts | `mcc-database-v1` |
+| Secret store (HTTPS-accessible, audit-loggable, revocable) | `[FM-MCC-0004]`, `[FM-IAM-0006]` | OpenBao or HashiCorp Vault (Tier-0 with PKCS#11 HSM; Tier-2 soft-mode) per the IAM Conformance Profile | Standalone PKCS#11 HSM on-prem, Thales CipherTrust Manager, Azure Key Vault (HSM Tier-0), AWS KMS + Secrets Manager (CloudHSM Tier-0), OCI Vault (dedicated HSM) | `mcc-secret-store-v1` |
+| Identity provider (federated; SAML/OIDC/LDAP-capable) | `[FM-MCC-0003]`, `[FM-MCC-0007]`, `[FM-IAM-0011]` | FreeIPA, Keycloak, or OpenLDAP (federation per the IAM identity-provider seam) | Samba AD (open-source AD-compatible), Microsoft Entra ID, Microsoft Active Directory (on-prem), Okta, Auth0, AWS IAM Identity Center, any SAML/OIDC/LDAP-capable identity provider | `mcc-identity-provider-v1` |
 | Telemetry sink | `[FM-MCC-0014]` | OTLP-on-the-wire (any OTLP-compatible backend) | Grafana/Prometheus/Tempo, Azure Monitor, Datadog, OCI Monitoring | `mcc-telemetry-v1` |
 | TLS terminator | `[FM-MCC-0001]` (transport) | Any TLS-capable HTTPS server (self-handled or front-proxy) | Caddy, nginx, native HTTPS in the host runtime, cloud load-balancer TLS termination | `mcc-tls-v1` |
 | Process supervisor | `[FM-MCC-0001]` (lifecycle) | Any process supervisor with restart, log capture, resource limits | systemd, container orchestrator (Kubernetes / Nomad / Podman), supervisord, runit | `mcc-supervisor-v1` |
