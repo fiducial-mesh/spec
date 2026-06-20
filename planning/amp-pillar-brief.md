@@ -90,6 +90,31 @@ sensitive data does **not** get it by putting it in the payload — **policy sti
 or reject.** The payload is a *request*, not a *grant*. This preserves the §5b dependency direction (AMP
 consumes PGE; the payload can't escalate past it) and is what keeps payload-driven routing safe.
 
+## 3c. The route IS the access surface — chokepoint + consolidation (Judge, 2026-06-20)
+
+**Whatever can reach the AMP route can drive everything behind it** — every backend, the arbiter, the
+meter. So the API route is *the* access-control surface; the security of the whole crossbar reduces to
+controlling access to that one route. Two faces:
+
+- **The payoff — access consolidates.** Today each backend is secured independently (and Daina was found
+  wide open, §5c). Under AMP the backends go **private** — localhost-bound, reachable *only via AMP* — and
+  the single AMP route carries auth + identity + policy + metering. **N doors to defend → one governed
+  door.** Strictly better, *provided the route is locked with the same doctrine applied per-endpoint
+  today:* **authenticated + source-bound.**
+- **The risk — the route is the key.** "Anything with access can use it" means route access = capability.
+  So the route must **not** be a single shared key, or it is a skeleton key to the whole fleet. Mitigation:
+  the route is **identity-scoped** (each caller authenticates as *itself* via IAM, not a shared secret)
+  and **PGE-bounded** (policy decides what that identity may route to — which backends, which data class).
+  So "anything with access" is precisely **"any authenticated identity, limited to what policy grants
+  it."** That is what stops the consolidation from becoming a single point of total compromise.
+
+Composes with §3b: to use AMP you (a) **authenticate to the route** as a known identity (IAM), (b) your
+**payload requests** a topology/backend (§3b), (c) **PGE decides** what you actually get. Three layers,
+and the payload can never escalate past (a) or (c). This is today's endpoint-hardening finding completed
+one layer up: secure each endpoint → then let endpoints go private behind **one** authenticated,
+source-bound, identity-scoped, policy-gated route. **The AMP route is the highest-value door in the fleet;
+it inherits the access doctrine in full.**
+
 ## 4. Doctrine — adopt the plugin system, don't invent it
 
 > *"We didn't invent the plugin system; we're merely USING the plugin system in the Mesh."* — Judge
