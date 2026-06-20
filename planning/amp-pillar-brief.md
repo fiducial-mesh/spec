@@ -126,6 +126,28 @@ are **additive** governance layered on top — consumed by AMP for decisions, fe
 reaching into the core. (This is *also* why standalone mode works: strip PGE/ACT/IAM and the core still
 routes.)
 
+## 5c. Precursor & migration anchor — `qsp-mcp` is the proto-AMP (Judge, 2026-06-20)
+
+The lab already runs a **hand-rolled, single-purpose AMP**: `qsp-mcp` bridges an agent to one local LLM
+endpoint (`:8000`, Daina/Newton). It is what AMP generalizes — and it shows the failure modes AMP exists
+to fix:
+
+| `qsp-mcp` (proto) | AMP (the pillar) |
+|---|---|
+| one hardcoded backend / endpoint | multi-backend crossbar (Multi-Multi: agent-LLM × ARCH) |
+| **theater auth** — config carries an `api_key` the backend ignores (confirmed 2026-06-20: open `0.0.0.0` endpoint, no auth) | every backend **authenticated + source-bound** is a precondition of safe routing |
+| no metering, no policy, no audit | meter producer (→ ACT), policy consumer (← PGE), identity-scoped (← IAM) |
+| a bespoke MCP per bridge | backends are **port adapters** behind one AMP contract |
+
+So **AMP subsumes QSP**: the bridge becomes one backend adapter behind AMP's port model and the custom MCP
+retires. Two consequences:
+- **Don't over-invest in hardening `qsp-mcp` itself** — it's destined for replacement. The work that
+  carries forward is **securing the backend endpoint** (auth + source-bind on Daina/Melody/Jacob), which
+  AMP will route to unchanged. The `qsp-mcp` config key is throwaway twice over (theater now; MCP gone later).
+- This is the **concrete "what does AMP replace?" story** for the spec — a real running precursor, not a
+  greenfield claim. The local-LLM endpoint-hardening sweep (Melody = reference pattern; Daina/Jacob being
+  brought to it) is **AMP's perms layer being proven in miniature before the pillar exists.**
+
 ## 6. OPEN questions for the chain (do NOT resolve ad-hoc)
 
 1. **Relationship to CRB.** CRB is already "hardware-aware dispatch." AMP is "LLM-API-spec routing."
