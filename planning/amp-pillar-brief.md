@@ -66,6 +66,30 @@ for endpoints, a subprocess driver for CLIs. Port type is **independent of the a
 endpoint backend runs on MLX/CUDA; a CLI backend is typically the cloud frontier agent. **A CLI is its
 own port class with its own conformance profile — model it, don't HTTP-ify it.**
 
+## 3b. The request contract — payload attributes select the topology (Judge, 2026-06-20)
+
+**The routing topology is not a mode of the AMP instance — it's a property of the request.** The caller
+submits a payload; the payload's attributes declare what it wants — a single backend, or a panel + arbiter
+(§5d). Same endpoint, same contract; **the payload picks the route.** This is exactly the "based on the
+provider's own API spec" doctrine (§4): AMP takes the provider-API payload and **extends it with a
+routing-control attribute namespace**, e.g.:
+
+| Attribute | Effect |
+|---|---|
+| *(none)* | policy-driven 1:1 route — AMP/PGE picks the backend |
+| `amp.backend` / `amp.backends` | target a specific backend or **backend set** (set ⇒ fan-out) |
+| `amp.mode: single \| panel` | 1:1 routing vs `1:N → N:1` (§5d) |
+| `amp.arbiter` | which port reconciles the panel (LLM / reducer / human) |
+| `amp.data_class` | declares sensitivity → feeds PGE's routing decision |
+
+For the **CLI port type** (§3a) the same intent rides invocation flags/args rather than a JSON body —
+"request attributes," generalized across both port types.
+
+**Critical guardrail — payload is *intent*, PGE is *decision*.** A caller asking for a cloud backend on
+sensitive data does **not** get it by putting it in the payload — **policy still governs and may override
+or reject.** The payload is a *request*, not a *grant*. This preserves the §5b dependency direction (AMP
+consumes PGE; the payload can't escalate past it) and is what keeps payload-driven routing safe.
+
 ## 4. Doctrine — adopt the plugin system, don't invent it
 
 > *"We didn't invent the plugin system; we're merely USING the plugin system in the Mesh."* — Judge
@@ -185,10 +209,13 @@ retires. Two consequences:
    (streaming, tool-calling, system prompts, token accounting)?
 4. **Routing-policy contract** — how is "route sensitive→local, burst→cloud" expressed and audited?
    (Touches PGE for the policy and ACT for the audit of routing decisions.)
-5. **Is fan-out + arbiter (§5d) a *core* AMP topology or a *composition above* the 1:1 router?** i.e.
-   does AMP's normative contract include scatter-gather + an arbiter stage, or does it expose only 1:1
-   routing and leave the panel/arbiter pattern to a caller/workflow layered on top? Bears directly on
-   conformance scope (§6.3) and the CRB boundary (§6.1) — settle alongside them, not ad-hoc.
+5. **The routing-control payload schema (§3b).** Judge settled the *framing*: topology is
+   **payload-selected**, not a static AMP mode — so fan-out+arbiter is one contract parameterized per
+   request, not a separate subsystem. What's left for the chain: (a) the **normative attribute set**
+   (`amp.backends` / `amp.mode` / `amp.arbiter` / `amp.data_class` …) and how it composes with each
+   provider's own payload; (b) what conformance certifies about honoring it (§6.3); (c) ratifying the
+   **payload-is-intent / PGE-is-decision** guardrail (§3b) so payload routing can't escalate past policy.
+   Bears on the CRB boundary (§6.1) — settle alongside it, not ad-hoc.
 
 ## 7. Process path
 
