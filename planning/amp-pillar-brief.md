@@ -126,6 +126,30 @@ are **additive** governance layered on top — consumed by AMP for decisions, fe
 reaching into the core. (This is *also* why standalone mode works: strip PGE/ACT/IAM and the core still
 routes.)
 
+## 5d. Fan-out + arbiter — the dialectical topology (Judge, 2026-06-20)
+
+The Multi-Multi crossbar's higher-value mode isn't 1:1 (route a call to the right backend) — it's
+**`1:N → N:1`**: fan one logical question out to a *set* of backends, then route the compared responses
+to an **arbiter** that reconciles them. AMP makes this **dynamic** — the panel members and the arbiter are
+selected at runtime by policy, not hardcoded.
+
+- **The arbiter is just another AMP port — nothing special in the core.** It can be an LLM
+  (LLM-as-judge), a deterministic reducer (vote / merge), or a **human** (Judge = the tiebreaker). Same
+  port model as any other backend.
+- **This is the lab's own dialectical method, automated.** Watson/Bob/Patton/Einstein/Grok answer; Judge
+  arbitrates. AMP does that for the *LLM* layer dynamically — so the lab is again the reference
+  implementation (the dialectical engine — see `papers/THE-DIALECTICAL-ENGINE.md` — as a *routing
+  primitive*, not a hand-run ceremony).
+- **It sharpens "Multi-Multi":** beyond routing *different* questions to different backends, fan-out asks
+  the *same* question of several for **comparison / reconciliation**. Grok's existing
+  synthesis/cross-agent reconciliation lens is exactly an arbiter role.
+- **Meter consequence (ties §5a):** a panel call costs **N+1** inferences — AMP must attribute all of
+  them. Panel calls are the expensive ones; the meter is what stops "ask everyone, arbitrate" from being a
+  silent cost blowout, and **PGE decides *when* a question is worth a panel vs a single backend.**
+
+Keeps the core minimal (IP-1 / adopt-don't-invent): fan-out is a **routing topology over the existing
+port set**, not a new subsystem.
+
 ## 5c. Precursor & migration anchor — `qsp-mcp` is the proto-AMP (Judge, 2026-06-20)
 
 The lab already runs a **hand-rolled, single-purpose AMP**: `qsp-mcp` bridges an agent to one local LLM
@@ -161,6 +185,10 @@ retires. Two consequences:
    (streaming, tool-calling, system prompts, token accounting)?
 4. **Routing-policy contract** — how is "route sensitive→local, burst→cloud" expressed and audited?
    (Touches PGE for the policy and ACT for the audit of routing decisions.)
+5. **Is fan-out + arbiter (§5d) a *core* AMP topology or a *composition above* the 1:1 router?** i.e.
+   does AMP's normative contract include scatter-gather + an arbiter stage, or does it expose only 1:1
+   routing and leave the panel/arbiter pattern to a caller/workflow layered on top? Bears directly on
+   conformance scope (§6.3) and the CRB boundary (§6.1) — settle alongside them, not ad-hoc.
 
 ## 7. Process path
 
