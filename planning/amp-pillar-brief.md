@@ -44,12 +44,27 @@ Mesh-Invariant (PCS for plugins; IP-1 for substrate):
 
 | Element | AMP |
 |---|---|
-| **Contract** | the LLM provider **API spec** (Anthropic Messages / OpenAI Chat-Completions) |
-| **Conformance** | "does this backend *speak* the contract" (a `*-v1`-style test set) |
-| **Registry** | the set of available backends (Daina@llama.cpp, Melody@MLX, cloud Claude/Codex/Grok) |
+| **Contract** | **polymorphic by port type** (§3a): for *endpoint* backends, the LLM provider **API spec** (Anthropic Messages / OpenAI Chat-Completions); for *CLI* backends, the **subprocess invocation interface** |
+| **Conformance** | "does this backend satisfy *its port-type* contract" (a `*-v1`-style test set per port type) |
+| **Registry** | the available backends, each tagged with its **port type** (§3a) + **billing mode** (§5a) |
 
-A backend plugs in by speaking the contract — exactly how a plugin plugs into PCS or a substrate
+A backend plugs in by satisfying its contract — exactly how a plugin plugs into PCS or a substrate
 component satisfies IP-1.
+
+## 3a. Two port types — the crossbar has heterogeneous ports (Judge, 2026-06-20)
+
+The backends are NOT all the same shape; the spec must model this explicitly so **AMP doesn't pretend
+a TUI is an endpoint**:
+
+| Port type | Backends | What the "port" is | Contract | Auth |
+|---|---|---|---|---|
+| **Endpoint** | Daina, Melody, Newton (local, OpenAI-compatible) | an HTTP endpoint | the **provider API spec** (HTTP) | scoped key / AppRole |
+| **CLI / agentic** | Claude Code, Grok Build, Codex | a **subprocess** with its own session | the **invocation interface** (argv / stdin prompt / stdout+exit / env) — *not* an HTTP spec | the CLI's **own OAuth / subscription** |
+
+AMP routes uniformly at the agent-call level, but the **adapter differs by port type** — an HTTP client
+for endpoints, a subprocess driver for CLIs. Port type is **independent of the arch axis** (§5): an
+endpoint backend runs on MLX/CUDA; a CLI backend is typically the cloud frontier agent. **A CLI is its
+own port class with its own conformance profile — model it, don't HTTP-ify it.**
 
 ## 4. Doctrine — adopt the plugin system, don't invent it
 
@@ -74,6 +89,42 @@ The spec makes **MLX and NVIDIA first-class** so a deployment picks its architec
 the Requirements×Houses matrix picks a vendor column — the conformance test is the invariant, the
 architecture is the swappable axis. (This is AMP's paper figure: the pluggability thesis one layer
 deeper than usual — across **model × silicon**.)
+
+## 5a. Billing-aware + the metering chokepoint (Judge, 2026-06-20) — "crossbar AND meter"
+
+Two functions fall out of AMP being the single point every agent-LLM call traverses:
+
+1. **Billing-path correctness (a routing constraint).** Each backend has a **billing mode** —
+   *subscription/OAuth* (Claude Code = Max, Grok Build = SuperGrok), *metered API* (api.anthropic.com,
+   api.x.ai), or *local/free* (Daina/Melody/Newton). AMP **must route to the subscription/local path and
+   NEVER silently to a metered-API path** without an explicit billing decision. This makes the *"no
+   provider-API billing stacked on subscriptions"* doctrine — the exact trap flagged on the Grok path —
+   an **enforced routing rule**, not a manual habit/audit.
+2. **Metering chokepoint.** Every call emits a metering record — **(agent identity, backend, port type,
+   billing mode, token counts / cost)** — straight into **ACT**. Per-(agent, backend, tokens) accounting
+   falls out *for free* because every call already flows through the crossbar. It's also the natural data
+   source for the deferred **ABS** (Agentic Billing System): AMP meters, ABS attributes/bills.
+   The **telemetry sink is pluggable** (Judge, 2026-06-20): **ACT is the warehouse when Mesh-integrated**,
+   or AMP writes to a **standalone store when running alone**. The meter is *intrinsic* to AMP; *where it
+   lands* is the swappable part — so standalone metering does not require ACT (preserving §"dual-mode").
+
+**Crossbar and meter.**
+
+## 5b. Pillar relationships (Judge wants this explicit in the spec)
+
+AMP is a **policy consumer + meter producer**, not an island:
+
+| Pillar | Relationship |
+|---|---|
+| **PGE** | AMP **consumes** PGE policy: *"may agent X use backend Y for data-class Z?"* (e.g. sensitive → local-only). PGE decides, AMP **enforces** the routing. Routing policy is PGE's domain. |
+| **ACT** | AMP **produces** to ACT: every routing decision + per-call metering → ACT's audit ledger + telemetry. AMP is the **meter**; ACT consumes. |
+| **IAM** | AMP **consumes** identity from IAM — needed for per-agent routing policy and per-agent metering. |
+| **ABS** (deferred) | AMP's metering feeds ABS for contract attribution / usage rollups. |
+
+Same dependency-direction shape as everywhere: AMP's **routing core is self-sufficient**; PGE/ACT/IAM
+are **additive** governance layered on top — consumed by AMP for decisions, fed by AMP for audit, never
+reaching into the core. (This is *also* why standalone mode works: strip PGE/ACT/IAM and the core still
+routes.)
 
 ## 6. OPEN questions for the chain (do NOT resolve ad-hoc)
 
