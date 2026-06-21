@@ -133,7 +133,7 @@ routing diversity becomes a pillar instead of a manual habit.
 | Local coder | — | Daina (Qwen3-Coder, llama.cpp) | — | — |
 | Local reasoner | Melody (Qwen2.5-72B, mlx_lm) | (Newton, llama.cpp, dormant) | — | — |
 | Light / scribe | — | Jacob (EPYC RTX-5080) | (Iris Xe — OpenVINO/SYCL, small models) | — |
-| Frontier agent | — | — | — | Claude Code / Grok / (Codex) |
+| Frontier agent | — | — | — | Claude Code / Grok / Codex |
 
 The spec makes **MLX, NVIDIA, and Intel first-class** so a deployment picks its architecture column the
 way the Requirements×Houses matrix picks a vendor column — the conformance test is the invariant, the
@@ -142,16 +142,18 @@ than usual — across **model × silicon**.) **Intel added 2026-06-21:** the sub
 Intel GPU in the fleet (§5.1), so the local arch axis is **three vendors, not two** — the cheapest
 possible proof that "Multi-ARCH" is more than MLX-vs-CUDA.
 
-**Frontier-agent accounts the lab holds (2026-06-21): Claude (Max) and Grok (SuperGrok); Codex deferred
-(Judge's call).** The frontier column is the **Multi-Agent-LLM axis** — but with a **capability asymmetry
-verified 2026-06-21**, and the two frontier *roles* are NOT symmetric:
-- **Evaluation (§5e)** is **vendor-neutral** — adjudicating is just an agent call; Opus *or* Grok qualify.
-- **Trigger/origination (§6.6)** is **capability-gated** — it needs a *scheduled/autonomous runner*, which
-  **only Claude Desktop offers today** (Codex Desktop is the one verified equivalent, account not held;
-  **Grok has no equivalent** — Grok Build CLI + SuperGrok TUI, no scheduler).
+**Frontier-agent accounts the lab holds (2026-06-21): Claude (Max), Grok (SuperGrok), and Codex/OpenAI
+(ChatGPT Plus — CLI + Desktop).** The frontier column is the **Multi-Agent-LLM axis** — but with a
+**capability asymmetry verified 2026-06-21**, and the two frontier *roles* are NOT symmetric:
+- **Evaluation (§5e)** is **vendor-neutral** — adjudicating is just an agent call; Claude, Grok, *or*
+  Codex all qualify.
+- **Trigger/origination (§6.6)** is **capability-gated** — it needs a *scheduled/autonomous runner*. **Two
+  held vendors have one — Claude Desktop and Codex Desktop** (Judge-verified equivalents); **Grok has none**
+  (Grok Build CLI + SuperGrok TUI, no scheduler).
 
-So AMP must no more hardcode Claude *for evaluation* than it hardcodes CUDA — but for the **trigger** it
-must model a **capability some vendors lack**, not assume universal vendor-neutrality.
+So the trigger is **multi-vendor but not universal** — AMP must model it as a **capability some vendors
+lack** (Grok), not assume vendor-neutrality. And because *two* held runners have it, the swap is actually
+**testable** (§8), not hypothetical. AMP must no more hardcode Claude *for evaluation* than it hardcodes CUDA.
 
 ### 5.1 Concrete fleet — the real substrate the arch axis must describe (walked 2026-06-21)
 
@@ -297,10 +299,12 @@ low-volume one and the labor is high-volume/cheap — the meter shows the split.
 6. **The trigger / origination layer — in-scope or explicitly out?** AMP **routes** calls; it does not
    **originate** them. The substrate walk (2026-06-21) surfaced origination as load-bearing: scheduled or
    autonomous work is *triggered* by a **frontier-agent runner that ships a scheduled/autonomous
-   capability** — **Claude Desktop scheduled tasks** today
-   ([code.claude.com/docs/en/desktop-scheduled-tasks](https://code.claude.com/docs/en/desktop-scheduled-tasks));
-   **Codex Desktop is the only verified equivalent** (account not held); **Grok has NO equivalent**
-   (verified 2026-06-21 — Grok Build CLI + SuperGrok TUI, no scheduler/autonomous runner) — plus Cloud
+   capability** — **Claude Desktop scheduled tasks**
+   ([code.claude.com/docs/en/desktop-scheduled-tasks](https://code.claude.com/docs/en/desktop-scheduled-tasks))
+   and **Codex Desktop** — **both held** (Claude via Max, Codex via ChatGPT Plus) and Judge-verified
+   equivalents; **Grok has NO equivalent** (verified 2026-06-21 — Grok Build CLI + SuperGrok TUI, no
+   scheduler/autonomous runner; the documented capability-gap example regardless of whether the
+   subscription is retained) — plus Cloud
    routines (fire when machines are off / on GitHub events) and in-session `/loop`. **So the trigger is
    NOT uniformly vendor-available:** unlike evaluation (§5e, vendor-neutral), it is **capability-gated** —
    only vendors that ship a scheduler/autonomous runner can hold it. That asymmetry is itself
@@ -330,10 +334,10 @@ agent-meaning on top of a capability already proven on the substrate.
 - **Capacity/generation routing (§5.1):** heavy inference → a 96 GB card; can-wait batch → Ampere 16 GB;
   fast checks → Blackwell.
 - **Role/judgment-tier (§5e):** local labor computes IONIS vs VOACAP vs the day's observations; a
-  **frontier agent evaluates** (held / drifted / needs a look) — Opus today, Grok-capable.
+  **frontier agent evaluates** (held / drifted / needs a look) — Claude or Codex (Grok-capable while held).
 - **Trigger layer (§6.6):** originated by a **frontier-agent scheduled task** on the always-on M3 — Claude
-  Desktop today (the only held runner with this capability; Grok has none, Codex not held) — the concrete
-  test of whether origination is in- or out-of-contract.
+  Desktop *or* Codex Desktop (both held; Grok has none) — the concrete test of whether origination is in-
+  or out-of-contract, now swap-testable across two real vendors.
 - **Meter (§5a):** every call — labor + evaluation — metered; proves per-(agent, backend, tier)
   accounting falls out of the crossbar.
 
@@ -343,10 +347,11 @@ agent-meaning on top of a capability already proven on the substrate.
 3. Is Intel actually first-class (§5), or does it degrade to a footnote in practice?
 4. Does the meter (§5a) capture a two-stage labor→evaluation pipeline cleanly?
 5. Where do identity/policy/meter attach when a call is *originated by a scheduler*, not a live agent (§6.6)?
-6. **Evaluation** vendor-neutrality (§5e): swap the evaluator Opus→Grok — does anything below the route
-   change? (If yes, that's a leak.) The **trigger** is the *opposite* test (§6.6): Grok has no scheduler,
-   so the spec must model origination as a **capability some vendors lack** — does the design wrongly
-   assume any frontier vendor can originate?
+6. **Evaluation** vendor-neutrality (§5e): swap the evaluator across held frontier vendors (Claude,
+   Codex, + Grok while retained) — does anything below the route change? (If yes, that's a leak.)
+   **Trigger** (§6.6) is now a *two-sided* test: swap the runner **Claude Desktop ↔ Codex Desktop** (both
+   held) — does the route below change? — *and* confirm the design models origination as a **capability
+   Grok lacks**, not a universal given.
 
 What the build finds — gaps, port-type stretches, missing attributes — feeds the chain (§7) as
 **evidence**: the substrate proves or breaks the spec before the spec goes normative.
