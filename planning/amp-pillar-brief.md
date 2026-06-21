@@ -157,24 +157,31 @@ lack** (Grok), not assume vendor-neutrality. And because *two* held runners have
 
 ### 5.1 Concrete fleet — the real substrate the arch axis must describe (walked 2026-06-21)
 
-**Five accelerators, three local architectures, four boxes.** This inventory is itself a substrate-first
-artifact — it is *what the spec's arch axis has to be able to model*:
+**Five accelerators, three local architectures, four boxes — and two host OSes that gate roles.** This
+inventory is itself a substrate-first artifact — it is *what the spec's arch axis has to be able to model*:
 
-| Box | Accelerator | Arch | Mem | Tier | Persona |
-|---|---|---|---|---|---|
-| M3 Ultra | unified | Apple MLX | 96 GB | heavyweight reasoner | Melody |
-| 9975 | RTX PRO 6000 · Blackwell | CUDA | 96 GB | heavyweight coder | Daina |
-| EPYC | RTX 5080 · Blackwell | CUDA | 16 GB | fast light / scribe | Jacob |
-| ASUS SCAR 17 | RTX 3080 Ti · Ampere | CUDA | 16 GB | can-wait batch | — |
-| ASUS SCAR 17 | Iris Xe iGPU | Intel oneAPI/SYCL | shared | small-model / heterogeneity proof | — |
+| Box | OS | Accelerator | Arch | Mem | Tier | Persona |
+|---|---|---|---|---|---|---|
+| M3 Ultra | macOS | unified | Apple MLX | 96 GB | heavyweight reasoner | Melody |
+| 9975 | Rocky 9 | RTX PRO 6000 · Blackwell | CUDA | 96 GB | heavyweight coder | Daina |
+| EPYC | Rocky 9 | RTX 5080 · Blackwell | CUDA | 16 GB | fast light / scribe | Jacob |
+| ASUS SCAR 17 | Windows | RTX 3080 Ti · Ampere | CUDA | 16 GB | can-wait batch | — |
+| ASUS SCAR 17 | Windows | Iris Xe iGPU | Intel oneAPI/SYCL | shared | small-model / heterogeneity proof | — |
 
-Two routing dimensions fall straight out of this — both **worked substance for the §6.1 CRB seam** (kept
-open there, recorded here, *not* resolved):
+**Consolidated matrix (Judge, 2026-06-21):** frontier = **Claude + Codex** (each CLI **and** Desktop App;
+Grok being retired — no Desktop App) **×** these four compute boxes. Three routing/placement dimensions
+fall straight out of it — all **worked substance for the §6.1 CRB seam** (kept open there, recorded here,
+*not* resolved):
 - **Capacity-fit** — a 70B job routes to a 96 GB card, never a 16 GB one. *Will it fit* is a hard
   constraint, not a preference.
 - **Generation/speed-tier** — both 16 GB cards fit the same model, but **Blackwell (5080) ≫ Ampere
   (3080 Ti)** in throughput: latency-sensitive → Blackwell, can-wait nightly batch → Ampere. *How fast it
   must finish* is a second axis above raw fit.
+- **Trigger-host eligibility (OS-gated, §6.6)** — a Desktop-app trigger runner needs a **GUI OS**
+  (macOS/Windows) *and* always-on. So the **M3 (macOS, always-on + UPS) is the prime trigger host**; the
+  Windows laptop is GUI-capable but sleeps (secondary); the **Rocky 9 servers (9975, EPYC) cannot host a
+  Desktop app at all** — headless, they run CLI + the local-LLM inference endpoints. The OS splits the
+  fleet into **trigger-hosts** (GUI desktops) and **compute / endpoint-hosts** (headless servers).
 
 ## 5a. Billing-aware + the metering chokepoint (Judge, 2026-06-20) — "crossbar AND meter"
 
