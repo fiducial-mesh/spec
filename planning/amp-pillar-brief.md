@@ -143,9 +143,15 @@ Intel GPU in the fleet (§5.1), so the local arch axis is **three vendors, not t
 possible proof that "Multi-ARCH" is more than MLX-vs-CUDA.
 
 **Frontier-agent accounts the lab holds (2026-06-21): Claude (Max) and Grok (SuperGrok); Codex deferred
-(Judge's call).** The frontier column is itself the **Multi-Agent-LLM axis** — the trigger/evaluation
-agent (§5e, §6.6) is a *routable choice among held accounts*, **vendor-neutral by design**, not a fixed
-Claude dependency. AMP must no more hardcode Claude than it hardcodes CUDA.
+(Judge's call).** The frontier column is the **Multi-Agent-LLM axis** — but with a **capability asymmetry
+verified 2026-06-21**, and the two frontier *roles* are NOT symmetric:
+- **Evaluation (§5e)** is **vendor-neutral** — adjudicating is just an agent call; Opus *or* Grok qualify.
+- **Trigger/origination (§6.6)** is **capability-gated** — it needs a *scheduled/autonomous runner*, which
+  **only Claude Desktop offers today** (Codex Desktop is the one verified equivalent, account not held;
+  **Grok has no equivalent** — Grok Build CLI + SuperGrok TUI, no scheduler).
+
+So AMP must no more hardcode Claude *for evaluation* than it hardcodes CUDA — but for the **trigger** it
+must model a **capability some vendors lack**, not assume universal vendor-neutrality.
 
 ### 5.1 Concrete fleet — the real substrate the arch axis must describe (walked 2026-06-21)
 
@@ -290,15 +296,19 @@ low-volume one and the labor is high-volume/cheap — the meter shows the split.
    Bears on the CRB boundary (§6.1) — settle alongside it, not ad-hoc.
 6. **The trigger / origination layer — in-scope or explicitly out?** AMP **routes** calls; it does not
    **originate** them. The substrate walk (2026-06-21) surfaced origination as load-bearing: scheduled or
-   autonomous work is *triggered* by a **frontier-agent runner** — a **Claude Desktop scheduled task**
-   today ([code.claude.com/docs/en/desktop-scheduled-tasks](https://code.claude.com/docs/en/desktop-scheduled-tasks)),
-   but **equally a Grok or Codex desktop/autonomous runner** — plus Cloud routines (fire when machines are
-   off / on GitHub events) and in-session `/loop`. The capability is **vendor-neutral** — the
-   Multi-Agent-LLM axis applied to *origination*, not just routing. Is that layer (a) **out of AMP's
-   contract** — origination is a separate concern, AMP routes whatever arrives — or (b) a
-   **referenced-but-external** seam the spec must name so meter/policy/identity attach at origination too?
-   The chain settles it; do **not** absorb the scheduler into the routing core ad-hoc (keep the core
-   minimal, IP-1), and do **not** bind it to one vendor (Claude today, Grok held, Codex deferred).
+   autonomous work is *triggered* by a **frontier-agent runner that ships a scheduled/autonomous
+   capability** — **Claude Desktop scheduled tasks** today
+   ([code.claude.com/docs/en/desktop-scheduled-tasks](https://code.claude.com/docs/en/desktop-scheduled-tasks));
+   **Codex Desktop is the only verified equivalent** (account not held); **Grok has NO equivalent**
+   (verified 2026-06-21 — Grok Build CLI + SuperGrok TUI, no scheduler/autonomous runner) — plus Cloud
+   routines (fire when machines are off / on GitHub events) and in-session `/loop`. **So the trigger is
+   NOT uniformly vendor-available:** unlike evaluation (§5e, vendor-neutral), it is **capability-gated** —
+   only vendors that ship a scheduler/autonomous runner can hold it. That asymmetry is itself
+   spec-relevant. Is the layer (a) **out of AMP's contract** — origination is a separate concern, AMP
+   routes whatever arrives — or (b) a **referenced-but-external** seam the spec must name so
+   meter/policy/identity attach at origination too? The chain settles it; do **not** absorb the scheduler
+   into the routing core ad-hoc (keep the core minimal, IP-1), and model the trigger as a **capability**
+   (which vendors offer it), not an assumed vendor-neutral given.
 
 ## 7. Process path
 
@@ -321,8 +331,9 @@ agent-meaning on top of a capability already proven on the substrate.
   fast checks → Blackwell.
 - **Role/judgment-tier (§5e):** local labor computes IONIS vs VOACAP vs the day's observations; a
   **frontier agent evaluates** (held / drifted / needs a look) — Opus today, Grok-capable.
-- **Trigger layer (§6.6):** originated by a **frontier-agent scheduled task** on the always-on M3 (Claude
-  Desktop today; vendor-neutral) — the concrete test of whether origination is in- or out-of-contract.
+- **Trigger layer (§6.6):** originated by a **frontier-agent scheduled task** on the always-on M3 — Claude
+  Desktop today (the only held runner with this capability; Grok has none, Codex not held) — the concrete
+  test of whether origination is in- or out-of-contract.
 - **Meter (§5a):** every call — labor + evaluation — metered; proves per-(agent, backend, tier)
   accounting falls out of the crossbar.
 
@@ -332,8 +343,10 @@ agent-meaning on top of a capability already proven on the substrate.
 3. Is Intel actually first-class (§5), or does it degrade to a footnote in practice?
 4. Does the meter (§5a) capture a two-stage labor→evaluation pipeline cleanly?
 5. Where do identity/policy/meter attach when a call is *originated by a scheduler*, not a live agent (§6.6)?
-6. Is the trigger/evaluation layer genuinely **vendor-neutral** — does swapping Claude→Grok at the runner
-   change anything below the route? (If yes, that's a leak the spec must close.)
+6. **Evaluation** vendor-neutrality (§5e): swap the evaluator Opus→Grok — does anything below the route
+   change? (If yes, that's a leak.) The **trigger** is the *opposite* test (§6.6): Grok has no scheduler,
+   so the spec must model origination as a **capability some vendors lack** — does the design wrongly
+   assume any frontier vendor can originate?
 
 What the build finds — gaps, port-type stretches, missing attributes — feeds the chain (§7) as
 **evidence**: the substrate proves or breaks the spec before the spec goes normative.
