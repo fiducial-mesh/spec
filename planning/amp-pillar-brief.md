@@ -22,7 +22,7 @@ backends and many hardware architectures through one contract. A crossbar switch
 M backends/architectures** routed through one switching layer.
 
 **"Multi-Multi" = Multi-Agent-LLM × Multi-ARCH.** Two axes:
-- **Multi-Agent-LLM** — native agent calls (Claude Code, Codex, Grok) + local fleet (Daina, Melody).
+- **Multi-Agent-LLM** — native agent calls (Claude Code, Codex) + local fleet (Daina, Melody).
 - **Multi-ARCH** — inference architectures: Apple **MLX**, NVIDIA **CUDA**, **Intel (oneAPI/SYCL)**, cloud, extensible.
 
 ## 2. Motivation — sovereign *and* hybrid (the load-bearing value)
@@ -59,7 +59,7 @@ a TUI is an endpoint**:
 | Port type | Backends | What the "port" is | Contract | Auth |
 |---|---|---|---|---|
 | **Endpoint** | Daina, Melody, Newton (local, OpenAI-compatible) | an HTTP endpoint | the **provider API spec** (HTTP) | scoped key / AppRole |
-| **CLI / agentic** | Claude Code, Grok Build, Codex | a **subprocess** with its own session | the **invocation interface** (argv / stdin prompt / stdout+exit / env) — *not* an HTTP spec | the CLI's **own OAuth / subscription** |
+| **CLI / agentic** | Claude Code, Codex | a **subprocess** with its own session | the **invocation interface** (argv / stdin prompt / stdout+exit / env) — *not* an HTTP spec | the CLI's **own OAuth / subscription** |
 
 AMP routes uniformly at the agent-call level, but the **adapter differs by port type** — an HTTP client
 for endpoints, a subprocess driver for CLIs. Port type is **independent of the arch axis** (§5): an
@@ -123,7 +123,7 @@ AMP **adopts proven OSS** as its mechanism (Claude Code Router / `claude-code-ro
 provider SDKs) and routes through each agent's **native interface**, transforming at the seam
 (Anthropic API → OpenAI-compatible, as CCR does) — never forcing a new format on any agent. This is
 the cardinal-rule (speak agents' native vocabulary) + adopt-proven-OSS doctrine applied to routing.
-It is also the **systematic form of vendor-diverse cognition** (Anthropic / OpenAI / xAI / local) —
+It is also the **systematic form of vendor-diverse cognition** (Anthropic / OpenAI / local) —
 routing diversity becomes a pillar instead of a manual habit.
 
 ## 5. Architecture substrate matrix (the Multi-ARCH axis)
@@ -133,7 +133,7 @@ routing diversity becomes a pillar instead of a manual habit.
 | Local coder | — | Daina (Qwen3-Coder, llama.cpp) | — | — |
 | Local reasoner | Melody (Qwen2.5-72B, mlx_lm) | (Newton, llama.cpp, dormant) | — | — |
 | Light / scribe | — | Jacob (EPYC RTX-5080) | (Iris Xe — OpenVINO/SYCL, small models) | — |
-| Frontier agent | — | — | — | Claude Code / Grok / Codex |
+| Frontier agent | — | — | — | Claude Code / Codex |
 
 The spec makes **MLX, NVIDIA, and Intel first-class** so a deployment picks its architecture column the
 way the Requirements×Houses matrix picks a vendor column — the conformance test is the invariant, the
@@ -142,18 +142,21 @@ than usual — across **model × silicon**.) **Intel added 2026-06-21:** the sub
 Intel GPU in the fleet (§5.1), so the local arch axis is **three vendors, not two** — the cheapest
 possible proof that "Multi-ARCH" is more than MLX-vs-CUDA.
 
-**Frontier-agent accounts the lab holds (2026-06-21): Claude (Max), Grok (SuperGrok), and Codex/OpenAI
-(ChatGPT Plus — CLI + Desktop).** The frontier column is the **Multi-Agent-LLM axis** — but with a
-**capability asymmetry verified 2026-06-21**, and the two frontier *roles* are NOT symmetric:
-- **Evaluation (§5e)** is **vendor-neutral** — adjudicating is just an agent call; Claude, Grok, *or*
-  Codex all qualify.
-- **Trigger/origination (§6.6)** is **capability-gated** — it needs a *scheduled/autonomous runner*. **Two
-  held vendors have one — Claude Desktop and Codex Desktop** (Judge-verified equivalents); **Grok has none**
-  (Grok Build CLI + SuperGrok TUI, no scheduler).
+**Frontier-agent accounts the lab holds (2026-06-21): Claude (Max) and Codex/OpenAI (ChatGPT Plus) —
+each CLI + Desktop App.** (Grok/xAI was **retired 2026-06-21** — good on the CLI, but no Desktop App, so
+no trigger capability; kept below only as the documented counter-example.) The frontier column is the
+**Multi-Agent-LLM axis** — but with a **capability asymmetry verified 2026-06-21**, and the two frontier
+*roles* are NOT symmetric:
+- **Evaluation (§5e)** is **vendor-neutral** — adjudicating is just an agent call; Claude *or* Codex
+  qualify (any frontier agent would).
+- **Trigger/origination (§6.6)** is **capability-gated** — it needs a *scheduled/autonomous runner*. **Both
+  held vendors have one — Claude Desktop and Codex Desktop** (Judge-verified equivalents). The retired Grok
+  is the **recorded counter-example**: capable on the CLI, but no Desktop App, so it could never trigger.
 
-So the trigger is **multi-vendor but not universal** — AMP must model it as a **capability some vendors
-lack** (Grok), not assume vendor-neutrality. And because *two* held runners have it, the swap is actually
-**testable** (§8), not hypothetical. AMP must no more hardcode Claude *for evaluation* than it hardcodes CUDA.
+So the trigger is **multi-vendor but not universal** — AMP must model it as a **capability a vendor can
+lack** (Grok the recorded case), not assume vendor-neutrality. And because *both* held runners have it, the
+swap is actually **testable** (§8), not hypothetical. AMP must no more hardcode Claude *for evaluation*
+than it hardcodes CUDA.
 
 ### 5.1 Concrete fleet — the real substrate the arch axis must describe (walked 2026-06-21)
 
@@ -188,10 +191,11 @@ fall straight out of it — all **worked substance for the §6.1 CRB seam** (kep
 Two functions fall out of AMP being the single point every agent-LLM call traverses:
 
 1. **Billing-path correctness (a routing constraint).** Each backend has a **billing mode** —
-   *subscription/OAuth* (Claude Code = Max, Grok Build = SuperGrok), *metered API* (api.anthropic.com,
-   api.x.ai), or *local/free* (Daina/Melody/Newton). AMP **must route to the subscription/local path and
-   NEVER silently to a metered-API path** without an explicit billing decision. This makes the *"no
-   provider-API billing stacked on subscriptions"* doctrine — the exact trap flagged on the Grok path —
+   *subscription/OAuth* (Claude Code = Max, Codex = ChatGPT Plus), *metered API* (api.anthropic.com,
+   api.openai.com), or *local/free* (Daina/Melody/Newton). AMP **must route to the subscription/local path
+   and NEVER silently to a metered-API path** without an explicit billing decision. This makes the *"no
+   provider-API billing stacked on subscriptions"* doctrine — the exact trap once flagged on the (now
+   retired) Grok path —
    an **enforced routing rule**, not a manual habit/audit.
 2. **Metering chokepoint.** Every call emits a metering record — **(agent identity, backend, port type,
    billing mode, token counts / cost)** — straight into **ACT**. Per-(agent, backend, tokens) accounting
@@ -229,13 +233,13 @@ selected at runtime by policy, not hardcoded.
 - **The arbiter is just another AMP port — nothing special in the core.** It can be an LLM
   (LLM-as-judge), a deterministic reducer (vote / merge), or a **human** (Judge = the tiebreaker). Same
   port model as any other backend.
-- **This is the lab's own dialectical method, automated.** Watson/Bob/Patton/Einstein/Grok answer; Judge
+- **This is the lab's own dialectical method, automated.** Watson/Bob/Patton/Einstein answer; Judge
   arbitrates. AMP does that for the *LLM* layer dynamically — so the lab is again the reference
   implementation (the dialectical engine — see `papers/THE-DIALECTICAL-ENGINE.md` — as a *routing
   primitive*, not a hand-run ceremony).
 - **It sharpens "Multi-Multi":** beyond routing *different* questions to different backends, fan-out asks
-  the *same* question of several for **comparison / reconciliation**. Grok's existing
-  synthesis/cross-agent reconciliation lens is exactly an arbiter role.
+  the *same* question of several for **comparison / reconciliation**. A synthesis / cross-agent
+  reconciliation lens is exactly an arbiter role.
 - **Meter consequence (ties §5a):** a panel call costs **N+1** inferences — AMP must attribute all of
   them. Panel calls are the expensive ones; the meter is what stops "ask everyone, arbitrate" from being a
   silent cost blowout, and **PGE decides *when* a question is worth a panel vs a single backend.**
@@ -274,9 +278,9 @@ tier** — the systematic form of the lab's binding-vs-advisory rule:
 
 - **Labor → local, advisory.** Daina/Melody/the 16 GB tier produce bulk output; confident-FP prone,
   never authoritative alone.
-- **Evaluation → frontier, binding.** A frontier agent (Opus 4.8 today; **equally Grok** — vendor-neutral
+- **Evaluation → frontier, binding.** A frontier agent (Opus 4.8 today; **equally Codex** — vendor-neutral
   per §5, a *routable* Multi-Agent-LLM choice) adjudicates the labor's output — the same binding seat the
-  cloud-Opus seat holds in the 3-panel. The evaluation can itself be a **panel** (§5d: Opus *and* Grok
+  cloud-Opus seat holds in the 3-panel. The evaluation can itself be a **panel** (§5d: Opus *and* Codex
   evaluate, arbiter reconciles) when one binding voice isn't enough.
 
 Payload-selectable (§3b, e.g. `amp.tier: labor | evaluation`) and a PGE policy surface (§5b: which tier a
@@ -310,8 +314,8 @@ low-volume one and the labor is high-volume/cheap — the meter shows the split.
    ([code.claude.com/docs/en/desktop-scheduled-tasks](https://code.claude.com/docs/en/desktop-scheduled-tasks))
    and **Codex Desktop** — **both held** (Claude via Max, Codex via ChatGPT Plus) and Judge-verified
    equivalents; **Grok has NO equivalent** (verified 2026-06-21 — Grok Build CLI + SuperGrok TUI, no
-   scheduler/autonomous runner; the documented capability-gap example regardless of whether the
-   subscription is retained) — plus Cloud
+   scheduler/autonomous runner; subscription **retired 2026-06-21**, kept as the documented
+   capability-gap example) — plus Cloud
    routines (fire when machines are off / on GitHub events) and in-session `/loop`. **So the trigger is
    NOT uniformly vendor-available:** unlike evaluation (§5e, vendor-neutral), it is **capability-gated** —
    only vendors that ship a scheduler/autonomous runner can hold it. That asymmetry is itself
@@ -341,7 +345,7 @@ agent-meaning on top of a capability already proven on the substrate.
 - **Capacity/generation routing (§5.1):** heavy inference → a 96 GB card; can-wait batch → Ampere 16 GB;
   fast checks → Blackwell.
 - **Role/judgment-tier (§5e):** local labor computes IONIS vs VOACAP vs the day's observations; a
-  **frontier agent evaluates** (held / drifted / needs a look) — Claude or Codex (Grok-capable while held).
+  **frontier agent evaluates** (held / drifted / needs a look) — Claude or Codex.
 - **Trigger layer (§6.6):** originated by a **frontier-agent scheduled task** on the always-on M3 — Claude
   Desktop *or* Codex Desktop (both held; Grok has none) — the concrete test of whether origination is in-
   or out-of-contract, now swap-testable across two real vendors.
@@ -355,7 +359,7 @@ agent-meaning on top of a capability already proven on the substrate.
 4. Does the meter (§5a) capture a two-stage labor→evaluation pipeline cleanly?
 5. Where do identity/policy/meter attach when a call is *originated by a scheduler*, not a live agent (§6.6)?
 6. **Evaluation** vendor-neutrality (§5e): swap the evaluator across held frontier vendors (Claude,
-   Codex, + Grok while retained) — does anything below the route change? (If yes, that's a leak.)
+   Codex) — does anything below the route change? (If yes, that's a leak.)
    **Trigger** (§6.6) is now a *two-sided* test: swap the runner **Claude Desktop ↔ Codex Desktop** (both
    held) — does the route below change? — *and* confirm the design models origination as a **capability
    Grok lacks**, not a universal given.
