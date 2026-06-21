@@ -23,7 +23,7 @@ M backends/architectures** routed through one switching layer.
 
 **"Multi-Multi" = Multi-Agent-LLM × Multi-ARCH.** Two axes:
 - **Multi-Agent-LLM** — native agent calls (Claude Code, Codex, Grok) + local fleet (Daina, Melody).
-- **Multi-ARCH** — inference architectures: Apple **MLX**, NVIDIA **CUDA**, cloud, extensible.
+- **Multi-ARCH** — inference architectures: Apple **MLX**, NVIDIA **CUDA**, **Intel (oneAPI/SYCL)**, cloud, extensible.
 
 ## 2. Motivation — sovereign *and* hybrid (the load-bearing value)
 
@@ -128,16 +128,45 @@ routing diversity becomes a pillar instead of a manual habit.
 
 ## 5. Architecture substrate matrix (the Multi-ARCH axis)
 
-| Capability | MLX (Apple) | NVIDIA (CUDA) | Cloud |
-|---|---|---|---|
-| Local coder | — | Daina (Qwen3-Coder, llama.cpp) | — |
-| Local reasoner | Melody (Qwen2.5-72B, mlx_lm) | (Newton, llama.cpp, dormant) | — |
-| Frontier agent | — | — | Claude Code / Codex / Grok |
+| Capability | MLX (Apple) | NVIDIA (CUDA) | Intel (oneAPI/SYCL) | Cloud |
+|---|---|---|---|---|
+| Local coder | — | Daina (Qwen3-Coder, llama.cpp) | — | — |
+| Local reasoner | Melody (Qwen2.5-72B, mlx_lm) | (Newton, llama.cpp, dormant) | — | — |
+| Light / scribe | — | Jacob (EPYC RTX-5080) | (Iris Xe — OpenVINO/SYCL, small models) | — |
+| Frontier agent | — | — | — | Claude Code / Grok / (Codex) |
 
-The spec makes **MLX and NVIDIA first-class** so a deployment picks its architecture column the way
-the Requirements×Houses matrix picks a vendor column — the conformance test is the invariant, the
-architecture is the swappable axis. (This is AMP's paper figure: the pluggability thesis one layer
-deeper than usual — across **model × silicon**.)
+The spec makes **MLX, NVIDIA, and Intel first-class** so a deployment picks its architecture column the
+way the Requirements×Houses matrix picks a vendor column — the conformance test is the invariant, the
+architecture is the swappable axis. (This is AMP's paper figure: the pluggability thesis one layer deeper
+than usual — across **model × silicon**.) **Intel added 2026-06-21:** the substrate walk found a real
+Intel GPU in the fleet (§5.1), so the local arch axis is **three vendors, not two** — the cheapest
+possible proof that "Multi-ARCH" is more than MLX-vs-CUDA.
+
+**Frontier-agent accounts the lab holds (2026-06-21): Claude (Max) and Grok (SuperGrok); Codex deferred
+(Judge's call).** The frontier column is itself the **Multi-Agent-LLM axis** — the trigger/evaluation
+agent (§5e, §6.6) is a *routable choice among held accounts*, **vendor-neutral by design**, not a fixed
+Claude dependency. AMP must no more hardcode Claude than it hardcodes CUDA.
+
+### 5.1 Concrete fleet — the real substrate the arch axis must describe (walked 2026-06-21)
+
+**Five accelerators, three local architectures, four boxes.** This inventory is itself a substrate-first
+artifact — it is *what the spec's arch axis has to be able to model*:
+
+| Box | Accelerator | Arch | Mem | Tier | Persona |
+|---|---|---|---|---|---|
+| M3 Ultra | unified | Apple MLX | 96 GB | heavyweight reasoner | Melody |
+| 9975 | RTX PRO 6000 · Blackwell | CUDA | 96 GB | heavyweight coder | Daina |
+| EPYC | RTX 5080 · Blackwell | CUDA | 16 GB | fast light / scribe | Jacob |
+| ASUS SCAR 17 | RTX 3080 Ti · Ampere | CUDA | 16 GB | can-wait batch | — |
+| ASUS SCAR 17 | Iris Xe iGPU | Intel oneAPI/SYCL | shared | small-model / heterogeneity proof | — |
+
+Two routing dimensions fall straight out of this — both **worked substance for the §6.1 CRB seam** (kept
+open there, recorded here, *not* resolved):
+- **Capacity-fit** — a 70B job routes to a 96 GB card, never a 16 GB one. *Will it fit* is a hard
+  constraint, not a preference.
+- **Generation/speed-tier** — both 16 GB cards fit the same model, but **Blackwell (5080) ≫ Ampere
+  (3080 Ti)** in throughput: latency-sensitive → Blackwell, can-wait nightly batch → Ampere. *How fast it
+  must finish* is a second axis above raw fit.
 
 ## 5a. Billing-aware + the metering chokepoint (Judge, 2026-06-20) — "crossbar AND meter"
 
@@ -221,6 +250,24 @@ retires. Two consequences:
   greenfield claim. The local-LLM endpoint-hardening sweep (Melody = reference pattern; Daina/Jacob being
   brought to it) is **AMP's perms layer being proven in miniature before the pillar exists.**
 
+## 5e. Role/judgment-tier routing — labor vs evaluation (Watson, 2026-06-21)
+
+A routing topology distinct from fan-out+arbiter (§5d): not *one question to N peers reconciled*, but a
+**two-stage pipeline** — local fleet **does the work** (compute, draft, triage), a **frontier agent
+evaluates the result** (meaningful? drift or noise? action-worthy?). It routes by **required judgment
+tier** — the systematic form of the lab's binding-vs-advisory rule:
+
+- **Labor → local, advisory.** Daina/Melody/the 16 GB tier produce bulk output; confident-FP prone,
+  never authoritative alone.
+- **Evaluation → frontier, binding.** A frontier agent (Opus 4.8 today; **equally Grok** — vendor-neutral
+  per §5, a *routable* Multi-Agent-LLM choice) adjudicates the labor's output — the same binding seat the
+  cloud-Opus seat holds in the 3-panel. The evaluation can itself be a **panel** (§5d: Opus *and* Grok
+  evaluate, arbiter reconciles) when one binding voice isn't enough.
+
+Payload-selectable (§3b, e.g. `amp.tier: labor | evaluation`) and a PGE policy surface (§5b: which tier a
+task class is entitled to). Meter consequence (§5a): the evaluation inference is the expensive,
+low-volume one and the labor is high-volume/cheap — the meter shows the split.
+
 ## 6. OPEN questions for the chain (do NOT resolve ad-hoc)
 
 1. **Relationship to CRB.** CRB is already "hardware-aware dispatch." AMP is "LLM-API-spec routing."
@@ -241,9 +288,52 @@ retires. Two consequences:
    provider's own payload; (b) what conformance certifies about honoring it (§6.3); (c) ratifying the
    **payload-is-intent / PGE-is-decision** guardrail (§3b) so payload routing can't escalate past policy.
    Bears on the CRB boundary (§6.1) — settle alongside it, not ad-hoc.
+6. **The trigger / origination layer — in-scope or explicitly out?** AMP **routes** calls; it does not
+   **originate** them. The substrate walk (2026-06-21) surfaced origination as load-bearing: scheduled or
+   autonomous work is *triggered* by a **frontier-agent runner** — a **Claude Desktop scheduled task**
+   today ([code.claude.com/docs/en/desktop-scheduled-tasks](https://code.claude.com/docs/en/desktop-scheduled-tasks)),
+   but **equally a Grok or Codex desktop/autonomous runner** — plus Cloud routines (fire when machines are
+   off / on GitHub events) and in-session `/loop`. The capability is **vendor-neutral** — the
+   Multi-Agent-LLM axis applied to *origination*, not just routing. Is that layer (a) **out of AMP's
+   contract** — origination is a separate concern, AMP routes whatever arrives — or (b) a
+   **referenced-but-external** seam the spec must name so meter/policy/identity attach at origination too?
+   The chain settles it; do **not** absorb the scheduler into the routing core ad-hoc (keep the core
+   minimal, IP-1), and do **not** bind it to one vendor (Claude today, Grok held, Codex deferred).
 
 ## 7. Process path
 
 Standard chain (the one that produced v1.0): this brief → Bob/panel structural pass → Patton
 adversarial → Einstein first-principles → Judge merge. Settle §6.1 (CRB boundary) and §6.2
 (sequencing) **before** any normative `§5.x` text is drafted into STD-001.
+
+## 8. Substrate-first proving ground — build to falsify the brief (Judge, 2026-06-21)
+
+**We are not building the Mesh pillar yet.** Per substrate-as-proving-ground (the IBX/PCS pattern): build
+the AMP-exercising **substrate capability first**, on the real fleet (§5.1), and let the build
+**falsify this brief** before any normative `§5.x` text is drafted. The pillar later adds only the
+agent-meaning on top of a capability already proven on the substrate.
+
+**First capability — the nightly cross-arch VOACAP/IONIS validation run** — ideal because it exercises
+*every* AMP axis at once:
+- **Multi-ARCH (§5):** the same IONIS inference on CUDA *and* MLX *and* Intel, compared — proves the arch
+  axis is real, not a table.
+- **Capacity/generation routing (§5.1):** heavy inference → a 96 GB card; can-wait batch → Ampere 16 GB;
+  fast checks → Blackwell.
+- **Role/judgment-tier (§5e):** local labor computes IONIS vs VOACAP vs the day's observations; a
+  **frontier agent evaluates** (held / drifted / needs a look) — Opus today, Grok-capable.
+- **Trigger layer (§6.6):** originated by a **frontier-agent scheduled task** on the always-on M3 (Claude
+  Desktop today; vendor-neutral) — the concrete test of whether origination is in- or out-of-contract.
+- **Meter (§5a):** every call — labor + evaluation — metered; proves per-(agent, backend, tier)
+  accounting falls out of the crossbar.
+
+**Falsification checklist — each is a spec question the build answers, not the brief:**
+1. Does role-tier routing (§5e) hold as a real topology, or collapse into §5d's arbiter?
+2. Does the CLI/agentic port type (§3a) cover *scheduled*, non-interactive invocation, or need extending?
+3. Is Intel actually first-class (§5), or does it degrade to a footnote in practice?
+4. Does the meter (§5a) capture a two-stage labor→evaluation pipeline cleanly?
+5. Where do identity/policy/meter attach when a call is *originated by a scheduler*, not a live agent (§6.6)?
+6. Is the trigger/evaluation layer genuinely **vendor-neutral** — does swapping Claude→Grok at the runner
+   change anything below the route? (If yes, that's a leak the spec must close.)
+
+What the build finds — gaps, port-type stretches, missing attributes — feeds the chain (§7) as
+**evidence**: the substrate proves or breaks the spec before the spec goes normative.
