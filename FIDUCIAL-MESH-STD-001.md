@@ -5016,7 +5016,9 @@ denies even for an authenticated principal that holds the
 operation's declared scope** (policy, not scope-membership, is
 decisive) and likewise denied for a principal lacking the declared
 authorization; a PGE `deny` emits the post-auth `mcc.policy_denied`
-terminal event per `[FM-MCC-0013]`; and no item-2 Judge-gated,
+terminal event, and an **unresolvable** PGE decision (unavailable /
+timeout / malformed) emits `mcc.policy_unavailable` and fails strict
+per `[FM-INV-0002]`, both per `[FM-MCC-0013]`; and no item-2 Judge-gated,
 Judge-only, or privileged operation is reachable on the agent
 surface under any scope.
 
@@ -5209,6 +5211,15 @@ event-type taxonomy:
   to the verified caller) and carries the PGE rule / policy-version
   attribution. Distinct from `mcc.auth_denied` (pre-auth, AuthN) and
   from `mcc.agent_secret_path_denied`.
+- `mcc.policy_unavailable` — emitted when PGE **cannot produce a
+  decision** (engine unreachable, corpus unreadable, timeout, or a
+  malformed / ambiguous response); the call **shall** fail strict per
+  `[FM-INV-0002]`. Post-authentication, so **principal-attributed** to
+  the verified caller, carrying a reason discriminator
+  (`unreachable | timeout | malformed | ambiguous`); it carries **no**
+  PGE rule / policy-version attribution because no decision was
+  produced — that absence is what distinguishes it from
+  `mcc.policy_denied` (an explicit, attributed PGE deny).
 - `mcc.agent_secret_path_denied` — emitted on agent-out-of-secret-
   path denial per `[FM-MCC-0009]`.
 - `mcc.dispatch_completed` — emitted on plugin dispatch completion
@@ -5224,8 +5235,9 @@ lack-of-ack or negative-ack **shall** cause the operation to fail
 strict.
 
 Every inbound call **shall** have exactly one terminal event in
-ACT (`dispatch_completed`, `auth_denied`, `policy_denied`, or
-`agent_secret_path_denied`); a call with no terminal event is a
+ACT (`dispatch_completed`, `auth_denied`, `policy_denied`,
+`policy_unavailable`, or `agent_secret_path_denied`); a call with no
+terminal event is a
 no-bypass violation per `[FM-INV-0001]`.
 
 **Pre-auth event attribution + rate-limiting.** `mcc.call_received`
@@ -5256,10 +5268,11 @@ a `[FM-INV-0001]` no-bypass violation — the structural defense
 is that **every call still produces a terminal-event record**
 (individual or aggregated), and the aggregation window is itself
 audit-attestable per `[FM-MCC-0014]` operational telemetry.
-Post-auth events (`dispatch_completed`,
-`agent_secret_path_denied`, `judge_gate_confirm`,
-`plugin_loaded` / `plugin_load_failed`) **shall not** be
-aggregated; they are per-call.
+Post-auth events (`dispatch_completed`, `policy_denied`,
+`policy_unavailable`, `agent_secret_path_denied`,
+`judge_gate_confirm`, `plugin_loaded` / `plugin_load_failed`)
+**shall not** be aggregated; they are per-call — per-principal
+policy outcomes in particular **shall** remain per-call.
 
 *Verification: Conformance-test* — the harness exercises each
 event type on the corresponding event class; asserts the ACT ack
@@ -5270,7 +5283,10 @@ windowed rule, (b) no mesh-wide fail-strict cascade triggers
 from the unauthenticated traffic, (c) every aggregated event
 carries the count + window bounds, (d) the aggregation-window
 configuration is observable via `mesh.mcc.*` telemetry per
-`[FM-MCC-0014]`.
+`[FM-MCC-0014]`; and exercises **PGE unavailability** (engine
+unreachable, timeout, malformed response) with ACT still reachable,
+asserting a single `mcc.policy_unavailable` terminal event plus
+fail-strict per `[FM-INV-0002]`.
 
 #### `[FM-MCC-0014]` MCC telemetry emission
 
