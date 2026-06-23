@@ -1189,7 +1189,12 @@ Messages with priority `info` **may** be acted on without an
 
 *Verification: Conformance-test* — the harness exercises each
 transition with each credential class and asserts permitted/denied per
-the table; asserts info-priority does not require Judge approval.
+the table; asserts info-priority does not require Judge approval. It
+**shall** also cover message submission under `inbox.message.send`:
+PGE `allow` with the scope succeeds; a principal missing the scope is
+denied; and a principal holding the scope is **still denied when PGE
+policy denies** (policy, not scope-membership, is decisive) — the same
+PGE-authorized agent-write model as the transition cases.
 
 #### `[FM-IBX-0005]` Append-mostly substrate
 
@@ -4833,12 +4838,16 @@ the call and **shall not** perform AuthN themselves; per
 `[FM-INV-0001]`, re-authentication at the plugin layer is a
 duplicated chokepoint and a structural defect.
 
-Auth failures (missing credentials, invalid session, denied
-authorization) **shall** halt at the frame boundary; the plugin
-handler **shall not** be invoked. The frame **shall** emit
-`mcc.auth_denied` and the call **shall** fail with the
-appropriate transport-level rejection (HTTP 401/403 or MCP
-equivalent).
+**Authentication** failures (missing credentials, invalid
+session) **shall** halt at the frame boundary; the plugin handler
+**shall not** be invoked. The frame **shall** emit
+`mcc.auth_denied` and the call **shall** fail with the appropriate
+transport-level rejection (HTTP 401 or MCP equivalent). This hook
+establishes the **authenticated principal only**; the subsequent
+**authorization** decision is PGE's per `[FM-PGE-0001]` and a
+policy denial is the distinct post-auth `mcc.policy_denied` event
+(`[FM-MCC-0013]`), not `mcc.auth_denied` — AuthN and AuthZ are not
+conflated at this hook.
 
 The IAM auth-hook implementation **shall** be backed by a
 session-validation cache to bound per-call latency. The cache
@@ -4954,30 +4963,32 @@ A pillar implementation that plugs into MCC **shall** provide:
    or unresolvable decision it **shall** fail strict per
    `[FM-INV-0002]`. The frame **shall not** itself evaluate policy or
    test scope membership — policy authority is PGE's per the §5.8
-   dependency rule and `[FM-IAM-0011]`. An agent-invokable operation
-   **may** additionally be Judge-gated per `[FM-MCC-0010]`: such an
-   agent-initiated operation enters a pending state and is dispatched
-   only after the frame obtains the required Judge confirmation —
-   distinct from a Judge-only operation (item 2).
+   dependency rule and `[FM-IAM-0011]`. Operations requiring Judge
+   confirmation are **non-agent-initiated** under this contract
+   (item 2); an agent-initiated, Judge-confirmed operation would
+   cross an asynchronous boundary and is **out of scope here** — if a
+   future pillar requires one it **shall** be specified as a
+   `[FM-MCC-0010]` pending saga carrying a `[FM-IAM-0015]` Delegation
+   Token with a **fresh** PGE re-evaluation at resume (no current
+   operation, IBX included, needs it).
    (Reference: IBX registers read tools plus the scope-authorized
    agent-write operations of `[FM-IBX-0004]` — message submission
    under scope `inbox.message.send` and the status transitions under
    scope `inbox.message.transition`, each PGE-authorized; its
    `approved`/`rejected` transitions are Judge-only operations under
    item 2, never exposed on the agent surface.)
-2. **Judge-only and non-agent operations behind a non-agent
-   boundary** — operations no agent **shall** invoke or initiate
-   under any scope: **Judge-only** decisions (e.g. IBX
-   `approved`/`rejected`), secret-path operations, and pillar
-   lifecycle/administration. The frame **shall** route these to
-   non-agent actors (the operator via the admin UI; service
-   principals via the credentialed service path) and **shall not**
-   expose them on the item-1 agent MCP surface. The
-   agent-out-of-secret-path invariant **shall** be enforced at the
-   frame boundary per `[FM-MCC-0009]`. This is distinct from an
-   agent-initiated, Judge-confirmed operation under item 1: there the
-   agent initiates and a pending request is dispatched after Judge
-   confirmation per `[FM-MCC-0010]`; here no agent initiation occurs.
+2. **Judge-gated, Judge-only, and non-agent operations behind a
+   non-agent boundary** — operations no agent **shall** invoke or
+   initiate under any scope: **Judge-only** decisions (e.g. IBX
+   `approved`/`rejected`); **Judge-gated** elevated-confirmation
+   operations (the operator confirms per `[FM-MCC-0010]` — lifecycle
+   terminations, irreversible deletions, catastrophic-class ops);
+   secret-path operations; and pillar lifecycle/administration. The
+   frame **shall** route these to non-agent actors (the operator via
+   the admin UI; service principals via the credentialed service
+   path) and **shall not** expose them on the item-1 agent MCP
+   surface. The agent-out-of-secret-path invariant **shall** be
+   enforced at the frame boundary per `[FM-MCC-0009]`.
 3. **A substrate-handle dependency declaration** — the plugin
    names which substrate handles it requires; the frame fails
    plugin load if any required handle is unavailable per
@@ -5004,9 +5015,9 @@ and dispatches only on `allow`; an operation is **denied when PGE
 denies even for an authenticated principal that holds the
 operation's declared scope** (policy, not scope-membership, is
 decisive) and likewise denied for a principal lacking the declared
-authorization; a Judge-gated agent-initiated operation remains
-pending until Judge confirmation and is then dispatched; and no
-item-2 Judge-only or privileged operation is reachable on the agent
+authorization; a PGE `deny` emits the post-auth `mcc.policy_denied`
+terminal event per `[FM-MCC-0013]`; and no item-2 Judge-gated,
+Judge-only, or privileged operation is reachable on the agent
 surface under any scope.
 
 #### `[FM-MCC-0007]` Operator surface — web admin UI
@@ -5190,8 +5201,14 @@ event-type taxonomy:
 
 - `mcc.call_received` — emitted on inbound call before
   authentication; **frame-attributed** per the next paragraph.
-- `mcc.auth_denied` — emitted on auth-hook denial per
+- `mcc.auth_denied` — emitted on auth-hook (AuthN) denial per
   `[FM-MCC-0003]`; frame-attributed (see below).
+- `mcc.policy_denied` — emitted on a **post-authentication** PGE
+  policy denial per `[FM-PGE-0001]` (the caller is IAM-authenticated,
+  so unlike `mcc.auth_denied` this event is **principal-attributed**
+  to the verified caller) and carries the PGE rule / policy-version
+  attribution. Distinct from `mcc.auth_denied` (pre-auth, AuthN) and
+  from `mcc.agent_secret_path_denied`.
 - `mcc.agent_secret_path_denied` — emitted on agent-out-of-secret-
   path denial per `[FM-MCC-0009]`.
 - `mcc.dispatch_completed` — emitted on plugin dispatch completion
@@ -5207,7 +5224,7 @@ lack-of-ack or negative-ack **shall** cause the operation to fail
 strict.
 
 Every inbound call **shall** have exactly one terminal event in
-ACT (`dispatch_completed`, `auth_denied`, or
+ACT (`dispatch_completed`, `auth_denied`, `policy_denied`, or
 `agent_secret_path_denied`); a call with no terminal event is a
 no-bypass violation per `[FM-INV-0001]`.
 
