@@ -280,12 +280,12 @@ A hostile reading is fair: several pillars were under construction
 before their normative codification landed (IBX POC-in-production
 predates `[FM-IBX-*]` numbered requirements; IAM code-complete
 predates `[FM-IAM-0014]` operational-state declaration; MCC backend
-BUILT precedes `[FM-MCC-0006]` plugin contract maturity), and PCS
-— the platform's operational core — is **§6 Reserved**: a
-whole-section absence, not just requirement-level gaps. The
-deviation machinery covers requirement-level gaps cleanly; §6
-Reserved is **tracked debt** with a single closure condition (§6
-authored as the eighth pillar with full Conformance Profile). The
+BUILT precedes `[FM-MCC-0006]` plugin contract maturity). The PCS
+whole-section debt that earlier tracked here — §6 absent as a
+whole section — has since closed: **§6 PCS is authored** as the
+eighth pillar with full Conformance Profile (`[FM-PCS-0001..0018]`),
+so what remains is requirement-level / implementation gaps the
+deviation machinery already covers cleanly. The
 in-flight built pillars migrate under their declared transitional
 deviations until each operational-state condition is met. The motto
 does not yet describe today; it describes the steady state the
@@ -927,10 +927,10 @@ They are not part of the canon; the canon is STD-001 + this Handbook.
 # Part 2 — PCS (Platform Control System)
 
 > **STD status of this Part.** PCS is the **eighth pillar** per
-> `[FM-MCC-0011]` and lives in Standard **§6** (currently
-> Reserved). The numbered PCS requirements (`[FM-PCS-NNNN]`) will
-> land when §6 is written. This Handbook Part is the rationale and
-> design intent for what §6 will normatively specify. Cross-references
+> `[FM-MCC-0011]` and lives in Standard **§6**, which is **written**:
+> the numbered PCS requirements (`[FM-PCS-0001..0018]`) are normative.
+> This Handbook Part is the rationale and design intent behind what §6
+> normatively specifies. Cross-references
 > in this Part point at the *cross-pillar contracts PCS already binds
 > to* (FM-MCC, FM-PGE, FM-DPG, FM-AKB, FM-INV) — those bindings are
 > in force today even though §6 has not yet been filled. The §6
@@ -1394,8 +1394,8 @@ bypass DPG for executable workloads. This is the dev-to-production
 trust boundary applied to executables. The upstream-distribution
 trust bootstrap above sits *above* the per-deployment registry —
 it's the seam between the project's public artifacts and the
-customer's pinned local trust state. STD §6 (Reserved) will codify
-the per-deployment registry contract; the project-signing-root
+customer's pinned local trust state. STD §6 codifies the
+per-deployment registry contract (`[FM-PCS-0013]`); the project-signing-root
 discipline lives in this Handbook for now and will land in the
 Standard's release-engineering requirements when those are
 authored.
@@ -1573,7 +1573,7 @@ documents the seven substrate pillars (IBX, AKB, ACT, IAM, PGE,
 CRB, DPG, in §§3.1–3.7) and MCC (§3.8) as the host frame that
 hosts them. The eighth and final pillar — **PCS** — is the action
 layer covered in Part 2 and lives normatively in STD-001 **§6**
-(currently Reserved). Pillar count is **8** per `[FM-MCC-0011]`;
+(written). Pillar count is **8** per `[FM-MCC-0011]`;
 MCC is host, not pillar #9. PCS reaches each pillar via its
 published interface (skills, MCP tools, hooks) — pillars stay
 zero-coupled, standalone-installable, and substrate-pluggable.
@@ -2102,7 +2102,7 @@ no-bypass + fail-strict = `[FM-INV-0001]` + `[FM-INV-0002]` +
 ops = `[FM-PGE-0007]` (PreToolUse hook surface) + `[FM-PGE-0005]`
 double-guardrail with Gate-2 via `[FM-DPG-0005]`. Two-person
 GH-native review and tag-push-triggers-publish are PCS / §6
-release-gate concerns (§6 reserved). FIPS-Day-1 substrate
+release-gate concerns. FIPS-Day-1 substrate
 discipline binds to the Tier-0 substrate selection in the IAM
 Conformance Profile per `[FM-IAM-0006]` and to the FIPS-validated
 hash algorithm per `[FM-ACT-0006]`; capability-minimization-applied-
@@ -2270,7 +2270,7 @@ conformance run proving the new substrate passes the pillar's
 test set). The Appendix F entry schema for the argued-case
 submission is §F.1 of STD-001. The customer-tenant-namespace
 discipline (`<customer-x>:<workflow>:<version>`) belongs to the
-§6 PCS namespace + registry contract (currently Reserved).
+§6 PCS namespace + registry contract (`[FM-PCS-0014]` / `[FM-PCS-0013]`).
 
 ## 4.6 Agents own deployment, installation, config, maintenance
 
@@ -2334,11 +2334,12 @@ governance gates as any customer deployment. **Today's honest
 state**: the lab dogfoods the pillars that exist (IBX, IAM scaffold,
 MCC backend, AKB partial — each under its own declared transitional
 deviation per the §3.x status lines), and the PCS layer that
-mechanically anchors the dogfood claim is **§6 Reserved** — design
-stage. The "tenant #1 by construction" framing is true *as the PCS
-layer lands*; today it is true for the pillars already operational
-under their deviations, and aspirational for the PCS layer that
-will land it fully when §6 is written.
+mechanically anchors the dogfood claim is **specified in §6
+(written) but not yet built** — implementation stage. The "tenant
+#1 by construction" framing is true *as the PCS layer is
+implemented*; today it holds for the pillars already operational
+under their deviations, and is aspirational for the PCS layer that
+will realize it fully once PCS is built to §6.
 
 Lab projects are tenants in the Lab Mesh: `ki7mt-lab-fm-dev` (mesh
 development), `ki7mt-lab-ionis` (IONIS-AI), `ki7mt-lab-qsograph`
@@ -2454,8 +2455,8 @@ canon.
 > every pillar inherits — they map directly to numbered STD
 > requirements. PCS plugins inherit the analogous discipline
 > through the tiered validation harness (§2.7); the §6 PCS plugin
-> requirements (Reserved) will codify the harness as numbered
-> requirements when filled.
+> requirements codify that harness as numbered requirements
+> (`[FM-PCS-0001..0018]`).
 
 **Pillar-spec acceptance criteria (six non-negotiables) with STD bindings:**
 
@@ -2638,8 +2639,8 @@ validation harness. Operators and compliance auditors read the
 
 > **STD anchor.** This Handbook appendix is the **narrative
 > companion** to STD-001 **Appendix D — Normative cross-pillar
-> binding matrix** (currently Reserved; will be filled as the
-> §6 PCS plugin requirements land). Where STD Appendix D becomes
+> binding matrix** (currently Reserved; will be filled alongside the
+> §5 / §6 requirement-by-requirement mapping). Where STD Appendix D becomes
 > the requirement-by-requirement mapping, this Handbook table is
 > the workflow-moment view of the same composition. The STD
 > Appendix D, when filled, is authoritative.
@@ -2683,7 +2684,7 @@ all superseded by the current canon but retained for provenance):
 | `TECHNICAL-OVERVIEW.md` | External-facing architecture summary |
 | `IDENTITY-PILLAR-DESIGN.md` | IAM foundational design |
 | `CONCURRENCY-AND-ARCHETYPES.md` | Worker / Reasoner / Quorum-Voter archetypes (now bound to per-pillar §5.x) |
-| `PCS-PLATFORM-REDESIGN-NOTES.md` | The 2026-06-08 PCS redesign conclusions doc (input to §6 PCS, reserved) |
+| `PCS-PLATFORM-REDESIGN-NOTES.md` | The 2026-06-08 PCS redesign conclusions doc (input to §6 PCS) |
 | `LANGUAGE-POLICY-AND-CANON-CLEANUP-2026-06-08.md` | The consolidated language-policy + C#-purge + categorization plan (now reflected in STD §1 language-neutral clause + HDBK §1.5 / Appendix B) |
 | Per-pillar drafts (8 files above) | Full pillar detail; superseded by STD-001 §5.x sections (12–14 numbered requirements + Conformance Profile per pillar) |
 
