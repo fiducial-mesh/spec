@@ -5096,11 +5096,19 @@ privileged-operation classifier.
 
 Operations requiring elevated confirmation (the Judge gate
 pattern: lifecycle terminations, irreversible deletions,
-catastrophic-class operations per `[FM-INV-0004]`) **shall** be
-enforced by the frame at the plugin-dispatch boundary. Plugins
-**shall** declare which operations are Judge-gated at
-registration; the frame **shall** enforce the elevated
-confirmation flow before dispatching to the plugin handler.
+catastrophic-class operations per `[FM-INV-0004]`) are
+**operator-initiated**: they are reached through the operator
+surface (`[FM-MCC-0007]`) as `[FM-MCC-0006]` item-2 non-agent
+operations and **shall not** be exposed on, or initiable from, the
+item-1 agent MCP surface — an agent **shall not** initiate a
+Judge-gated operation. Plugins **shall** declare which of their
+operations are Judge-gated at registration; the frame **shall**
+enforce the elevated confirmation flow at the plugin-dispatch
+boundary before dispatching to the plugin handler. (An
+agent-*initiated*, Judge-confirmed operation would cross an
+asynchronous boundary and is **out of scope** for this hook; per
+`[FM-MCC-0006]` item 1 it is reserved as a future `[FM-IAM-0015]`
+Delegation-Token saga, not served by this operator-path gate.)
 
 The Judge-gate confirmation flow **shall**:
 
