@@ -5016,9 +5016,10 @@ denies even for an authenticated principal that holds the
 operation's declared scope** (policy, not scope-membership, is
 decisive) and likewise denied for a principal lacking the declared
 authorization; a PGE `deny` emits the post-auth `mcc.policy_denied`
-terminal event, and an **unresolvable** PGE decision (unavailable /
-timeout / malformed) emits `mcc.policy_unavailable` and fails strict
-per `[FM-INV-0002]`, both per `[FM-MCC-0013]`; and no item-2 Judge-gated,
+terminal event, and an **unresolvable** PGE decision (any reason
+class — unreachable, unreadable corpus, timeout, malformed, ambiguous)
+emits `mcc.policy_unavailable` and fails strict per `[FM-INV-0002]`,
+both per `[FM-MCC-0013]`; and no item-2 Judge-gated,
 Judge-only, or privileged operation is reachable on the agent
 surface under any scope.
 
@@ -5216,7 +5217,8 @@ event-type taxonomy:
   malformed / ambiguous response); the call **shall** fail strict per
   `[FM-INV-0002]`. Post-authentication, so **principal-attributed** to
   the verified caller, carrying a reason discriminator
-  (`unreachable | timeout | malformed | ambiguous`); it carries **no**
+  (`unreachable | corpus_unreadable | timeout | malformed | ambiguous`
+  — one value per trigger condition above); it carries **no**
   PGE rule / policy-version attribution because no decision was
   produced — that absence is what distinguishes it from
   `mcc.policy_denied` (an explicit, attributed PGE deny).
@@ -5283,10 +5285,12 @@ windowed rule, (b) no mesh-wide fail-strict cascade triggers
 from the unauthenticated traffic, (c) every aggregated event
 carries the count + window bounds, (d) the aggregation-window
 configuration is observable via `mesh.mcc.*` telemetry per
-`[FM-MCC-0014]`; and exercises **PGE unavailability** (engine
-unreachable, timeout, malformed response) with ACT still reachable,
-asserting a single `mcc.policy_unavailable` terminal event plus
-fail-strict per `[FM-INV-0002]`.
+`[FM-MCC-0014]`; and exercises **PGE unavailability across every
+reason class** (engine unreachable, unreadable corpus, timeout,
+malformed, and ambiguous response) with ACT still reachable,
+asserting for each a single `mcc.policy_unavailable` terminal event
+carrying the matching reason discriminator, plus fail-strict per
+`[FM-INV-0002]`.
 
 #### `[FM-MCC-0014]` MCC telemetry emission
 
