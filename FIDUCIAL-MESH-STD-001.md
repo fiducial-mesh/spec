@@ -6408,7 +6408,11 @@ model:
 2. The **active-generation pointer** flips via a **durable, linearizable**
    operation — a local transaction / CAS on a single-node deployment; a
    consensus-backed switch on multi-node. (Distributed consensus is **not**
-   mandated for single-node.)
+   mandated for single-node.) The coordination store is **CP, not AP**: a
+   minority / partitioned store **shall refuse** the flip and **fail strict**
+   per `[FM-INV-0002]` — two partitions **shall not** each flip a local pointer
+   (no split-brain generations). Instance-fencing (step 3) is necessary but not
+   sufficient; refusing the minority-side flip is what prevents split-brain.
 3. **Generation fencing:** after the switch, traffic / leases bind to exactly one
    active generation; an instance still on the prior generation is **drained or
    fenced** (rejected), so no serving path ever runs a partial mix.
@@ -6421,7 +6425,8 @@ activation-coordination store is a Conformance-Profile seam (§7.1.1).
 *Verification: Conformance-test* — the harness asserts a BOM entry pins
 identity + version + digest + closure; injects **partitions and stale workers**
 before and after the switch and asserts no serving path runs a partial mix (a
-fenced/stale instance is rejected, not served); asserts rollback to a
+fenced/stale instance is rejected, not served); asserts the **minority side of a
+partition refuses the flip** (no split-brain, fail strict); asserts rollback to a
 quarantined/revoked set is refused.
 
 #### `[FM-PKG-0007]` Standalone installability vs MCC composition
@@ -6469,9 +6474,23 @@ requirement:
    `[FM-INV-0004]` (it is a catastrophic-class operation per `[FM-PKG-0004]`); a
    solo Judge **shall not** suffice.
 
+A compromise re-pin of **either** root **shall** trigger a **retroactive corpus
+re-evaluation** — re-pinning forward without a backward sweep leaves a
+trusted-corpus hole on the exact threat §7.1 closes. Every artifact, ingress
+attestation (`[FM-PKG-0003]`), and BOM (incl. customer-modified BOMs,
+`[FM-PKG-0006]`) **whose only valid trust path is the compromised key shall**
+become **quarantine-class** per `[FM-PKG-0005]` — non-resolvable,
+non-installable, and ineligible for rollback — **pending re-attestation** under
+the new root. The sweep **shall not** depend on per-artifact operator action
+(quarantine is otherwise operator-driven); root compromise is its bulk-revocation
+trigger.
+
 *Verification: Conformance-test* — the harness asserts an unattested initial pin
-is refused; a rotation lacking the old-key signature is refused; and a
-compromise re-pin is refused without fresh OOB evidence + K-of-N quorum.
+is refused; a rotation lacking the old-key signature is refused; a compromise
+re-pin is refused without fresh OOB evidence + K-of-N quorum; and that after a
+compromise re-pin, an artifact / attestation / BOM whose only trust path was the
+compromised key is automatically quarantine-class (non-resolvable, non-installable,
+no-rollback) until re-attested under the new root.
 
 ### §7.1.1 Delivery & Packaging Conformance Profile
 
