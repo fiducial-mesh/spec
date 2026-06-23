@@ -4934,17 +4934,35 @@ loud rejection at startup.
 
 A pillar implementation that plugs into MCC **shall** provide:
 
-1. **A read-only MCP tool surface** — agent-facing read
-   operations on the pillar's contract. The plugin registers these
-   as MCP tools with the frame at startup; the frame routes
-   inbound MCP calls to them after authentication.
-2. **Privileged service operations behind a non-agent boundary**
-   — write and lifecycle operations that an agent **shall not**
-   invoke directly. The frame **shall** route these to non-agent
-   actors (the operator via the admin UI; service principals via
-   the credentialed service path). The agent-out-of-secret-path
-   invariant **shall** be enforced at the frame boundary per
-   `[FM-MCC-0009]`.
+1. **An agent-facing MCP tool surface — read by default, with
+   declared scope-authorized agent-write operations.** The plugin
+   registers its agent-invokable operations as MCP tools with the
+   frame at startup; the frame routes inbound MCP calls to them
+   after authentication per `[FM-MCC-0003]`. Read operations carry
+   no scope requirement beyond an authenticated session. A **write**
+   operation an agent is permitted to invoke **shall** be declared
+   at registration together with the IAM scope that authorizes it;
+   before dispatch the frame **shall** verify the principal holds
+   that scope and **shall** deny the operation otherwise. Such
+   agent-write operations remain subject to the Judge-gate
+   declaration of item 5 where they require elevated confirmation.
+   (Reference: IBX registers read tools plus the scope-authorized
+   agent-write transitions of `[FM-IBX-0004]` under scope
+   `inbox.message.transition`; its `approved`/`rejected`
+   transitions are item-2 privileged operations, not agent-write
+   operations.)
+2. **Privileged operations behind a non-agent boundary** —
+   operations an agent **shall not** invoke under **any** scope:
+   Judge-gated state changes, secret-path operations, and pillar
+   lifecycle/administration. The frame **shall** route these to
+   non-agent actors (the operator via the admin UI; service
+   principals via the credentialed service path) and **shall not**
+   expose them on the item-1 agent MCP surface. The
+   agent-out-of-secret-path invariant **shall** be enforced at the
+   frame boundary per `[FM-MCC-0009]`. A scope-authorized
+   agent-write operation under item 1 is distinct from a privileged
+   operation: the former is gated by an IAM scope the principal may
+   hold, the latter is unreachable by any agent regardless of scope.
 3. **A substrate-handle dependency declaration** — the plugin
    names which substrate handles it requires; the frame fails
    plugin load if any required handle is unavailable per
@@ -4964,7 +4982,12 @@ and surface coverage gaps.
 
 *Verification: Conformance-test* — the harness verifies a
 candidate plugin satisfies every item; a plugin missing any of
-the five **shall** fail load.
+the five **shall** fail load. For the item-1 surface the harness
+**shall** additionally assert: a read tool succeeds with an
+authenticated session; a declared agent-write tool is permitted to
+a principal holding its declared scope and denied to one that does
+not; and no item-2 privileged operation is reachable on the agent
+surface under any scope.
 
 #### `[FM-MCC-0007]` Operator surface — web admin UI
 
