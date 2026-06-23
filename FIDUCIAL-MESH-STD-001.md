@@ -1,8 +1,8 @@
 ---
 title: "FIDUCIAL-MESH-STD-001 — Fiducial Mesh Platform Standard"
 doc_type: standard
-status: released
-version: v1.0
+status: draft
+version: v1.1
 date: 2026-06-10
 authors:
   - "Fiducial Mesh Group"

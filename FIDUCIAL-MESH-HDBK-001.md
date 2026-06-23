@@ -1,8 +1,8 @@
 ---
 title: "FIDUCIAL-MESH-HDBK-001 — Fiducial Mesh Handbook"
 doc_type: handbook
-status: released
-version: v1.0
+status: draft
+version: v1.1
 date: 2026-06-10
 authors:
   - "Fiducial Mesh Group"
