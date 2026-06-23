@@ -1175,9 +1175,13 @@ unread → read → approved → in_progress → done
 
 The terminal states are `done` and `rejected`. Transitions to
 `approved` and `rejected` **shall** be writable only by the Judge
-credential per `[FM-IBX-0003]`. All other transitions **may** be
-written by agent credentials with scope `inbox.message.transition` per
-the IAM-defined scope catalogue.
+credential per `[FM-IBX-0003]` — these are Judge-only operations per
+`[FM-MCC-0006]` item 2. All other transitions **may** be written by
+agent credentials with scope `inbox.message.transition`, and message
+submission **may** be performed by agent credentials with scope
+`inbox.message.send`, per the IAM-defined scope catalogue; both are
+scope-authorized agent-write operations evaluated by PGE per
+`[FM-MCC-0006]` item 1.
 
 Messages with priority `info` **may** be acted on without an
 `approved` transition; the Judge gate applies only to `action` and
@@ -4934,35 +4938,46 @@ loud rejection at startup.
 
 A pillar implementation that plugs into MCC **shall** provide:
 
-1. **An agent-facing MCP tool surface — read by default, with
-   declared scope-authorized agent-write operations.** The plugin
-   registers its agent-invokable operations as MCP tools with the
-   frame at startup; the frame routes inbound MCP calls to them
-   after authentication per `[FM-MCC-0003]`. Read operations carry
-   no scope requirement beyond an authenticated session. A **write**
-   operation an agent is permitted to invoke **shall** be declared
-   at registration together with the IAM scope that authorizes it;
-   before dispatch the frame **shall** verify the principal holds
-   that scope and **shall** deny the operation otherwise. Such
-   agent-write operations remain subject to the Judge-gate
-   declaration of item 5 where they require elevated confirmation.
+1. **An agent-facing MCP tool surface — read and scope-authorized
+   write operations, each PGE-authorized.** The plugin registers its
+   agent-invokable operations (reads and writes) as MCP tools with
+   the frame at startup. Each operation — **including reads** —
+   **shall** declare an **authorization class**: the policy-relevant
+   classification PGE evaluates it under (the IAM scope it requires,
+   or an explicit authenticated-public class where broad
+   authenticated read is intended, as the Roster is per
+   `[FM-IAM-0007]`). For every inbound call the frame **shall**,
+   after obtaining the verified identity context from IAM per
+   `[FM-MCC-0003]` / `[FM-IAM-0011]`, obtain an `allow` decision from
+   PGE per `[FM-PGE-0001]` over the operation, target, parameters,
+   and declared class, and dispatch **only** on `allow`; on a `deny`
+   or unresolvable decision it **shall** fail strict per
+   `[FM-INV-0002]`. The frame **shall not** itself evaluate policy or
+   test scope membership — policy authority is PGE's per the §5.8
+   dependency rule and `[FM-IAM-0011]`. An agent-invokable operation
+   **may** additionally be Judge-gated per `[FM-MCC-0010]`: such an
+   agent-initiated operation enters a pending state and is dispatched
+   only after the frame obtains the required Judge confirmation —
+   distinct from a Judge-only operation (item 2).
    (Reference: IBX registers read tools plus the scope-authorized
-   agent-write transitions of `[FM-IBX-0004]` under scope
-   `inbox.message.transition`; its `approved`/`rejected`
-   transitions are item-2 privileged operations, not agent-write
-   operations.)
-2. **Privileged operations behind a non-agent boundary** —
-   operations an agent **shall not** invoke under **any** scope:
-   Judge-gated state changes, secret-path operations, and pillar
+   agent-write operations of `[FM-IBX-0004]` — message submission
+   under scope `inbox.message.send` and the status transitions under
+   scope `inbox.message.transition`, each PGE-authorized; its
+   `approved`/`rejected` transitions are Judge-only operations under
+   item 2, never exposed on the agent surface.)
+2. **Judge-only and non-agent operations behind a non-agent
+   boundary** — operations no agent **shall** invoke or initiate
+   under any scope: **Judge-only** decisions (e.g. IBX
+   `approved`/`rejected`), secret-path operations, and pillar
    lifecycle/administration. The frame **shall** route these to
    non-agent actors (the operator via the admin UI; service
    principals via the credentialed service path) and **shall not**
    expose them on the item-1 agent MCP surface. The
    agent-out-of-secret-path invariant **shall** be enforced at the
-   frame boundary per `[FM-MCC-0009]`. A scope-authorized
-   agent-write operation under item 1 is distinct from a privileged
-   operation: the former is gated by an IAM scope the principal may
-   hold, the latter is unreachable by any agent regardless of scope.
+   frame boundary per `[FM-MCC-0009]`. This is distinct from an
+   agent-initiated, Judge-confirmed operation under item 1: there the
+   agent initiates and a pending request is dispatched after Judge
+   confirmation per `[FM-MCC-0010]`; here no agent initiation occurs.
 3. **A substrate-handle dependency declaration** — the plugin
    names which substrate handles it requires; the frame fails
    plugin load if any required handle is unavailable per
@@ -4983,10 +4998,15 @@ and surface coverage gaps.
 *Verification: Conformance-test* — the harness verifies a
 candidate plugin satisfies every item; a plugin missing any of
 the five **shall** fail load. For the item-1 surface the harness
-**shall** additionally assert: a read tool succeeds with an
-authenticated session; a declared agent-write tool is permitted to
-a principal holding its declared scope and denied to one that does
-not; and no item-2 privileged operation is reachable on the agent
+**shall** additionally assert: every operation (read and write)
+declares an authorization class; the frame obtains a PGE decision
+and dispatches only on `allow`; an operation is **denied when PGE
+denies even for an authenticated principal that holds the
+operation's declared scope** (policy, not scope-membership, is
+decisive) and likewise denied for a principal lacking the declared
+authorization; a Judge-gated agent-initiated operation remains
+pending until Judge confirmation and is then dispatched; and no
+item-2 Judge-only or privileged operation is reachable on the agent
 surface under any scope.
 
 #### `[FM-MCC-0007]` Operator surface — web admin UI
@@ -5156,8 +5176,8 @@ for the unloaded pillars.
 
 *Verification (operational): Conformance-test* — the harness
 verifies all eight pillars are loaded per the plugin contract;
-asserts every pillar's read-only MCP tool surface is reachable
-through MCC's single endpoint.
+asserts every pillar's agent-facing MCP tool surface (per
+`[FM-MCC-0006]` item 1) is reachable through MCC's single endpoint.
 *Verification (deviation period): Inspection of deviation
 registry* — deviation entry present in Appendix F with sunset
 condition; divergence events emitted per item 2 above.
