@@ -204,7 +204,7 @@ specified herein.
 | AIR | After-Incident Report |
 | AKB | Agent Knowledge Base (pillar) |
 | ARCA | Agentic Root Certificate Authority |
-| BOM | Bill of Materials (versioned signed registry artifact pinning a coherent plugin set) |
+| BOM | Bill of Materials (versioned signed control-plane record pinning a coherent **deployment set** — PCS plugins, vendor tools, and pillar distributions per `[FM-PKG-0006]` — across one or more mesh-internal stores) |
 | CLCA | Closed Loop Corrective Action (Ford 8D discipline) |
 | CRB | Compute Resource Broker (pillar) |
 | CUDA | Compute Unified Device Architecture (NVIDIA GPU computing platform) |
@@ -5988,14 +5988,22 @@ per-deployment: every publisher is an onboarded identity per
 `[FM-IAM-0007]` Roster.
 
 The registry **shall** carry a **BOM** (Bill of Materials) — a
-versioned, signed artifact pinning a coherent plugin set + the
-vendor-CLI versions Tier-0 delegates to per `[FM-PCS-0008]`. A
+versioned, signed control-plane record pinning a coherent
+**deployment set**: PCS plugins, the vendor-CLI versions Tier-0
+delegates to per `[FM-PCS-0008]`, and pillar-distribution artifacts
+per `[FM-PKG-0006]`. The BOM is one logical record that **may**
+reference artifacts in multiple mesh-internal stores (the plugin
+registry and the §7.1.1 package indexes); it is not a second
+registry. A
 deployment installs from a BOM; upgrades happen by bumping the
-BOM version (Linux distro / kubeadm / Helm-chart pattern). The
-BOM **shall** be signed against the deployment's pinned project
-signing root (per the upstream supply-chain trust bootstrap
-discipline documented in HDBK §2.8); local verification is
-mandatory; no callbacks.
+BOM version (Linux distro / kubeadm / Helm-chart pattern). BOM
+**origin** is verified against the deployment's pinned upstream
+**project** signing root (the trust-bootstrap ceremony is
+normative per `[FM-PKG-0009]`, not merely HDBK §2.8); a BOM the
+deployment authors or modifies locally (a **customer-modified
+BOM**) **shall** instead be signed by the **deployment
+artifact-import / signing authority** of `[FM-PKG-0002]` (no ARCA
+key reuse). Local verification is mandatory; no callbacks.
 
 **Runtime-vendor-tool binding to the BOM.** The BOM pins the
 vendor-CLI version Tier-0 validates against; the operator's
@@ -6015,11 +6023,13 @@ registries do not federate; per-deployment namespace collision
 is not possible because registries are isolated.
 
 *Verification: Conformance-test* — the harness exercises a BOM-
-pinned install and asserts every constituent plugin signature
-verifies against the registry's pinned trust root; exercises a
-BOM bump and asserts atomic transition (all plugins update or
-none does); asserts cross-registry resolution attempts are
-rejected.
+pinned install over the **coherent deployment set** (PCS plugins,
+vendor tools, and pillar distributions across stores) and asserts
+**every constituent's** signature/attestation verifies against its
+applicable pinned root; exercises a BOM bump and asserts atomic
+generation transition per `[FM-PKG-0006]` (the whole deployment set
+moves or none does), including cross-store constituents; asserts
+cross-registry resolution attempts are rejected.
 
 #### `[FM-PCS-0014]` Namespace + prefix reservation
 
@@ -6188,8 +6198,10 @@ Required metrics **shall** include at minimum:
 `promotion_events_total` (counter, labeled by from-tier /
 to-tier), `daemon_in_flight_dispatches` (gauge),
 `reconciliation_swept_total` (counter), `bom_drift_count`
-(gauge — the count of plugins whose installed version diverges
-from the BOM-pinned version).
+(gauge — the count of **coherent-deployment-set constituents**
+(PCS plugins, vendor tools, and pillar distributions per
+`[FM-PKG-0006]`) whose installed version diverges from the
+BOM-pinned version).
 
 The operational telemetry stream (`mesh.pcs.*`) is distinct
 from the audit-event stream (`pcs.*` per `[FM-PCS-0017]`); the
@@ -6220,12 +6232,294 @@ the new substrate passes the PCS test suite.
 
 ---
 
-## §7 Reserved — Operational requirements
+## §7 Operational requirements
 
-*This section is reserved for the normative requirements governing
-delivery and packaging substrate, security framework, FIPS-Day-1
-discipline, and AIR/CLCA continuous-improvement discipline. Will be
-landed in subsequent PRs.*
+### §7.1 Delivery & packaging substrate
+
+**Scope.** §7.1 governs how a **pillar implementation** is built, published,
+distributed, and installed into a deployment — the build → publish → install
+pipeline that `[FM-MCC-0006]` and the Handbook's standalone-install shape depend
+on but do not define. It is a **substrate** concern, not a pillar: it produces
+the versioned artifacts MCC loads as plugins and the BOM that pins them.
+
+A **pillar-distribution artifact** is distinct from a PCS executable artifact
+(`[FM-PCS-0003]`): the latter is a skill / runbook / workflow / hook / MCP-server
+/ agent governed by the PCS plugin contract; the former is the **language-package
+implementation** of a pillar (or of a PCS plugin) that an MCC frame loads. §7.1
+binds the artifact's identity, provenance, and installation — **not** its runtime
+contract, which remains `[FM-MCC-0006]`. An MCP-server entry point *inside* a
+distribution does not make the distribution a PCS artifact.
+
+**Dependencies.**
+
+- `[FM-INV-0001]` (no bypass) + `[FM-INV-0002]` (fail strict) apply — an artifact that fails verification **shall not** install; an unverifiable artifact halts.
+- Installed pillar implementations load through MCC per `[FM-MCC-0002]` / `[FM-MCC-0006]`; §7.1 does not alter the runtime plugin contract.
+- §7.1 owns **reproducible resolution** (pinning makes the validated artifact set re-resolvable and re-installable byte-for-byte) — it does **not** own runtime containment. DPG ephemeral isolation (`[FM-DPG-0002]`) contains code only inside a single-use DPG boundary and applies to pre-promotion build/validation per `[FM-DPG-0009]`; it does **not** contain a compromised dependency once that dependency runs in the long-lived MCC/plugin process. Runtime blast-radius is the deployed plugin/process capability boundary; where that boundary is not yet specified it is **named residual risk**, not credited to DPG.
+- Mesh-internal pinning rides the signed BOM of `[FM-PCS-0013]`. §7.1 defines the **pillar-distribution fields** the BOM carries. The BOM is **one logical signed control-plane record** referencing artifacts that may live in **multiple mesh-internal stores** (the PCS plugin registry and the §7.1.1 package indexes) — one coherent record, not one physical registry, and not a second registry.
+- **Identity trust ≠ artifact trust.** `[FM-IAM-0002]` (ARCA) is a per-organization identity root and **does not** authorize artifact origin. Artifact signing uses a **key-purpose-separated** trust path per `[FM-PKG-0002]`; ordinary identity certificates **shall not** validate as artifact signers.
+
+#### `[FM-PKG-0001]` Pillar-distribution artifact class + frame-compat
+
+A pillar implementation deployed into the mesh **shall** be delivered as a
+**pillar-distribution artifact**: an immutable, versioned language package
+(Python wheel, Go module, or equivalent) carrying, as declared metadata, the
+**pillar identity**, the **artifact version** (semver), and the **MCC
+plugin-contract version** it targets. The MCC frame **shall** publish the set of
+plugin-contract versions it supports (an opaque frame-contract identifier per
+`[FM-MCC-0006]`); compatibility is testable as **set membership** — the artifact's
+declared target **shall** be in the frame's supported set, else load is refused.
+This artifact class is **distinct from** the `[FM-PCS-0003]` executable-artifact
+enumeration and **shall not** be conflated with it; an MCP-server entry point
+inside a distribution does not make the distribution a PCS artifact.
+
+*Verification: Inspection + Conformance-test* — the harness rejects a
+distribution missing identity / version / target-contract-version metadata, and
+rejects load when the declared target is not in the frame's published supported
+set.
+
+#### `[FM-PKG-0002]` Build-provenance attestation + artifact-signing root
+
+A pillar-distribution artifact **shall** carry a **signed provenance attestation**
+binding, at minimum: `{source repository, immutable source revision, builder
+principal, build recipe / toolchain versions, artifact digest, SBOM digest}`. A
+bare digest-plus-output-signature does **not** satisfy this — the attestation
+**shall** bind the output to its source and build. The **SBOM** **shall** pin
+every transitive dependency by **identity + version + digest** and record each
+dependency's signature / ingress status; a names-only SBOM is non-conformant
+(it permits dependency-byte substitution). Where the reference substrate serves
+**source** (e.g. a Go module proxy), the **locally-built deployed output** digest
+**shall** be attested and BOM-pinned, not merely the source module.
+
+The attestation signature **shall** chain to a **mesh artifact-signing trust
+root** that is **key-purpose-separated** from identity (`[FM-IAM-0002]` ARCA):
+distinctly, an upstream **project-signing root** pinned out-of-band (per the
+`[FM-PCS-0013]` / HDBK §2.8 pattern) governs upstream origin, and a
+**deployment artifact-import/signing authority** (held in Vault, **no ARCA key
+reuse**) governs what is admitted into a deployment. The crypto product is a
+`[FM-PKG]`-profile seam; the **role separation is normative**. An installer
+**shall** verify the attestation, signature, digest, and SBOM closure **before**
+install and **shall** fail strict per `[FM-INV-0002]` on any failure. A
+working-tree or otherwise-mutable source copy **shall not** be a conformant
+delivery path.
+
+*Verification: Conformance-test* — the harness rejects, before install: a
+tampered-digest artifact; an artifact whose attestation source-revision /
+builder / recipe binding does not verify; one signed by an ordinary identity
+certificate (not the artifact-signing root); one whose SBOM omits or
+name-only-lists a transitive dependency; and asserts a Go-proxy source module
+without an attested locally-built output digest is non-conformant.
+
+#### `[FM-PKG-0003]` Mesh-internal distribution + ingress trust-conversion
+
+Pillar-distribution artifacts **shall** resolve only from a **mesh-internal
+distribution substrate**; that substrate **shall not** be federated to public
+indexes for resolution, and a deployment **shall not** resolve a distribution
+directly from a public index. A public upstream artifact (which will **not** carry
+a mesh artifact-signing-root signature) enters only through an explicit
+**ingress trust-conversion**, which **shall** be one of: (a) **rebuild from the
+immutable upstream source inside the boundary** and sign the output per
+`[FM-PKG-0002]`; or (b) **verify upstream provenance / digest / SBOM** against the
+out-of-band-pinned project root and **attach a mesh ingress attestation** signed
+by the deployment artifact-import authority. Either path pins the result at a
+fixed version. Ingress is an authorized, audited operation per `[FM-PKG-0004]`.
+
+*Verification: Conformance-test* — the harness asserts install resolves only from
+the mesh-internal substrate; a direct-public-index resolution is refused; an
+un-ingressed public artifact is not installable; and an ingressed artifact carries
+either an in-boundary rebuild signature or a mesh ingress attestation.
+
+#### `[FM-PKG-0004]` Supply-chain operation authorization
+
+Package supply-chain operations are **net-new state-affecting platform
+capabilities**; per `[FM-INV-0003.2]` / `[FM-INV-0003.3]` "operator-initiated" is
+**not** an authorization model. Every operation **shall** carry a **stable**
+IAM scope, a PGE decision, and an ACT event from the enumerated sets below
+(wildcard `pkg.*` is **not** a conformant scope — implementations **shall not**
+invent names). The declared scope is **evaluated by PGE** (`[FM-PGE-0001]`) using
+the principal's IAM-provided **scope set** per the identity-context contract
+`[FM-IAM-0011]` (which supplies the scope set, not a catalogue); the operation
+**commits only after** ACT commits the event and returns its ack per
+`[FM-ACT-0009]` (fail strict on no-ack), and only on PGE `allow`.
+
+| Operation | IAM scope | ACT event (`[FM-ACT-0004]`) | Class |
+|-----------|-----------|------------------------------|-------|
+| Ingress (public→mesh) | `pkg.ingress` | `pkg.ingressed` | authorized |
+| Publish | `pkg.publish` | `pkg.published` | authorized |
+| Deprecate | `pkg.deprecate` | `pkg.deprecated` | authorized |
+| Withdraw | `pkg.withdraw` | `pkg.withdrawn` | authorized |
+| Quarantine | `pkg.quarantine` | `pkg.quarantined` | authorized |
+| Purge | `pkg.purge` | `pkg.purged` | authorized |
+| BOM activate | `pkg.bom.activate` | `pkg.bom.activated` | authorized |
+| BOM rollback | `pkg.bom.rollback` | `pkg.bom.rolledback` | authorized |
+| Root pin / rotate / recover (`[FM-PKG-0009]`) | `pkg.root.pin` / `.rotate` / `.recover` | `pkg.root.pinned` / `.rotated` / `.recovered` | **catastrophic** |
+
+Each ACT event **shall** carry, at minimum: the verified actor `principal-id`,
+the target artifact identity + digest (or root fingerprint), and the PGE decision
+reference. **Catastrophic-class** operations **shall** require **K-of-N quorum**
+per `[FM-INV-0004]` — a solo Judge confirmation **shall not** substitute for the
+quorum (Judge confirmation **may** be additive).
+
+*Verification: Conformance-test* — for each operation the harness asserts denial
+without the declared scope and on PGE deny; asserts the operation does **not**
+commit until ACT acks the matching enumerated event; asserts a catastrophic-class
+operation is refused without K-of-N quorum and is **not** satisfied by a solo
+Judge; and asserts no implementation-invented scope/event name validates.
+
+#### `[FM-PKG-0005]` Artifact lifecycle + quarantine
+
+A pillar-distribution artifact **shall** transit the lifecycle below
+(`[FM-PCS-0012]` governs plugin/workflow versions and does **not** automatically
+govern pillar distributions). The normal path is
+**published → deprecated → withdrawn → purged**; **quarantined** is reachable by
+an **emergency edge from any non-purged state** (published, deprecated, or
+withdrawn) so a live compromise can be revoked without first withdrawing —
+paralleling `[FM-PCS-0012]`.
+
+| State | New install | Pinned/legacy resolve | Rollback target | Bytes retained |
+|-------|-------------|------------------------|-----------------|----------------|
+| Published | yes | yes | yes | yes |
+| Deprecated | warn (allowed) | yes | yes | yes |
+| Withdrawn | no | yes (existing pins only) | yes | yes |
+| **Quarantined** | **no** | **no** | **no** | **yes (forensic)** |
+| Purged | no | no | no | no |
+
+**Quarantine** **shall** make an artifact non-resolvable, non-installable, and
+ineligible for rollback — **overriding any BOM pin** — while preserving forensic
+bytes and ACT history. Every transition (including deprecate, withdraw, purge,
+and emergency quarantine) is authorized + audited per `[FM-PKG-0004]`.
+
+*Verification: Conformance-test* — the harness asserts the resolvability table per
+state; asserts an **emergency quarantine from each resolvable state** (published,
+deprecated, withdrawn) makes the artifact non-resolvable / non-installable, that a
+BOM pin to it no longer resolves, that rollback to it is refused, and that bytes +
+ACT history are retained.
+
+#### `[FM-PKG-0006]` BOM pinning, staged activation, eligibility-checked rollback
+
+The deployment **BOM** (`[FM-PCS-0013]`) **shall** pin each installed
+pillar-distribution artifact by **identity + version + digest + dependency
+closure**, alongside PCS plugins and vendor tools — one logical signed record
+over the **coherent deployment set**. Because install spans hosts under possible
+failure/partition, atomicity **shall** be a **staged-activation generation**
+model:
+
+1. All artifacts of a candidate generation are **pre-staged** and each serving
+   instance **attests ready** on the new generation before any switch.
+2. The **active-generation pointer** flips via a **durable, linearizable**
+   operation — a local transaction / CAS on a single-node deployment; a
+   consensus-backed switch on multi-node. (Distributed consensus is **not**
+   mandated for single-node.) The coordination store is **CP, not AP**: a
+   minority / partitioned store **shall refuse** the flip and **fail strict**
+   per `[FM-INV-0002]` — two partitions **shall not** each flip a local pointer
+   (no split-brain generations). Instance-fencing (step 3) is necessary but not
+   sufficient; refusing the minority-side flip is what prevents split-brain.
+3. **Generation fencing:** after the switch, traffic / leases bind to exactly one
+   active generation; an instance still on the prior generation is **drained or
+   fenced** (rejected), so no serving path ever runs a partial mix.
+
+**Rollback** is the inverse generation switch and **shall** re-check signature,
+lifecycle/quarantine (`[FM-PKG-0005]`), and policy eligibility before activation —
+a revoked or quarantined prior set **shall not** be restored. The
+activation-coordination store is a Conformance-Profile seam (§7.1.1).
+
+*Verification: Conformance-test* — the harness asserts a BOM entry pins
+identity + version + digest + closure; injects **partitions and stale workers**
+before and after the switch and asserts no serving path runs a partial mix (a
+fenced/stale instance is rejected, not served); asserts the **minority side of a
+partition refuses the flip** (no split-brain, fail strict); asserts rollback to a
+quarantined/revoked set is refused.
+
+#### `[FM-PKG-0007]` Standalone installability vs MCC composition
+
+A pillar distribution **may** be installable and runnable **standalone** (e.g.
+`pip install <pillar>`) for development and test, independent of PCS or MCC. A
+**deployed mesh** pillar, however, **shall** load through MCC per `[FM-MCC-0002]`
+/ `[FM-MCC-0006]` and **shall not** expose a standalone, externally-reachable
+pillar endpoint in the deployed system. Standalone entry points **shall** exist
+only as build / test composition surfaces, never as a deployed serving path.
+
+*Verification: Conformance-test* — the harness asserts the distribution installs
+and its test suite runs standalone; asserts that in a deployed configuration no
+per-pillar external endpoint is reachable and all access is via the single MCC
+endpoint per `[FM-MCC-0002]`.
+
+#### `[FM-PKG-0008]` Language neutrality
+
+The requirements of §7.1 bind artifact **identity, provenance, pinning, and
+ingress** — **not** a package format or implementation language. A
+PyPI-compatible index with wheels is the Python **reference implementation**; a
+module proxy with modules is the Go reference. An implementation **may** use any
+package substrate that passes the §7.1.1 conformance suite. The normative text
+**shall not** be read to mandate Python.
+
+*Verification: Conformance-test* — the §7.1.1 suite runs against each declared
+distribution substrate and proves identity / provenance / pinning / ingress
+semantics independent of the package format.
+
+#### `[FM-PKG-0009]` Artifact-signing-root trust-bootstrap ceremony
+
+The artifact-signing trust roots of `[FM-PKG-0002]` (the out-of-band upstream
+project root and the deployment artifact-import authority) **shall** have
+normative ceremony paths — HDBK rationale does **not** supply a Standard
+requirement:
+
+1. **Initial pin** — a conforming installer **shall** validate the initial root
+   fingerprint against **out-of-band attestation evidence** before trusting any
+   artifact under it; an unattested fingerprint **shall not** be pinned.
+2. **Routine rotation** — a new root **shall** be introduced by a signature from
+   the **outgoing (old) key** plus the new fingerprint; an installer **shall**
+   reject a rotation not so signed.
+3. **Compromise re-pin** — when the old key is untrustworthy, re-pin **shall**
+   require **fresh out-of-band evidence** and **K-of-N quorum** per
+   `[FM-INV-0004]` (it is a catastrophic-class operation per `[FM-PKG-0004]`); a
+   solo Judge **shall not** suffice.
+
+A compromise re-pin of **either** root **shall** trigger a **retroactive corpus
+re-evaluation** — re-pinning forward without a backward sweep leaves a
+trusted-corpus hole on the exact threat §7.1 closes. Every artifact, ingress
+attestation (`[FM-PKG-0003]`), and BOM (incl. customer-modified BOMs,
+`[FM-PKG-0006]`) **whose only valid trust path is the compromised key shall**
+become **quarantine-class** per `[FM-PKG-0005]` — non-resolvable,
+non-installable, and ineligible for rollback — **pending re-attestation** under
+the new root. The sweep **shall not** depend on per-artifact operator action
+(quarantine is otherwise operator-driven); root compromise is its bulk-revocation
+trigger.
+
+*Verification: Conformance-test* — the harness asserts an unattested initial pin
+is refused; a rotation lacking the old-key signature is refused; a compromise
+re-pin is refused without fresh OOB evidence + K-of-N quorum; and that after a
+compromise re-pin, an artifact / attestation / BOM whose only trust path was the
+compromised key is automatically quarantine-class (non-resolvable, non-installable,
+no-rollback) until re-attested under the new root.
+
+### §7.1.1 Delivery & Packaging Conformance Profile
+
+The delivery/packaging substrate's substitutability claim covers exactly the rows
+in this Conformance Profile. Conformance is verified by passing the
+delivery/packaging multi-profile conformance suite against the listed
+implementations.
+
+| Seam | Bound requirement(s) | Sovereign reference (version floor) | Supported alternatives | Test Set |
+|------|---------------------|-------------------------------------|------------------------|----------|
+| Distribution index (Python) | `[FM-PKG-0003]`, `[FM-PKG-0008]` | PyPI-compatible index (e.g. devpi) | Any index passing the suite | `pkg-distribution-py-v1` |
+| Distribution proxy (Go) | `[FM-PKG-0003]`, `[FM-PKG-0008]` | Go module proxy (GOPROXY) | Any module proxy passing the suite | `pkg-distribution-go-v1` |
+| Artifact-signing root | `[FM-PKG-0002]` | Key-purpose-separated artifact-signing authority in Vault (NOT ARCA `[FM-IAM-0002]`) | Any signer/HSM service with key-purpose separation passing the suite | `pkg-signing-v1` |
+| Provenance attestation | `[FM-PKG-0002]` | in-toto / SLSA-style signed attestation | Any attestation format binding the §`[FM-PKG-0002]` fields | `pkg-provenance-v1` |
+| Supply-chain op authorization | `[FM-PKG-0004]` | IAM scope + PGE decision + ACT `pkg.*` ack | (none — mesh control plane) | `pkg-authz-v1` |
+| Root-pin ceremony | `[FM-PKG-0009]` | OOB-attested pin; old-key-signed rotation; K-of-N compromise re-pin | Any ceremony substrate passing the suite | `pkg-root-ceremony-v1` |
+| Artifact lifecycle | `[FM-PKG-0005]` | State/resolvability table + emergency quarantine | (none — normative state machine) | `pkg-lifecycle-v1` |
+| Activation-coordination store | `[FM-PKG-0006]` | Local txn/CAS (single-node); Raft/consensus KV (multi-node) | Any durable linearizable pointer store passing the suite | `pkg-activation-v1` |
+| BOM record | `[FM-PKG-0006]`, `[FM-PCS-0013]` | One logical signed BOM over the coherent deployment set | (none — one mesh BOM) | `pkg-bom-v1` |
+
+Out-of-set substrates **shall not** be claimed as supported under this profile.
+Extending the profile requires the argued-case discipline per `[FM-INV-0003.2]`
+and a multi-profile conformance run proving the new substrate passes the suite.
+
+### §7.2 Reserved — Operational requirements (remaining)
+
+*Reserved for the normative requirements governing the **security framework**,
+**FIPS-Day-1 discipline**, and **AIR/CLCA continuous-improvement discipline**.
+Will be landed in subsequent PRs.*
 
 ---
 
