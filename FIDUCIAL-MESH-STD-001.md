@@ -6220,12 +6220,142 @@ the new substrate passes the PCS test suite.
 
 ---
 
-## §7 Reserved — Operational requirements
+## §7 Operational requirements
 
-*This section is reserved for the normative requirements governing
-delivery and packaging substrate, security framework, FIPS-Day-1
-discipline, and AIR/CLCA continuous-improvement discipline. Will be
-landed in subsequent PRs.*
+### §7.1 Delivery & packaging substrate
+
+**Scope.** §7.1 governs how a **pillar implementation** is built, published,
+distributed, and installed into a deployment — the build → publish → install
+pipeline that `[FM-MCC-0006]` and the Handbook's standalone-install shape depend
+on but do not define. It is a **substrate** concern, not a pillar: it produces
+the versioned artifacts MCC loads as plugins and the BOM that pins them.
+
+A **pillar-distribution artifact** is distinct from a PCS executable artifact
+(`[FM-PCS-0003]`): the latter is a skill / runbook / workflow / hook / MCP-server
+/ agent governed by the PCS plugin contract; the former is the **language-package
+implementation** of a pillar (or of a PCS plugin) that an MCC frame loads. §7.1
+binds the artifact's identity, provenance, and installation — **not** its runtime
+contract, which remains `[FM-MCC-0006]`. An MCP-server entry point *inside* a
+distribution does not make the distribution a PCS artifact.
+
+**Dependencies.**
+
+- `[FM-INV-0001]` (no bypass) + `[FM-INV-0002]` (fail strict) apply — an artifact that fails verification **shall not** install; an unverifiable artifact halts.
+- Installed pillar implementations load through MCC per `[FM-MCC-0002]` / `[FM-MCC-0006]`; §7.1 does not alter the runtime plugin contract.
+- The supply-chain trust boundary is closed downstream by DPG ephemeral isolation per `[FM-DPG-0002]`: pinning (below) makes the validated version **reproducible**; isolation makes a compromised dependency **contained**. §7.1 owns reproducibility, not containment.
+- Mesh-internal pinning rides the signed BOM of `[FM-PCS-0013]`; §7.1 defines the **pillar-distribution fields** that BOM carries — extending the one mesh BOM, never forking a second registry.
+- Artifact signatures chain to a sovereign mesh trust root (`[FM-IAM-0002]`); the exact signing-root binding (ARCA vs a dedicated artifact-signing root) is a Conformance-Profile seam.
+
+#### `[FM-PKG-0001]` Pillar-distribution artifact class
+
+A pillar implementation deployed into the mesh **shall** be delivered as a
+**pillar-distribution artifact**: an immutable, versioned language package
+(Python wheel, Go module, or equivalent) carrying, as declared metadata, the
+**pillar identity**, the **artifact version** (semver), and the **MCC
+plugin-contract compatibility version** it implements per `[FM-MCC-0006]`. This
+artifact class is **distinct from** the `[FM-PCS-0003]` executable-artifact
+enumeration and **shall not** be conflated with it.
+
+*Verification: Inspection + Conformance-test* — the harness rejects a
+distribution missing identity / version / MCC-compat metadata, and rejects load
+when the declared MCC-compat version is incompatible with the frame.
+
+#### `[FM-PKG-0002]` Build provenance + verify-before-install
+
+A pillar-distribution artifact **shall** be built from an **immutable source
+revision** in a clean builder and **shall** carry: a cryptographic **digest**, a
+**signature** chaining to a sovereign mesh trust root (`[FM-IAM-0002]`), and
+**dependency / SBOM** metadata enumerating its transitive closure. An installer
+**shall** verify signature + digest + SBOM-closure **before** install and
+**shall** fail strict per `[FM-INV-0002]` on any verification failure. A
+working-tree or otherwise-mutable source copy **shall not** be a conformant
+delivery path.
+
+*Verification: Conformance-test* — the harness attempts to install a
+tampered-digest artifact, an unsigned artifact, and one whose SBOM omits a
+transitive dependency, and asserts each is rejected **before** install; asserts a
+working-tree copy is non-conformant.
+
+#### `[FM-PKG-0003]` Mesh-internal distribution + ingress ceremony
+
+Pillar-distribution artifacts **shall** resolve from a **mesh-internal
+distribution substrate** (a package index). That substrate **shall not** be
+federated to public indexes for resolution. A public upstream artifact enters the
+mesh-internal substrate **only** through an explicit **ingress ceremony** —
+operator-initiated, verified per `[FM-PKG-0002]`, and pinned at a fixed version —
+never by transitive trust of a public index at install time. A deployment
+**shall not** resolve a pillar distribution directly from a public index.
+
+*Verification: Conformance-test* — the harness asserts install resolves only from
+the mesh-internal substrate; asserts a direct-public-index resolution is refused;
+asserts an un-ingressed public artifact is not installable.
+
+#### `[FM-PKG-0004]` BOM pinning, atomic upgrade, tested rollback
+
+The deployment **BOM** (`[FM-PCS-0013]`) **shall** pin each installed
+pillar-distribution artifact by **identity + version + digest + dependency
+closure**. A version change **shall** be an **atomic** BOM upgrade — the
+deployment sits at the old coherent set or the new one, never a partial mix — and
+**shall** have a **pre-tested rollback** to the prior pinned set. The BOM remains
+a **single signed artifact** carrying both PCS plugins (`[FM-PCS-0013]`) and
+pillar distributions (this requirement); §7.1 adds the pillar-distribution fields
+and **does not** create a second registry.
+
+*Verification: Conformance-test* — the harness asserts a BOM entry pins
+identity + version + digest + closure; injects a mid-upgrade failure and asserts
+the deployment is left on the prior coherent set (atomicity + rollback), not a
+partial mix.
+
+#### `[FM-PKG-0005]` Standalone installability vs MCC composition
+
+A pillar distribution **may** be installable and runnable **standalone** (e.g.
+`pip install <pillar>`) for development and test, independent of PCS or MCC. A
+**deployed mesh** pillar, however, **shall** load through MCC per `[FM-MCC-0002]`
+/ `[FM-MCC-0006]` and **shall not** expose a standalone, externally-reachable
+pillar endpoint in the deployed system. Standalone entry points **shall** exist
+only as build / test composition surfaces, never as a deployed serving path.
+
+*Verification: Conformance-test* — the harness asserts the distribution installs
+and its test suite runs standalone; asserts that in a deployed configuration no
+per-pillar external endpoint is reachable and all access is via the single MCC
+endpoint per `[FM-MCC-0002]`.
+
+#### `[FM-PKG-0006]` Language neutrality
+
+The requirements of §7.1 bind artifact **identity, provenance, pinning, and
+ingress** — **not** a package format or implementation language. A
+PyPI-compatible index with wheels is the Python **reference implementation**; a
+module proxy with modules is the Go reference. An implementation **may** use any
+package substrate that passes the §7.1.1 conformance suite. The normative text
+**shall not** be read to mandate Python.
+
+*Verification: Conformance-test* — the §7.1.1 suite runs against each declared
+distribution substrate and proves identity / provenance / pinning / ingress
+semantics independent of the package format.
+
+### §7.1.1 Delivery & Packaging Conformance Profile
+
+The delivery/packaging substrate's substitutability claim covers exactly the rows
+in this Conformance Profile. Conformance is verified by passing the
+delivery/packaging multi-profile conformance suite against the listed
+implementations.
+
+| Seam | Bound requirement(s) | Sovereign reference (version floor) | Supported alternatives | Test Set |
+|------|---------------------|-------------------------------------|------------------------|----------|
+| Distribution index (Python) | `[FM-PKG-0003]`, `[FM-PKG-0006]` | PyPI-compatible index (e.g. devpi) | Any index passing the suite | `pkg-distribution-py-v1` |
+| Distribution proxy (Go) | `[FM-PKG-0003]`, `[FM-PKG-0006]` | Go module proxy (GOPROXY) | Any module proxy passing the suite | `pkg-distribution-go-v1` |
+| Artifact signing | `[FM-PKG-0002]` | Signature chaining to the sovereign root (`[FM-IAM-0002]`) | Any signer chaining to the mesh trust root | `pkg-signing-v1` |
+| BOM pinning | `[FM-PKG-0004]`, `[FM-PCS-0013]` | The single PCS signed BOM | (none — one mesh BOM) | `pkg-bom-v1` |
+
+Out-of-set substrates **shall not** be claimed as supported under this profile.
+Extending the profile requires the argued-case discipline per `[FM-INV-0003.2]`
+and a multi-profile conformance run proving the new substrate passes the suite.
+
+### §7.2 Reserved — Operational requirements (remaining)
+
+*Reserved for the normative requirements governing the **security framework**,
+**FIPS-Day-1 discipline**, and **AIR/CLCA continuous-improvement discipline**.
+Will be landed in subsequent PRs.*
 
 ---
 
