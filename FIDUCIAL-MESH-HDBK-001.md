@@ -933,9 +933,9 @@ They are not part of the canon; the canon is STD-001 + this Handbook.
 > normatively specifies. Cross-references
 > in this Part point at the *cross-pillar contracts PCS already binds
 > to* (FM-MCC, FM-PGE, FM-DPG, FM-AKB, FM-INV) — those bindings are
-> in force today even though §6 has not yet been filled. The §6
-> PCS pillar will codify the action-layer mechanisms this Part
-> describes.
+> in force today, and §6 — now written — normatively codifies the
+> action-layer mechanisms this Part describes (`[FM-PCS-0001..0018]`).
+> What remains is the PCS *implementation* built to that spec.
 
 ## 2.1 What PCS is
 
@@ -1120,10 +1120,10 @@ between plugin declaration and platform enforcement is logged to ACT
 as a CLCA signal.
 
 **Bound STD requirements.** The cardinal rule (PCS plugin as
-strict superset of vendor plugins) is the design intent that §6
-will codify as the PCS plugin-shape requirement; the analogous
-already-numbered surface is the MCC plugin contract per
-`[FM-MCC-0006]`. The platform-enforcement-floor paragraph above
+strict superset of vendor plugins) is the design intent §6 now
+codifies as `[FM-PCS-0001]` (cardinal rule — strict superset of
+vendor plugins); the analogous already-numbered surface is the MCC
+plugin contract per `[FM-MCC-0006]`. The platform-enforcement-floor paragraph above
 binds to `[FM-INV-0005]` (the floor is authoritative),
 `[FM-PGE-0010]` (PGE applies the floor regardless of declaration),
 `[FM-INV-0005.2]` (divergence between declaration and enforcement
@@ -1214,8 +1214,8 @@ for free; no reimplementation. The harness earns the trust once;
 every conforming artifact inherits it.
 
 **Bound STD requirements.** The validation harness's Tier-1
-"PCS Core" hard gate is the surface §6 will normatively specify
-when filled. The harness's mandatory **execution-side validation
+"PCS Core" hard gate is the surface §6 now normatively specifies
+(`[FM-PCS-0008]` tiered validation harness). The harness's mandatory **execution-side validation
 gates** for executable artifacts are already numbered in the DPG
 pillar: `[FM-DPG-0004]` (four mandatory validation gates —
 Syntax + PGE + test-suite + resource-limit attestation) and
@@ -2365,7 +2365,8 @@ KI7MT Lab dogfoods the same artifacts every customer gets — for the
 pillars that exist, under their declared deviations. The workflows
 the lab uses daily become the proof for those pillars. "The lab IS
 the reference implementation" — **mechanically true at the PCS
-layer once §6 lands**; mechanically true today only for the
+layer once PCS is built to §6** (the spec is written; the
+implementation is the remaining step); mechanically true today only for the
 pillars that have landed normatively (IBX §5.1, IAM §5.2 under the
 identity-by-brief deviation, MCC §5.8 host frame under the
 partial-load deviation, AKB §5.5 under partial-load) and the
