@@ -4,6 +4,8 @@ doc_type: standard
 status: draft
 version: v1.1
 date: 2026-06-10
+license: CC-BY-4.0
+copyright: "Copyright (c) 2026 Agentics Labs LLC"
 authors:
   - "Fiducial Mesh Group"
 companion_to: FIDUCIAL-MESH-HDBK-001.md
