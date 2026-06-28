@@ -5244,6 +5244,26 @@ event-type taxonomy:
   PGE rule / policy-version attribution because no decision was
   produced — that absence is what distinguishes it from
   `mcc.policy_denied` (an explicit, attributed PGE deny).
+- `mcc.substrate_unavailable` — emitted when a substrate pillar
+  required to process the inbound call is **not loaded** into MCC:
+  the IAM identity hook (`[FM-MCC-0003]`) or the PGE policy decision
+  (`[FM-PGE-0001]`) is absent during an `[FM-MCC-0012]` partial-load
+  deviation window. The call **shall** fail strict per `[FM-INV-0002]`.
+  **Attribution is conditional on `missing_pillar`**: `iam` →
+  **frame-attributed** (the identity pillar is absent, so there is no
+  verified principal); `pge` → **principal-attributed** to the
+  IAM-verified caller (identity was already established per
+  `[FM-MCC-0003]` before PGE's absence was discovered — the same
+  post-authentication position as `mcc.policy_unavailable`). Carries the
+  `missing_pillar` discriminator (`iam | pge`). Distinct
+  from `mcc.auth_denied` (IAM **loaded**, AuthN denies) and from
+  `mcc.policy_unavailable` (PGE **loaded** but unable to produce a
+  decision). The companion `pcs.policy.divergence`
+  (`divergence_type = mcc-partial-load`) is emitted by the MCC frame
+  as fallback emitter per the `[FM-PGE-0011]` fallback-emitter rule
+  (invoked for the `[FM-MCC-0012]` partial-load deviation);
+  this event is the per-call **terminal** event that satisfies
+  `[FM-INV-0001]` during the partial-load window.
 - `mcc.agent_secret_path_denied` — emitted on agent-out-of-secret-
   path denial per `[FM-MCC-0009]`.
 - `mcc.dispatch_completed` — emitted on plugin dispatch completion
@@ -5260,8 +5280,8 @@ strict.
 
 Every inbound call **shall** have exactly one terminal event in
 ACT (`dispatch_completed`, `auth_denied`, `policy_denied`,
-`policy_unavailable`, or `agent_secret_path_denied`); a call with no
-terminal event is a
+`policy_unavailable`, `agent_secret_path_denied`, or
+`substrate_unavailable`); a call with no terminal event is a
 no-bypass violation per `[FM-INV-0001]`.
 
 **Pre-auth event attribution + rate-limiting.** `mcc.call_received`
