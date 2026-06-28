@@ -5258,12 +5258,14 @@ event-type taxonomy:
   `missing_pillar` discriminator (`iam | pge`). Distinct
   from `mcc.auth_denied` (IAM **loaded**, AuthN denies) and from
   `mcc.policy_unavailable` (PGE **loaded** but unable to produce a
-  decision). The companion `pcs.policy.divergence`
-  (`divergence_type = mcc-partial-load`) is emitted by the MCC frame
-  as fallback emitter per the `[FM-PGE-0011]` fallback-emitter rule
-  (invoked for the `[FM-MCC-0012]` partial-load deviation);
-  this event is the per-call **terminal** event that satisfies
-  `[FM-INV-0001]` during the partial-load window.
+  decision). `mcc.substrate_unavailable` is the call's **single
+  terminal event** during the partial-load window (per the
+  terminal-event set below). The companion `pcs.policy.divergence`
+  (`divergence_type = mcc-partial-load`) — emitted by the MCC frame as
+  fallback emitter per the `[FM-PGE-0011]` fallback-emitter rule
+  (invoked for the `[FM-MCC-0012]` partial-load deviation) — is a
+  **non-terminal** companion record on the divergence stream, **not**
+  a second terminal event.
 - `mcc.agent_secret_path_denied` — emitted on agent-out-of-secret-
   path denial per `[FM-MCC-0009]`.
 - `mcc.dispatch_completed` — emitted on plugin dispatch completion
@@ -6717,7 +6719,7 @@ matching ACT events exist for every deviation entry whose
 
 ---
 
-*End of FIDUCIAL-MESH-STD-001 v1.0.*
+*End of FIDUCIAL-MESH-STD-001 v1.1.*
 
 This Standard is the source of truth for the normative requirements
 Fiducial Mesh implementations satisfy. The companion handbook
