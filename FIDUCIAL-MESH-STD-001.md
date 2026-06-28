@@ -5249,9 +5249,13 @@ event-type taxonomy:
   the IAM identity hook (`[FM-MCC-0003]`) or the PGE policy decision
   (`[FM-PGE-0001]`) is absent during an `[FM-MCC-0012]` partial-load
   deviation window. The call **shall** fail strict per `[FM-INV-0002]`.
-  **Frame-attributed** — identity cannot be verified when IAM is the
-  absent pillar, so there is no verified principal to attribute —
-  carrying a `missing_pillar` discriminator (`iam | pge`). Distinct
+  **Attribution is conditional on `missing_pillar`**: `iam` →
+  **frame-attributed** (the identity pillar is absent, so there is no
+  verified principal); `pge` → **principal-attributed** to the
+  IAM-verified caller (identity was already established per
+  `[FM-MCC-0003]` before PGE's absence was discovered — the same
+  post-authentication position as `mcc.policy_unavailable`). Carries the
+  `missing_pillar` discriminator (`iam | pge`). Distinct
   from `mcc.auth_denied` (IAM **loaded**, AuthN denies) and from
   `mcc.policy_unavailable` (PGE **loaded** but unable to produce a
   decision). The companion `pcs.policy.divergence`
