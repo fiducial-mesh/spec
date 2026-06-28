@@ -7,7 +7,7 @@ competitive analyses live elsewhere (see *Where the rest lives*
 below).
 
 Authored by the **Fiducial Mesh Group**.
-Licensed **GPL-3.0** (see `LICENSE`).
+Licensed **CC-BY-4.0** (see `LICENSE`). Copyright © 2026 **Agentics Labs LLC**.
 
 ## What's in this repo
 
@@ -16,7 +16,7 @@ Licensed **GPL-3.0** (see `LICENSE`).
 | `FIDUCIAL-MESH-STD-001.md` | **The Standard** — normative requirements (RFC 2119 keywords, numbered `FM-*` IDs). NASA-STD shape. |
 | `FIDUCIAL-MESH-HDBK-001.md` | **The Handbook** — companion narrative. Non-normative rationale, design history, and worked examples. Cites the Standard in reverse. |
 | `Makefile` | pandoc + lualatex build for both PDFs. |
-| `LICENSE` | GPL-3.0. |
+| `LICENSE` | CC-BY-4.0 + copyright notice (Agentics Labs LLC). |
 
 Nothing else lives here on purpose. If it isn't approved spec or the
 build that renders it, it lives in `../devel/`.
