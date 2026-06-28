@@ -4979,13 +4979,25 @@ A pillar implementation that plugs into MCC **shall** provide:
    scope `inbox.message.transition`, each PGE-authorized; its
    `approved`/`rejected` transitions are Judge-only operations under
    item 2, never exposed on the agent surface.)
-2. **Judge-gated, Judge-only, and non-agent operations behind a
-   non-agent boundary** — operations no agent **shall** invoke or
+2. **Judge-gated, Judge-only, non-agent operations, and
+   operator-facing reads behind a non-agent boundary** — operations
+   no agent **shall** invoke or
    initiate under any scope: **Judge-only** decisions (e.g. IBX
    `approved`/`rejected`); **Judge-gated** elevated-confirmation
    operations (the operator confirms per `[FM-MCC-0010]` — lifecycle
    terminations, irreversible deletions, catastrophic-class ops);
-   secret-path operations; and pillar lifecycle/administration. The
+   secret-path operations; and pillar lifecycle/administration;
+   **and operator-facing reads** — non-agent reads available only to
+   authenticated operators through the non-agent frame API / operator
+   surface (the `[FM-MCC-0007]` admin UI is a client of that API per
+   `[FM-MCC-0008]`, never a parallel surface) for operator situational
+   awareness (e.g. the approval queue: IBX `pending_approvals` and
+   recent-activity views), never on the item-1 agent MCP surface.
+   Operator-facing reads are **authenticated operator operations**
+   per `[FM-MCC-0007]` / `[FM-MCC-0003]`, **not** Judge-gated or
+   privileged-write operations: they carry no elevated-confirmation
+   requirement, and their sole boundary is that they are non-agent
+   (operator-authenticated, off the agent MCP surface). The
    frame **shall** route these to non-agent actors (the operator via
    the admin UI; service principals via the credentialed service
    path) and **shall not** expose them on the item-1 agent MCP
@@ -5021,9 +5033,9 @@ authorization; a PGE `deny` emits the post-auth `mcc.policy_denied`
 terminal event, and an **unresolvable** PGE decision (any reason
 class — unreachable, unreadable corpus, timeout, malformed, ambiguous)
 emits `mcc.policy_unavailable` and fails strict per `[FM-INV-0002]`,
-both per `[FM-MCC-0013]`; and no item-2 Judge-gated,
-Judge-only, or privileged operation is reachable on the agent
-surface under any scope.
+both per `[FM-MCC-0013]`; and no item-2 operation —
+Judge-gated, Judge-only, privileged, or operator-facing read —
+is reachable on the agent surface under any scope.
 
 #### `[FM-MCC-0007]` Operator surface — web admin UI
 
