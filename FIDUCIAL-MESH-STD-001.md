@@ -3218,7 +3218,7 @@ the ACT test suite.
 
 **Scope.** AKB is the mesh's authored-knowledge substrate: the
 specs, planning docs, post-mortems, security frameworks, agent
-briefs, AIRs (Agentic Incident Reports), design notes, and
+briefs, AIRs (After-Incident Reports), design notes, and
 friction-catalog entries that comprise the **reference corpus** an
 agent reasons *against*. AKB ingests that corpus, projects it per
 agent role, and surfaces it at session-start (bounded prior) and
@@ -3576,7 +3576,7 @@ default operator policy**.
 
 #### `[FM-AKB-0012]` AIRs as Tier-1 corpus; security AIRs excluded
 
-Agentic Incident Reports (AIRs) **shall** be first-class AKB Tier-1
+After-Incident Reports (AIRs) **shall** be first-class AKB Tier-1
 corpus content with `doc_type = air-report`. AIRs **shall** carry
 `violates_invariant = false` regardless of the incident's content
 (AIRs are operational lessons to be surfaced at decision points;
