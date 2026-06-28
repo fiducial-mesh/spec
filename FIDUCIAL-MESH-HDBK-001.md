@@ -2693,7 +2693,7 @@ all superseded by the current canon but retained for provenance):
 
 ---
 
-*End of Fiducial Mesh Handbook v1.0.*
+*End of Fiducial Mesh Handbook v1.1.*
 
 The Handbook is the rationale / worked-example / narrative
 companion to the normative Standard (`FIDUCIAL-MESH-STD-001`).
