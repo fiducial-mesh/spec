@@ -5,3 +5,4 @@ build/
 *.out
 *.pdf
 .DS_Store
+.grok/
