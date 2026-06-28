@@ -153,7 +153,7 @@ column **shall** lead with the open-source option, and commercial
 products **shall** be presented as portability examples — proof
 that the seam is product-neutral, not as a recommendation. This
 convention supports the Standard's open-source posture under
-GPL-3.0 while preserving substrate-pluggability across the full
+CC-BY-4.0 while preserving substrate-pluggability across the full
 named set.
 
 This Standard targets **on-premises sovereign deployment**.
