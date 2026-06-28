@@ -4987,8 +4987,10 @@ A pillar implementation that plugs into MCC **shall** provide:
    operations (the operator confirms per `[FM-MCC-0010]` — lifecycle
    terminations, irreversible deletions, catastrophic-class ops);
    secret-path operations; and pillar lifecycle/administration;
-   **and operator-facing reads** — non-agent reads that surface only
-   on the `[FM-MCC-0007]` operator admin UI for operator situational
+   **and operator-facing reads** — non-agent reads available only to
+   authenticated operators through the non-agent frame API / operator
+   surface (the `[FM-MCC-0007]` admin UI is a client of that API per
+   `[FM-MCC-0008]`, never a parallel surface) for operator situational
    awareness (e.g. the approval queue: IBX `pending_approvals` and
    recent-activity views), never on the item-1 agent MCP surface.
    Operator-facing reads are **authenticated operator operations**
