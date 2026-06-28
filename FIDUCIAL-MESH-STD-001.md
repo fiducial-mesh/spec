@@ -5260,7 +5260,8 @@ event-type taxonomy:
   `mcc.policy_unavailable` (PGE **loaded** but unable to produce a
   decision). The companion `pcs.policy.divergence`
   (`divergence_type = mcc-partial-load`) is emitted by the MCC frame
-  as fallback emitter per the `[FM-MCC-0012]` fallback-emitter rule;
+  as fallback emitter per the `[FM-PGE-0011]` fallback-emitter rule
+  (invoked for the `[FM-MCC-0012]` partial-load deviation);
   this event is the per-call **terminal** event that satisfies
   `[FM-INV-0001]` during the partial-load window.
 - `mcc.agent_secret_path_denied` — emitted on agent-out-of-secret-
