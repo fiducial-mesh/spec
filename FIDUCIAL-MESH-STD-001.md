@@ -1,9 +1,9 @@
 ---
 title: "FIDUCIAL-MESH-STD-001 — Fiducial Mesh Platform Standard"
 doc_type: standard
-status: draft
+status: released
 version: v1.1
-date: 2026-06-10
+date: 2026-06-28
 license: CC-BY-4.0
 copyright: "Copyright (c) 2026 Agentics Labs LLC"
 authors:
@@ -6716,6 +6716,25 @@ queries* — Inspection verifies each entry conforms to the §F.1 or
 (`bound_requirements`, `divergence_type`, `status`) and asserts
 matching ACT events exist for every deviation entry whose
 `divergence_type` is non-empty.
+
+---
+
+## Revision History
+
+| Version | Date | Status | Summary |
+|---------|------|--------|---------|
+| **v1.0** | 2026-06-10 | released | Initial release — eight-pillar platform standard + handbook; seven-pass review chain (Einstein sign-off). |
+| **v1.1** | 2026-06-28 | released | See v1.1 changes below. |
+
+**v1.1 — changes over v1.0** (additive; no v1.0 requirement removed or weakened):
+
+- **§7.1 Delivery & Packaging substrate** (new) — `[FM-PKG-0001..0009]`: immutable, signed, versioned pillar-distribution artifacts; build-provenance attestation + artifact-signing root; plugin-contract-version compatibility by set-membership; distinct from the `[FM-PCS-0003]` executable-artifact class.
+- **MCC §5.8 build-out** — `[FM-MCC-0006]` plugin contract (item-1 agent reads + scope-authorized writes; item-2 non-agent boundary + operator-facing reads); `[FM-MCC-0013]` audit emission with the single-terminal-event no-bypass set (incl. `mcc.substrate_unavailable` for the `[FM-MCC-0012]` partial-load interim); `[FM-MCC-0010]`↔`0006` reconciliation; `[FM-MCC-0014]` operational telemetry.
+- **Conformance profiles** — OSS-first by reference convention; substrate-agnostic seams (sovereign-reference OSS + alternatives); RHEL-compliant reference OS gate.
+- **Editorial / consistency** — AIR standardized to *After-Incident Report* (glossary ↔ body); worked-example directory corrected to FreeIPA (HA), Samba retained as an alternative; HDBK §6 "PCS Reserved" drift cleared.
+- **Licensing** — STD-001 + HDBK-001 re-licensed **CC-BY-4.0**, © Agentics Labs LLC (mesh code remains GPL-3.0).
+
+Review chain (same rigor as v1.0): per-change gate-2 quorum (cold non-author seat + Turing + Hopper) → Patton adversarial holistic pass → Einstein first-principles close.
 
 ---
 

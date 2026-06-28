@@ -1,9 +1,9 @@
 ---
 title: "FIDUCIAL-MESH-HDBK-001 — Fiducial Mesh Handbook"
 doc_type: handbook
-status: draft
+status: released
 version: v1.1
-date: 2026-06-10
+date: 2026-06-28
 license: CC-BY-4.0
 copyright: "Copyright (c) 2026 Agentics Labs LLC"
 authors:
@@ -2136,12 +2136,12 @@ Language map (canonical reference in Appendix B):
 reference source code but does not bind a canonical mesh component.
 
 **Build / runtime substrate** per `DELIVERY-PACKAGING.md` § OS
-dual-tier: RHEL-compatible family only in v1.0 (Rocky 9.7+ / Alma
+dual-tier: RHEL-compatible family only in v1.0–v1.1 (Rocky 9.7+ / Alma
 9.7+ / RHEL 9.7+ / UBI 9.7+). `ubuntu-latest` is **not acceptable**
 as the runner / container base / install host for any pillar's
 reference CI or shipped artifacts. The constraint exists because
 **the project validates the FIPS-clean and audit-substrate claims
-on one family — the RHEL family — for v1.0**; cross-distro builds
+on one family — the RHEL family — through v1.1**; cross-distro builds
 (Ubuntu Pro ships FIPS-validated modules, for instance) can produce
 conforming substrates on the same Standard requirements, but the
 project's reference validation isn't run there. Cross-distro test
@@ -2489,7 +2489,7 @@ canon.
    ack sequence; lack-of-ack or negative-ack causes fail-strict per
    `[FM-INV-0002]` / `[FM-INV-0002.1]`.
 6. **RHEL-compatible build / runtime substrate** — Rocky 9.7+ /
-   Alma 9.7+ / RHEL 9.7+ / UBI 9.7+ only in v1.0; no
+   Alma 9.7+ / RHEL 9.7+ / UBI 9.7+ only in v1.0–v1.1; no
    `ubuntu-latest`. This is a project-level reference-implementation
    choice per the STD/HDBK boundary (§1.5); the Standard is
    substrate-pluggable per STD §1 — a customer's regulated build
