@@ -401,7 +401,7 @@ surface manageable, and the agent-readable code uniform.
   Python like everything else.
 
 **The IAM pillar** is Python by default; an argued deviation may surface
-later (crypto / PKI / Samba AD integration may push to a different
+later (crypto / PKI / FreeIPA integration may push to a different
 runtime) but the case has to be made explicitly and decided, not assumed.
 
 **No C# anywhere in the canon.** The earlier C#-spine assumption is
@@ -1768,7 +1768,7 @@ retained in `devel/spec-drafts/IAM-CORE-SPEC.md` /
 | Credential store | Vault KV + Vault Database (dynamic creds) | HashiCorp Vault | (cloud KMS / HSM / PKCS#11 if argued) |
 | Identity store (Roster) | ANSI SQL + JSONB | PostgreSQL 17+ | (Vault Identity as alternate at scale; operator call) |
 | PKI / signing authority | x509 + Vault PKI engine | Vault `pki_arca` + `pki_tls` | (HSM-backed if FIPS) |
-| IdP federation | OIDC / LDAP / SAML | pluggable | LDAP/AD (Samba AD DC in the lab), OIDC providers |
+| IdP federation | OIDC / LDAP / SAML | FreeIPA (HA) | OIDC providers (Keycloak, Authentik), OpenLDAP, Samba AD, Entra ID, Okta |
 
 **How PCS reaches it.** Every PCS workflow execution runs under an
 authenticated identity from IAM. PCS does not implement
