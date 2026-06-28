@@ -2,8 +2,8 @@
 title: "FIDUCIAL-MESH-HDBK-001 — Fiducial Mesh Handbook"
 doc_type: handbook
 status: released
-version: v1.0
-date: 2026-06-10
+version: v1.1
+date: 2026-06-28
 license: CC-BY-4.0
 copyright: "Copyright (c) 2026 Agentics Labs LLC"
 authors:
@@ -282,12 +282,12 @@ A hostile reading is fair: several pillars were under construction
 before their normative codification landed (IBX POC-in-production
 predates `[FM-IBX-*]` numbered requirements; IAM code-complete
 predates `[FM-IAM-0014]` operational-state declaration; MCC backend
-BUILT precedes `[FM-MCC-0006]` plugin contract maturity), and PCS
-— the platform's operational core — is **§6 Reserved**: a
-whole-section absence, not just requirement-level gaps. The
-deviation machinery covers requirement-level gaps cleanly; §6
-Reserved is **tracked debt** with a single closure condition (§6
-authored as the eighth pillar with full Conformance Profile). The
+BUILT precedes `[FM-MCC-0006]` plugin contract maturity). The PCS
+whole-section debt that earlier tracked here — §6 absent as a
+whole section — has since closed: **§6 PCS is authored** as the
+eighth pillar with full Conformance Profile (`[FM-PCS-0001..0018]`),
+so what remains is requirement-level / implementation gaps the
+deviation machinery already covers cleanly. The
 in-flight built pillars migrate under their declared transitional
 deviations until each operational-state condition is met. The motto
 does not yet describe today; it describes the steady state the
@@ -401,7 +401,7 @@ surface manageable, and the agent-readable code uniform.
   Python like everything else.
 
 **The IAM pillar** is Python by default; an argued deviation may surface
-later (crypto / PKI / Samba AD integration may push to a different
+later (crypto / PKI / FreeIPA integration may push to a different
 runtime) but the case has to be made explicitly and decided, not assumed.
 
 **No C# anywhere in the canon.** The earlier C#-spine assumption is
@@ -929,15 +929,15 @@ They are not part of the canon; the canon is STD-001 + this Handbook.
 # Part 2 — PCS (Platform Control System)
 
 > **STD status of this Part.** PCS is the **eighth pillar** per
-> `[FM-MCC-0011]` and lives in Standard **§6** (currently
-> Reserved). The numbered PCS requirements (`[FM-PCS-NNNN]`) will
-> land when §6 is written. This Handbook Part is the rationale and
-> design intent for what §6 will normatively specify. Cross-references
+> `[FM-MCC-0011]` and lives in Standard **§6**, which is **written**:
+> the numbered PCS requirements (`[FM-PCS-0001..0018]`) are normative.
+> This Handbook Part is the rationale and design intent behind what §6
+> normatively specifies. Cross-references
 > in this Part point at the *cross-pillar contracts PCS already binds
 > to* (FM-MCC, FM-PGE, FM-DPG, FM-AKB, FM-INV) — those bindings are
-> in force today even though §6 has not yet been filled. The §6
-> PCS pillar will codify the action-layer mechanisms this Part
-> describes.
+> in force today, and §6 — now written — normatively codifies the
+> action-layer mechanisms this Part describes (`[FM-PCS-0001..0018]`).
+> What remains is the PCS *implementation* built to that spec.
 
 ## 2.1 What PCS is
 
@@ -1122,10 +1122,10 @@ between plugin declaration and platform enforcement is logged to ACT
 as a CLCA signal.
 
 **Bound STD requirements.** The cardinal rule (PCS plugin as
-strict superset of vendor plugins) is the design intent that §6
-will codify as the PCS plugin-shape requirement; the analogous
-already-numbered surface is the MCC plugin contract per
-`[FM-MCC-0006]`. The platform-enforcement-floor paragraph above
+strict superset of vendor plugins) is the design intent §6 now
+codifies as `[FM-PCS-0001]` (cardinal rule — strict superset of
+vendor plugins); the analogous already-numbered surface is the MCC
+plugin contract per `[FM-MCC-0006]`. The platform-enforcement-floor paragraph above
 binds to `[FM-INV-0005]` (the floor is authoritative),
 `[FM-PGE-0010]` (PGE applies the floor regardless of declaration),
 `[FM-INV-0005.2]` (divergence between declaration and enforcement
@@ -1216,8 +1216,8 @@ for free; no reimplementation. The harness earns the trust once;
 every conforming artifact inherits it.
 
 **Bound STD requirements.** The validation harness's Tier-1
-"PCS Core" hard gate is the surface §6 will normatively specify
-when filled. The harness's mandatory **execution-side validation
+"PCS Core" hard gate is the surface §6 now normatively specifies
+(`[FM-PCS-0008]` tiered validation harness). The harness's mandatory **execution-side validation
 gates** for executable artifacts are already numbered in the DPG
 pillar: `[FM-DPG-0004]` (four mandatory validation gates —
 Syntax + PGE + test-suite + resource-limit attestation) and
@@ -1396,8 +1396,8 @@ bypass DPG for executable workloads. This is the dev-to-production
 trust boundary applied to executables. The upstream-distribution
 trust bootstrap above sits *above* the per-deployment registry —
 it's the seam between the project's public artifacts and the
-customer's pinned local trust state. STD §6 (Reserved) will codify
-the per-deployment registry contract; the project-signing-root
+customer's pinned local trust state. STD §6 codifies the
+per-deployment registry contract (`[FM-PCS-0013]`); the project-signing-root
 discipline lives in this Handbook for now and will land in the
 Standard's release-engineering requirements when those are
 authored.
@@ -1575,7 +1575,7 @@ documents the seven substrate pillars (IBX, AKB, ACT, IAM, PGE,
 CRB, DPG, in §§3.1–3.7) and MCC (§3.8) as the host frame that
 hosts them. The eighth and final pillar — **PCS** — is the action
 layer covered in Part 2 and lives normatively in STD-001 **§6**
-(currently Reserved). Pillar count is **8** per `[FM-MCC-0011]`;
+(written). Pillar count is **8** per `[FM-MCC-0011]`;
 MCC is host, not pillar #9. PCS reaches each pillar via its
 published interface (skills, MCP tools, hooks) — pillars stay
 zero-coupled, standalone-installable, and substrate-pluggable.
@@ -1768,7 +1768,7 @@ retained in `devel/spec-drafts/IAM-CORE-SPEC.md` /
 | Credential store | Vault KV + Vault Database (dynamic creds) | HashiCorp Vault | (cloud KMS / HSM / PKCS#11 if argued) |
 | Identity store (Roster) | ANSI SQL + JSONB | PostgreSQL 17+ | (Vault Identity as alternate at scale; operator call) |
 | PKI / signing authority | x509 + Vault PKI engine | Vault `pki_arca` + `pki_tls` | (HSM-backed if FIPS) |
-| IdP federation | OIDC / LDAP / SAML | pluggable | LDAP/AD (Samba AD DC in the lab), OIDC providers |
+| IdP federation | OIDC / LDAP / SAML | FreeIPA (HA) | OIDC providers (Keycloak, Authentik), OpenLDAP, Samba AD, Entra ID, Okta |
 
 **How PCS reaches it.** Every PCS workflow execution runs under an
 authenticated identity from IAM. PCS does not implement
@@ -2104,7 +2104,7 @@ no-bypass + fail-strict = `[FM-INV-0001]` + `[FM-INV-0002]` +
 ops = `[FM-PGE-0007]` (PreToolUse hook surface) + `[FM-PGE-0005]`
 double-guardrail with Gate-2 via `[FM-DPG-0005]`. Two-person
 GH-native review and tag-push-triggers-publish are PCS / §6
-release-gate concerns (§6 reserved). FIPS-Day-1 substrate
+release-gate concerns. FIPS-Day-1 substrate
 discipline binds to the Tier-0 substrate selection in the IAM
 Conformance Profile per `[FM-IAM-0006]` and to the FIPS-validated
 hash algorithm per `[FM-ACT-0006]`; capability-minimization-applied-
@@ -2136,12 +2136,12 @@ Language map (canonical reference in Appendix B):
 reference source code but does not bind a canonical mesh component.
 
 **Build / runtime substrate** per `DELIVERY-PACKAGING.md` § OS
-dual-tier: RHEL-compatible family only in v1.0 (Rocky 9.7+ / Alma
+dual-tier: RHEL-compatible family only in v1.0–v1.1 (Rocky 9.7+ / Alma
 9.7+ / RHEL 9.7+ / UBI 9.7+). `ubuntu-latest` is **not acceptable**
 as the runner / container base / install host for any pillar's
 reference CI or shipped artifacts. The constraint exists because
 **the project validates the FIPS-clean and audit-substrate claims
-on one family — the RHEL family — for v1.0**; cross-distro builds
+on one family — the RHEL family — through v1.1**; cross-distro builds
 (Ubuntu Pro ships FIPS-validated modules, for instance) can produce
 conforming substrates on the same Standard requirements, but the
 project's reference validation isn't run there. Cross-distro test
@@ -2272,7 +2272,7 @@ conformance run proving the new substrate passes the pillar's
 test set). The Appendix F entry schema for the argued-case
 submission is §F.1 of STD-001. The customer-tenant-namespace
 discipline (`<customer-x>:<workflow>:<version>`) belongs to the
-§6 PCS namespace + registry contract (currently Reserved).
+§6 PCS namespace + registry contract (`[FM-PCS-0014]` / `[FM-PCS-0013]`).
 
 ## 4.6 Agents own deployment, installation, config, maintenance
 
@@ -2336,11 +2336,12 @@ governance gates as any customer deployment. **Today's honest
 state**: the lab dogfoods the pillars that exist (IBX, IAM scaffold,
 MCC backend, AKB partial — each under its own declared transitional
 deviation per the §3.x status lines), and the PCS layer that
-mechanically anchors the dogfood claim is **§6 Reserved** — design
-stage. The "tenant #1 by construction" framing is true *as the PCS
-layer lands*; today it is true for the pillars already operational
-under their deviations, and aspirational for the PCS layer that
-will land it fully when §6 is written.
+mechanically anchors the dogfood claim is **specified in §6
+(written) but not yet built** — implementation stage. The "tenant
+#1 by construction" framing is true *as the PCS layer is
+implemented*; today it holds for the pillars already operational
+under their deviations, and is aspirational for the PCS layer that
+will realize it fully once PCS is built to §6.
 
 Lab projects are tenants in the Lab Mesh: `ki7mt-lab-fm-dev` (mesh
 development), `ki7mt-lab-ionis` (IONIS-AI), `ki7mt-lab-qsograph`
@@ -2366,7 +2367,8 @@ KI7MT Lab dogfoods the same artifacts every customer gets — for the
 pillars that exist, under their declared deviations. The workflows
 the lab uses daily become the proof for those pillars. "The lab IS
 the reference implementation" — **mechanically true at the PCS
-layer once §6 lands**; mechanically true today only for the
+layer once PCS is built to §6** (the spec is written; the
+implementation is the remaining step); mechanically true today only for the
 pillars that have landed normatively (IBX §5.1, IAM §5.2 under the
 identity-by-brief deviation, MCC §5.8 host frame under the
 partial-load deviation, AKB §5.5 under partial-load) and the
@@ -2456,8 +2458,8 @@ canon.
 > every pillar inherits — they map directly to numbered STD
 > requirements. PCS plugins inherit the analogous discipline
 > through the tiered validation harness (§2.7); the §6 PCS plugin
-> requirements (Reserved) will codify the harness as numbered
-> requirements when filled.
+> requirements codify that harness as numbered requirements
+> (`[FM-PCS-0001..0018]`).
 
 **Pillar-spec acceptance criteria (six non-negotiables) with STD bindings:**
 
@@ -2487,7 +2489,7 @@ canon.
    ack sequence; lack-of-ack or negative-ack causes fail-strict per
    `[FM-INV-0002]` / `[FM-INV-0002.1]`.
 6. **RHEL-compatible build / runtime substrate** — Rocky 9.7+ /
-   Alma 9.7+ / RHEL 9.7+ / UBI 9.7+ only in v1.0; no
+   Alma 9.7+ / RHEL 9.7+ / UBI 9.7+ only in v1.0–v1.1; no
    `ubuntu-latest`. This is a project-level reference-implementation
    choice per the STD/HDBK boundary (§1.5); the Standard is
    substrate-pluggable per STD §1 — a customer's regulated build
@@ -2640,8 +2642,8 @@ validation harness. Operators and compliance auditors read the
 
 > **STD anchor.** This Handbook appendix is the **narrative
 > companion** to STD-001 **Appendix D — Normative cross-pillar
-> binding matrix** (currently Reserved; will be filled as the
-> §6 PCS plugin requirements land). Where STD Appendix D becomes
+> binding matrix** (currently Reserved; will be filled alongside the
+> §5 / §6 requirement-by-requirement mapping). Where STD Appendix D becomes
 > the requirement-by-requirement mapping, this Handbook table is
 > the workflow-moment view of the same composition. The STD
 > Appendix D, when filled, is authoritative.
@@ -2685,13 +2687,13 @@ all superseded by the current canon but retained for provenance):
 | `TECHNICAL-OVERVIEW.md` | External-facing architecture summary |
 | `IDENTITY-PILLAR-DESIGN.md` | IAM foundational design |
 | `CONCURRENCY-AND-ARCHETYPES.md` | Worker / Reasoner / Quorum-Voter archetypes (now bound to per-pillar §5.x) |
-| `PCS-PLATFORM-REDESIGN-NOTES.md` | The 2026-06-08 PCS redesign conclusions doc (input to §6 PCS, reserved) |
+| `PCS-PLATFORM-REDESIGN-NOTES.md` | The 2026-06-08 PCS redesign conclusions doc (input to §6 PCS) |
 | `LANGUAGE-POLICY-AND-CANON-CLEANUP-2026-06-08.md` | The consolidated language-policy + C#-purge + categorization plan (now reflected in STD §1 language-neutral clause + HDBK §1.5 / Appendix B) |
 | Per-pillar drafts (8 files above) | Full pillar detail; superseded by STD-001 §5.x sections (12–14 numbered requirements + Conformance Profile per pillar) |
 
 ---
 
-*End of Fiducial Mesh Handbook v1.0.*
+*End of Fiducial Mesh Handbook v1.1.*
 
 The Handbook is the rationale / worked-example / narrative
 companion to the normative Standard (`FIDUCIAL-MESH-STD-001`).
