@@ -5537,8 +5537,7 @@ enumeration without a corresponding Appendix F argued-case entry.
 A **skill** is a pure, stateless declaration of inputs, outputs,
 and capability requirements. The skill schema **shall** contain
 no orchestration, state, role-context, or vendor-specific
-vocabulary fields. The litmus test (per the canonical skill spec
-at `devel/spec-drafts/pcs/spec/03-skill-spec.md`) **shall** apply
+vocabulary fields. The skill-spec litmus test **shall** apply
 at registration: every skill schema field passes the lexical
 check (no vendor vocabulary), executor check (still makes sense
 if the underlying runner is swapped from an LLM to a

@@ -11,8 +11,6 @@ authors:
 companion_to: FIDUCIAL-MESH-STD-001.md
 references:
   - FIDUCIAL-MESH-STD-001.md
-  - https://github.com/fiducial-mesh/devel/blob/main/spec-drafts/MANIFESTO.md
-  - https://github.com/fiducial-mesh/devel/blob/main/spec-drafts/PILLAR-NAMES.md
 ---
 
 # FIDUCIAL-MESH-HDBK-001 — Fiducial Mesh Handbook
@@ -68,8 +66,7 @@ is conventional Python — the AI is built ZERO times for MCC).
 The substrate pillars PCS orchestrates. Each pillar gets a section
 explaining what it does, its substrate matrix (the seam contract —
 customer chooses among supported substrates), its telemetry contract,
-and how PCS reaches into it via plugins. Order (canonical short codes
-per `https://github.com/fiducial-mesh/devel/blob/main/spec-drafts/PILLAR-NAMES.md`): **IBX** (Inbox Exchange — message
+and how PCS reaches into it via plugins. Order (canonical short codes): **IBX** (Inbox Exchange — message
 routing), **AKB** (Agent Knowledge Base — memory), **ACT** (Agent
 Cognitive Telemetry — observation), **IAM** (Identity & Access —
 foundational), **PGE** (Policy Guardrail Engine — deterministic
@@ -100,9 +97,7 @@ Handbook + user guide + workflow matrix per §4.7), and the
 Reference material: glossary, language map per pillar, conformance
 criteria, the five mesh-internal namespaces (deployment / configuration /
 operations / administration / diagnostics), the PCS plugin manifest
-reference, cross-pillar binding matrix, and citation list back to the
-working notes (which remain in `https://github.com/fiducial-mesh/devel/blob/main/spec-drafts/` and `devel/spec-drafts/`
-for provenance).
+reference, cross-pillar binding matrix, and citation list.
 
 ---
 
@@ -545,9 +540,7 @@ appliances the mesh runs on.
 
 ## 1.6 The eight pillars + four planes
 
-The mesh organizes eight pillars into four planes (see
-`https://github.com/fiducial-mesh/devel/blob/main/spec-drafts/diagrams/mesh_architecture_with_identity_and_arca.svg` for
-the visual contract):
+The mesh organizes eight pillars into four planes:
 
 ```
                   ┌──────────────────────────────────────────┐
@@ -918,11 +911,9 @@ normatively in STD-001 §4 (`[FM-INV-0001]` through
 mechanisms, the invariants are the floor those mechanisms cannot go
 below; the STD requirements are the contract that gates conformance.
 
-**Working notes preserved for provenance** — design dialogue, AIR
-reports, draft material that produced the Standard + this Handbook
-— remain in
-[`devel/spec-drafts/`](https://github.com/fiducial-mesh/devel/tree/main/spec-drafts).
-They are not part of the canon; the canon is STD-001 + this Handbook.
+**The canon is STD-001 + this Handbook.** The design history that
+produced them — design dialogue, AIR reports, draft material — is
+preserved in the project's git history.
 
 ---
 
@@ -1605,8 +1596,7 @@ history — its ClickHouse substrate fell outside the
 substrate-matrix's claim-queue contract (transactional SKIP-LOCKED;
 OLAP unsuitable), which is why the in-production deployment is on
 PG. **Normative spec**: STD-001 §5.1 (12 requirements + Conformance
-Profile). Authoring drafts retained in `devel/spec-drafts/IBX-SPEC.md`
-as historical reference.
+Profile).
 
 **Substrate matrix:**
 
@@ -1649,8 +1639,7 @@ blind) from surfacing dead-end content as candidate solutions.
 
 **Status**: built at `KI7MT/akb`; DDL + ingest + akb-mcp server +
 Tier-0 generator green. **Normative spec**: STD-001 §5.5
-(14 requirements + Conformance Profile). Authoring draft retained
-in `devel/spec-drafts/AKB-SPEC.md` as historical reference.
+(14 requirements + Conformance Profile).
 
 **Substrate matrix:**
 
@@ -1698,9 +1687,7 @@ forensics, regulatory compliance, and the dialectical-engine
 evidence trail mechanically possible.
 
 **Status**: **Normative spec**: STD-001 §5.4 (12 requirements +
-Conformance Profile). Reference implementation pending. Authoring
-draft retained in `devel/spec-drafts/ACT-SPEC.md` as historical
-reference.
+Conformance Profile). Reference implementation pending.
 
 **Substrate matrix:**
 
@@ -1757,9 +1744,7 @@ reconciliation, 20/20 tests green). ARCA not yet built. Deployment
 operates under the `identity-by-brief` transitional deviation
 per `[FM-IAM-0014]` + `[FM-IBX-0010]` until ARCA + Vault signing
 are operational across the deployment. **Normative spec**: STD-001
-§5.2 (14 requirements + Conformance Profile). Authoring drafts
-retained in `devel/spec-drafts/IAM-CORE-SPEC.md` /
-`IAM-INCREMENT-2.md` as historical reference.
+§5.2 (14 requirements + Conformance Profile).
 
 **Substrate matrix:**
 
@@ -1825,8 +1810,7 @@ verdicts halt the workflow step before execution. The
 implementation pattern.
 
 **Status**: **Normative spec**: STD-001 §5.3 (14 requirements +
-Conformance Profile). Authoring drafts retained in
-`devel/spec-drafts/PGE-SPEC.md` as historical reference.
+Conformance Profile).
 
 **Bound STD requirements.** Deterministic evaluation = `[FM-PGE-0001]`
 + `[FM-PGE-0002]`; rule corpus storage with the two-stratum split =
@@ -1873,9 +1857,7 @@ build a parallel scheduler — CRB owns the placement decision.
 **Status**: **Normative spec**: STD-001 §5.7 (13 requirements +
 Conformance Profile). Broker daemon design-stage — deployment
 operates under the `crb-codified-by-convention` transitional
-deviation per `[FM-CRB-0010]` until the broker is built. Authoring
-draft retained in `devel/spec-drafts/CRB-SPEC.md` as historical
-reference.
+deviation per `[FM-CRB-0010]` until the broker is built.
 
 **Bound STD requirements.** Three architecturally distinct
 components (Classification + Dispatch Policy + Broker Daemon) =
@@ -2664,31 +2646,30 @@ How PCS workflow execution touches each pillar:
 
 ## Appendix G — Working notes (provenance)
 
-Design dialogue, AIR reports, draft material that produced this
-Handbook and the companion STD-001 remain in `fiducial-mesh/devel/
-spec-drafts/` (kept for provenance; not part of the canon — the
-canon is STD-001 + this HDBK).
+The canon is STD-001 + this Handbook. The design history that
+produced them — design dialogue, AIR reports, and draft material —
+is preserved in the project's **git history**; it is not a live
+companion folder.
 
-**The per-pillar spec drafts** (`IBX-SPEC.md`, `IAM-CORE-SPEC.md`,
-`ACT-SPEC.md`, `PGE-SPEC.md`, `CRB-SPEC.md`, `DPG-SPEC.md`,
-`AKB-SPEC.md`, `MCC-SPEC.md`) **are superseded** by the
-corresponding STD-001 §5.x sections; they are retained as
-historical reference for the trajectory but are no longer the
-authoritative pillar specs. The current canonical pillar spec for
-each is its STD-001 §5.x section + §5.x.1 Conformance Profile.
+**The per-pillar spec drafts** (`IBX-SPEC`, `IAM-CORE-SPEC`,
+`ACT-SPEC`, `PGE-SPEC`, `CRB-SPEC`, `DPG-SPEC`, `AKB-SPEC`,
+`MCC-SPEC`) **are superseded** by the corresponding STD-001 §5.x
+sections and are no longer authoritative. The current canonical
+pillar spec for each is its STD-001 §5.x section + §5.x.1
+Conformance Profile.
 
-Notable design-trajectory documents (all in `devel/spec-drafts/`;
-all superseded by the current canon but retained for provenance):
+For the record, the design trajectory included the documents below
+(all superseded by the current canon, all preserved in git history):
 
 | Document | What it captured |
 |----------|------------------|
-| `MANIFESTO.md` | Design drivers from operational practice |
-| `DESIGN-PHILOSOPHY.md` | The capability/constraint duality |
-| `TECHNICAL-OVERVIEW.md` | External-facing architecture summary |
-| `IDENTITY-PILLAR-DESIGN.md` | IAM foundational design |
-| `CONCURRENCY-AND-ARCHETYPES.md` | Worker / Reasoner / Quorum-Voter archetypes (now bound to per-pillar §5.x) |
-| `PCS-PLATFORM-REDESIGN-NOTES.md` | The 2026-06-08 PCS redesign conclusions doc (input to §6 PCS) |
-| `LANGUAGE-POLICY-AND-CANON-CLEANUP-2026-06-08.md` | The consolidated language-policy + C#-purge + categorization plan (now reflected in STD §1 language-neutral clause + HDBK §1.5 / Appendix B) |
+| `MANIFESTO` | Design drivers from operational practice |
+| `DESIGN-PHILOSOPHY` | The capability/constraint duality |
+| `TECHNICAL-OVERVIEW` | External-facing architecture summary |
+| `IDENTITY-PILLAR-DESIGN` | IAM foundational design |
+| `CONCURRENCY-AND-ARCHETYPES` | Worker / Reasoner / Quorum-Voter archetypes (now bound to per-pillar §5.x) |
+| `PCS-PLATFORM-REDESIGN-NOTES` | The 2026-06-08 PCS redesign conclusions doc (input to §6 PCS) |
+| `LANGUAGE-POLICY-AND-CANON-CLEANUP-2026-06-08` | The consolidated language-policy + C#-purge + categorization plan (now reflected in STD §1 language-neutral clause + HDBK §1.5 / Appendix B) |
 | Per-pillar drafts (8 files above) | Full pillar detail; superseded by STD-001 §5.x sections (12–14 numbered requirements + Conformance Profile per pillar) |
 
 ---
@@ -2698,4 +2679,5 @@ all superseded by the current canon but retained for provenance):
 The Handbook is the rationale / worked-example / narrative
 companion to the normative Standard (`FIDUCIAL-MESH-STD-001`).
 The Standard is authoritative; this Handbook is read-against-it.
-Working notes preserved in `devel/spec-drafts/` for provenance.
+The working notes that produced the spec are preserved in the
+project's git history.
