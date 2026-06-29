@@ -73,7 +73,7 @@ The Specification is organized NASA-STD-style:
 
 **Release status:** **v1.0 released 2026-06-10.** Tag: `v1.0`. The seven-pass review chain is closed; Einstein's verbatim sign-off ("The Fiducial Mesh v1.0 Specification is a rigorous, testable, and air-tight contract. The mechanics are proven. You are cleared for Phase 4.0.") is recorded in PR #97. `main` is the release branch — no direct commits. Any subsequent changes land on feature branches and are reviewed before merge.
 
-The complete SPEC-001 covers 8 pillars + MCC host frame + 6 invariants + 11 active divergence_type subtypes + named quorum verifier. HDBK-001 is the companion. Pass-4 SPEC is Einstein's first-principles pass on the post-Pass-3 artifact — focused on what only fundamental-limit reading finds (DAG reachability, CAP/FLP, Little's Law, Nyquist, orthogonality, Lamport, cryptographic domain separation, Halting problem). Reviewed via attached-files (no GH access for Einstein).
+The complete SPEC-001 covers 8 pillars + MCC host frame + 7 invariants + 11 active divergence_type subtypes + named quorum verifier. HDBK-001 is the companion. Pass-4 SPEC is Einstein's first-principles pass on the post-Pass-3 artifact — focused on what only fundamental-limit reading finds (DAG reachability, CAP/FLP, Little's Law, Nyquist, orthogonality, Lamport, cryptographic domain separation, Halting problem). Reviewed via attached-files (no GH access for Einstein).
 
 Reserved sections are placeholders with the dependencies that already
 bind them (e.g., the audit-emission requirements every pillar

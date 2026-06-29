@@ -2,7 +2,7 @@
 title: "FIDUCIAL-MESH-SPEC-001 — Fiducial Mesh Platform Specification"
 doc_type: specification
 status: draft
-version: v1.1.1
+version: v1.2
 date: 2026-06-29
 license: CC-BY-4.0
 copyright: "Copyright (c) 2026 Agentics Labs LLC"
@@ -1092,6 +1092,46 @@ per-cell-declared granularity for every session (external cells)
 or per-deviation-window aggregate (local-vendor-managed cell) of
 the affected workload class, with the event payload carrying the
 specific `(data_egress_boundary, hardware_custody)` cell.
+
+### §4.6 Plugin admission
+
+#### `[FM-INV-0007]` Registry sole-source — no plugin executes except via the Registry
+
+No plugin **shall** be admitted to, or execute in, the Mesh except via the
+Registry. A plugin instance is conformant **only** as a member of the
+**current BOM-pinned, signature-verified deployment set** established under
+`[FM-PCS-0013]`; loading, dispatching to, or otherwise executing a plugin
+that is not a member of that set — a side-loaded artifact, an unregistered
+path, or any artifact outside the pinned BOM — is **non-conformant by
+construction**.
+
+This is the zero-trust no-bypass boundary for **plugin admission**,
+structurally parallel to `[FM-INV-0001]` (no action without an authenticated
+principal): there **shall not** exist a "trusted because already present" or
+"trusted because locally placed" plugin path, just as `[FM-INV-0001]` admits
+no "trusted because internal" actor path. The Registry gate chain
+(`[FM-PCS-0009]` registration / `[FM-PCS-0010]` pre-execution /
+`[FM-PCS-0011]` pre-promotion) and `[FM-PKG-0005]` quarantine derive their
+force from this invariant: they gate **the** admission path because there is
+**no other** admission path.
+
+**Why this binds at invariant level.** The property the security architecture
+depends on is not "the Registry path validates" — it is "**there is no path
+that is not the Registry path**." The former is established by `[FM-PCS-0013]`
+and its gates; the latter is a universal-negative boundary, and a universal
+negative is meaningful only as a platform invariant every pillar and
+deployment inherits and **shall not** relax. Stated only as
+enforced-by-construction, the boundary is **true but not conformance-testable
+as a boundary**: a harness can verify the Registry path validates, but cannot
+target the claim that no other path exists unless that claim is itself a
+requirement.
+
+**Verification: Conformance-test.** A conformant deployment **shall** reject
+any dispatch to, or execution of, a plugin not resolved through the current
+BOM-pinned set. The test set **shall** include a *negative* case — an attempt
+to side-load and dispatch a plugin outside the BOM-pinned set **shall** be
+observed to fail closed — so the boundary is exercised as the **absence of a
+non-Registry path**, not merely the validation of the Registry path.
 
 ---
 
@@ -6734,7 +6774,7 @@ matching ACT events exist for every deviation entry whose
 |---------|------|--------|---------|
 | **v1.0** | 2026-06-10 | released | Initial release — eight-pillar platform standard + handbook; seven-pass review chain (Einstein sign-off). |
 | **v1.1** | 2026-06-28 | released | See v1.1 changes below. |
-| **v1.1.1** | 2026-06-29 | draft | Handbook refresh + attribution; **no normative change**. See v1.1.1 changes below. |
+| **v1.2** | 2026-06-29 | draft | Publication-readiness sweep + **one normative addition** (`[FM-INV-0007]` Registry sole-source). See v1.2 changes below. |
 
 **v1.1 — changes over v1.0** (additive; no v1.0 requirement removed or weakened):
 
@@ -6746,11 +6786,13 @@ matching ACT events exist for every deviation entry whose
 
 Review chain (same rigor as v1.0): per-change gate-2 quorum (cold non-author seat + Turing + Hopper) → Patton adversarial holistic pass → Einstein first-principles close.
 
-**v1.1.1 — changes over v1.1** (corrective + publication-readiness; **no normative requirement added, changed, or removed**):
+**v1.2 — changes over v1.1** (publication-readiness sweep **+ one normative addition**):
+
+- **NORMATIVE ADDITION — `[FM-INV-0007]` Registry sole-source (new §4.6).** The zero-trust no-bypass boundary for plugin admission: no plugin executes in the Mesh except via the Registry's BOM-pinned, signature-verified set; side-loading outside it is non-conformant by construction. The property was already enforced by construction (`[FM-PCS-0013]` + the `[FM-PCS-0009/0010/0011]` gate chain) but was **not asserted as a testable invariant**. Einstein's first-principles review blocked publication on exactly this: a zero-trust boundary must be assertable and conformance-testable as the *absence of a non-Registry path*, not left to reader inference. Carries a `Verification: Conformance-test` with a negative (side-load-rejected) case. **This is the only normative change in v1.2**; everything below is corrective. (The companion Validator → §5.3 security-floor *wiring* gap is a non-blocking attribution seam, deferred to a later increment, per `planning/PCS-COHERENCE-V1.1.2.md`.)
 
 - **Document renamed STD → SPEC** — `FIDUCIAL-MESH-STD-001` → `FIDUCIAL-MESH-SPEC-001`, and the descriptive class-word *Standard* → *Specification* throughout. "Specification" is self-certifying (it claims precise specification, not external ratification) — the appropriate, lower-exposure framing for a first public release. The handbook keeps its `HDBK-001` name. (The old `STD-001` identifier was never externally published, so no disclosure chain is broken.)
 - **PCS expansion corrected** — *Platform* Control System → **Plugin Control System**. PCS controls plugins and strict-supersets the upstream plugin specs (Anthropic Claude Code + OpenAI Codex); "Plugin" is the accurate expansion.
-- **Publication sweep** (per the readiness review) — stripped 20 stale "when landed" cross-references (every referenced section is authored); removed the "§5.2–§5.8 reserved for future PRs" self-contradiction; **de-normified Appendices B/C/D** — relabeled non-normative with roadmap forward-references (nothing normative depended on them; the bind-analysis found zero `shall … Appendix`, C/D orphaned, B reachable only via two parentheticals that already cite the authored §6). Appendix B reframed as a pointer to the upstream plugin specs PCS implements, not a PCS-owned schema. *(status → released at the release-gate is the last remaining publication step.)*
+- **Publication sweep** (per the readiness review) — stripped 20 stale "when landed" cross-references (every referenced section is authored); removed the "§5.2–§5.8 reserved for future PRs" self-contradiction; **de-normified Appendices B/C/D** — relabeled non-normative with roadmap forward-references (nothing normative depended on them; the bind-analysis found zero `shall … Appendix`, C/D orphaned, B reachable only via two parentheticals that already cite the authored §6). Appendix B reframed as a pointer to the upstream plugin specs PCS implements, not a PCS-owned schema. *(remaining: Patton + Einstein re-confirm of `[FM-INV-0007]`, then status → released at the release-gate.)*
 - **Handbook sync to the v1.1 requirement set** — corrected the IAM §5.2 and PGE §5.3 requirement counts (14 → 15) and added the missing narrative: `[FM-IAM-0015]` Delegation Tokens, `[FM-PGE-0015]` named quorum verifier, the `[FM-MCC-0013]` `mcc.substrate_unavailable` terminal event during the `[FM-MCC-0012]` partial-load window, and tied the reasoning-runtime substrate seam (HDBK §1.5.1) to `[FM-INV-0006]`.
 - **Spec-drafts cleanup folded in** — SPEC-001 + HDBK-001 no longer reference the `devel/spec-drafts/` working folder; the released docs stand on their own (design history preserved in git).
 - **Attribution** — author aligned to *Gregory A. Beam (KI7MT), for the Fiducial Mesh Group* in both documents (copyright + license unchanged: Agentics Labs LLC / CC-BY-4.0).
@@ -6759,7 +6801,7 @@ Review chain (publication track): **Watson (author) → Patton (adversarial) →
 
 ---
 
-*End of FIDUCIAL-MESH-SPEC-001 v1.1.1.*
+*End of FIDUCIAL-MESH-SPEC-001 v1.2.*
 
 This Specification is the source of truth for the normative requirements
 Fiducial Mesh implementations satisfy. The companion handbook

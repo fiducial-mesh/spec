@@ -1,9 +1,13 @@
-# PCS §6 Coherence Increment (v1.1.2 / PCS-hardening) — deferred from v1.1.1
+# PCS §6 Coherence — Gap 1 deferred; Gap 2 pulled into v1.2
 
-**Status:** deferred — NOT in the v1.1.1 publication sweep (which stays a tight
-scaffolding/naming pass). These are §6 **coherence gaps** (normative content the
-implementation depends on but the spec under-states), **not** publication
-blockers — the spec is publishable with them, stronger without.
+**Status (updated 2026-06-29):** Two PCS coherence gaps were found. **Gap 2
+(Registry sole-source) was PULLED FORWARD into v1.2** as `[FM-INV-0007]` —
+Einstein's first-principles review **blocked publication** on it (a zero-trust
+no-bypass boundary must be asserted as a *testable* invariant, not left to reader
+inference), overriding the original defer recommendation; Patton concurred. **Gap 1
+(Validator security-floor wiring) remains deferred** — Einstein correctly did *not*
+block on it (it is an attribution seam, not a boundary claim). Don't let the block
+drag Gap 1 forward — that's reverse scope-creep. This note now tracks **Gap 1 only**.
 
 **Source:** Judge's two PCS additions (PCS Validator + Registry-as-sole-source)
 → Patton coherence review → Watson grep-verification (2026-06-29).
@@ -26,7 +30,7 @@ at registration."
 binding the Validator to enforce the §5.3 Stratum-1 security floor at the
 Registration gate — so the spec states the enforcement the implementation performs.
 
-## Gap 2 — Registry sole-source is enforced-by-construction, not stated as an invariant
+## Gap 2 — Registry sole-source — ✅ RESOLVED in v1.2 (`[FM-INV-0007]`)
 **Verified:** `[FM-PCS-0013]` (registry contract — mesh-internal, BOM-pinned) +
 the gate chain `[FM-PCS-0009/0010/0011]` make the registry the only signature-
 verified install path *by construction*. But "sole source / no plugin … except /
@@ -38,9 +42,11 @@ the Validator teeth and `[FM-PKG-0005]` quarantine its meaning. For a defensive-
 publication artifact, the *citable* invariant beats the *implied* one: a prior-art
 reader / conformance auditor shouldn't have to infer the boundary from BOM mechanics.
 
-**Fix (v1.1.2):** add a flat no-bypass invariant (INV-level, or a `[FM-PCS-0013]`
-clause): *"No plugin shall execute in the Mesh except via the Registry; loading
-outside the BOM-pinned set is non-conformant."*
+**RESOLVED (v1.2):** authored as **`[FM-INV-0007]` Registry sole-source** (new
+SPEC §4.6) — the zero-trust no-bypass invariant, with a `Verification:
+Conformance-test` that includes a *negative* (side-load-rejected) case so the
+boundary is testable as the **absence of a non-Registry path**. Out of this
+increment.
 
 ## Process
 Separate increment through the publication/doc track (Watson → Patton → Einstein →

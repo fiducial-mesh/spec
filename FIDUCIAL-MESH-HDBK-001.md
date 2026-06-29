@@ -2,7 +2,7 @@
 title: "FIDUCIAL-MESH-HDBK-001 — Fiducial Mesh Handbook"
 doc_type: handbook
 status: draft
-version: v1.1.1
+version: v1.2
 date: 2026-06-29
 license: CC-BY-4.0
 copyright: "Copyright (c) 2026 Agentics Labs LLC"
@@ -1254,7 +1254,10 @@ as far out as software can reach:
   to a specific, named, deployment-reviewable set of binaries —
   not "whatever the vendor ships at evaluation time." A
   compromised vendor release does not automatically infect a
-  Mesh on a pinned older version.
+  Mesh on a pinned older version. `[FM-INV-0007]` asserts the
+  no-bypass form of this: the BOM-pinned Registry set is the
+  **sole** plugin-admission path — no plugin executes except via
+  it — so the pin is a *boundary*, not merely a default.
 - **Tier-0/1 ephemeral isolation** (`[FM-DPG-0002]`) bounds the
   *blast radius* of any compromised tooling to the per-
   evaluation ephemeral boundary. The boundary is single-use
@@ -2699,7 +2702,7 @@ For the record, the design trajectory included the documents below
 
 ---
 
-*End of Fiducial Mesh Handbook v1.1.1.*
+*End of Fiducial Mesh Handbook v1.2.*
 
 The Handbook is the rationale / worked-example / narrative
 companion to the normative Specification (`FIDUCIAL-MESH-SPEC-001`).
