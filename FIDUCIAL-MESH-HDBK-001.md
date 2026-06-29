@@ -89,7 +89,7 @@ Go for CRB + DPG, no C# anywhere), the **AIR/CLCA discipline**
 × workflow composition — pillar code stays generic OSS, customer's
 workflow encodes their substrate choice), the **agents-own-deployment
 posture** (no human-following install procedures; agents read the
-plugins and execute), the **documentation model** (Standard +
+plugins and execute), the **documentation model** (Specification +
 Handbook + user guide + workflow matrix per §4.7), and the
 **dogfood story** (KI7MT lab as tenant #1).
 
@@ -242,10 +242,10 @@ authority to constrain a different implementation, no falsifiable
 claims a third party can verify, and no defense against drift because
 every change to the build is allowed to mutate the spec to match.
 
-The mesh inverts this. The Standard (`FIDUCIAL-MESH-SPEC-001`) is
+The mesh inverts this. The Specification (`FIDUCIAL-MESH-SPEC-001`) is
 authored as authority: requirements precede implementation,
 implementations conform to requirements, and divergence between an
-implementation and the Standard is either fixed in the implementation
+implementation and the Specification is either fixed in the implementation
 or registered as a recognized deviation in Appendix F per §F.2 — never
 absorbed silently into a revised spec.
 
@@ -257,7 +257,7 @@ The discipline has three operational consequences:
   doesn't is spec-divergent and produces either a rebuild target or an
   argued-case / deviation entry. The harness is what makes the motto
   more than aspiration.
-- **The Standard moves first.** When a new pattern is needed (a new
+- **The Specification moves first.** When a new pattern is needed (a new
   pillar, a new deviation class, a substrate matrix extension), the
   spec changes first — through the argued-case discipline per
   `[FM-INV-0003.2]` for capability extensions, or through the
@@ -367,14 +367,14 @@ transitional deviation) is `[FM-IAM-0014]`.
 
 Open-source first. Sovereign by construction. Pragmatism over preference.
 
-> **STD/HDBK boundary.** The Standard is **language-neutral at the
+> **STD/HDBK boundary.** The Specification is **language-neutral at the
 > contract layer** per `[FM-SPEC §1]` — pillar requirements shall not
 > mandate the implementation language or framework of any pillar; the
 > conformance test sets are language-blind, and a conforming
 > implementation may be written in any language. **This Handbook
 > section is the project's reference-implementation choice**, not a
 > conformance requirement. A customer who insists on a different
-> language stack implements the same numbered Standard requirements
+> language stack implements the same numbered Specification requirements
 > in their stack and is conformant on the same terms. The text below
 > documents what *we* build to, not what *every* conforming
 > implementation must build to.
@@ -409,7 +409,7 @@ build and operate the mesh read one stack), and the **framework
 reset** that landed during the 2026-06-08 PCS redesign moved
 canonical components off C# as a deliberate simplification. C# is
 not provisioned as a target language in the project's reference
-implementation; the Standard remains language-neutral per §1, so a
+implementation; the Specification remains language-neutral per §1, so a
 customer who insists on C# implements the same numbered
 requirements in their stack and is conformant on the same terms.
 Source code in C# may be retained for reference where it exists in
@@ -429,7 +429,7 @@ in. There is a separate, equally load-bearing substrate seam: the
 **reasoning-runtime** — the inference engine the agents themselves
 run on. This seam is parallel to the pillar's persistent-store seam
 or secret-store seam, and customers choose it the same way. The
-Standard names it the sixth top-level platform invariant,
+Specification names it the sixth top-level platform invariant,
 `[FM-INV-0006]` (reasoning-runtime substrate seam): where the
 reasoning runs determines what content reaches what counterparty, so
 its substitutability is contract-relevant rather than incidental.
@@ -458,18 +458,18 @@ worked example of the transitional state.
 not the contract.** A deployment that operates with any vendor-
 hosted reasoning is **operating under a deviation** that **shall**:
 
-1. Be registered in Appendix F per §F.2 of the Standard with an
+1. Be registered in Appendix F per §F.2 of the Specification with an
    explicit sunset condition naming the operational point at which
    the deployment migrates to local inference for that workload
    class.
 2. Document the **data-flow consequence** — what content reaches the
    vendor, under whose identity, with what retention, and what the
    vendor's stated data-handling commitments are.
-3. Be reviewed at each major Standard release; deviation expiry
+3. Be reviewed at each major Specification release; deviation expiry
    **shall** be enforced when the local-inference substrate is
    declared operational for the affected workload class.
 
-A Standard-side requirement formalizing the **model substrate seam**
+A Specification-side requirement formalizing the **model substrate seam**
 + the divergence_type for vendor-hosted reasoning is queued as a
 companion STD change (it is not yet in the STD; this Handbook
 section is the rationale that the STD requirement will codify when
@@ -488,18 +488,18 @@ the one above.
 ## 1.5.2 Reference operating system
 
 Open-source first. RHEL-compliant by gate. The same discipline as the
-language policy: the Standard stays substrate-neutral at the contract
+language policy: the Specification stays substrate-neutral at the contract
 layer; this Handbook section documents what the project's reference
 implementation runs on and the test it gates against.
 
-> **STD/HDBK boundary.** The Standard does **not** mandate an
+> **STD/HDBK boundary.** The Specification does **not** mandate an
 > operating system. The substrate-pluggability invariant per
 > `[FM-SPEC §1]` and `[FM-INV-0005]` means the conformance test set is
 > OS-blind; a conforming implementation may run on any operating system
 > whose substrate seams satisfy the named test gates. **This Handbook
 > section is the project's reference-implementation choice**, not a
 > conformance requirement. A customer who runs the mesh on a different
-> operating system implements the same numbered Standard requirements
+> operating system implements the same numbered Specification requirements
 > on their OS and is conformant on the same terms.
 
 **The reference operating system is a RHEL-compliant distribution.**
@@ -526,10 +526,10 @@ satisfy the same requirements, but the reference implementation does
 not undertake the per-distribution work to verify each; it gates on
 RHEL-compliance and treats anything passing the gate as substitutable.
 
-**Why this lives in the Handbook, not the Standard.** A normative OS
+**Why this lives in the Handbook, not the Specification.** A normative OS
 mandate would couple the platform to a specific OS family forever and
 break substrate-pluggability for adopters whose procurement does not
-support the RHEL-compliant class. The Standard stays OS-neutral by
+support the RHEL-compliant class. The Specification stays OS-neutral by
 design; the Handbook documents the discipline the project's reference
 implementation uses, which adopters may follow or replace per their own
 substrate. This mirrors the language-policy split in §1.5.
@@ -759,7 +759,7 @@ is the absence of the capability, not the presence of the policy.
 is `[FM-INV-0003]`. The extensions-compose-within-the-provisioned-
 surface rule is `[FM-INV-0003.1]`. Net-new capability requires the
 argued-case + quorum path per `[FM-INV-0003.2]`; the argued-case
-entry schema is §F.1 of the Standard's normative Appendix F.
+entry schema is §F.1 of the Specification's normative Appendix F.
 
 ### 1.7.3 Quorum authority for catastrophic-class capabilities
 
@@ -924,7 +924,7 @@ preserved in the project's git history.
 # Part 2 — PCS (Platform Control System)
 
 > **STD status of this Part.** PCS is the **eighth pillar** per
-> `[FM-MCC-0011]` and lives in Standard **§6**, which is **written**:
+> `[FM-MCC-0011]` and lives in Specification **§6**, which is **written**:
 > the numbered PCS requirements (`[FM-PCS-0001..0018]`) are normative.
 > This Handbook Part is the rationale and design intent behind what §6
 > normatively specifies. Cross-references
@@ -1234,7 +1234,7 @@ DoS upstream of that boundary; the empirical N≥2 +
 environment-indistinguishability defense in DPG raises the bar
 on supply-chain payloads that try to behave-switch when they
 detect testing. Stack the layers and the formal contract this
-Standard provides is *closed* — up to one irreducible boundary.
+Specification provides is *closed* — up to one irreducible boundary.
 
 That boundary is Ken Thompson's, named in *Reflections on
 Trusting Trust* (1984): a malicious compiler can recognize a
@@ -1269,12 +1269,12 @@ as far out as software can reach:
   substrate makes the runs bit-identical from inside the
   boundary.
 
-What this Standard cannot do is *replace* trust in the
+What this Specification cannot do is *replace* trust in the
 underlying compiler chain with a formal proof. Deployments
 requiring guarantees beyond the axiom must procure the
 relevant binaries from reproducible-build pipelines
 bootstrapped on trusted hardware and audited source —
-disciplines outside the scope of this Standard. The Standard
+disciplines outside the scope of this Specification. The Specification
 names the boundary so the operator knows where the formal
 proof ends and physical-axiom trust begins; it does not
 pretend the boundary is closable in software.
@@ -1394,7 +1394,7 @@ it's the seam between the project's public artifacts and the
 customer's pinned local trust state. STD §6 codifies the
 per-deployment registry contract (`[FM-PCS-0013]`); the project-signing-root
 discipline lives in this Handbook for now and will land in the
-Standard's release-engineering requirements when those are
+Specification's release-engineering requirements when those are
 authored.
 
 ## 2.9 Substrate matrix × workflow — customization without forking
@@ -2120,7 +2120,7 @@ provisioning.
 
 ## 4.3 Delivery and packaging
 
-> **STD/HDBK boundary reminder (per §1.5).** The Standard is
+> **STD/HDBK boundary reminder (per §1.5).** The Specification is
 > language-neutral at the contract layer per `[FM-SPEC §1]`. The
 > language map below is the project's **reference-implementation
 > choice**, not a conformance requirement. A customer choosing
@@ -2150,13 +2150,13 @@ reference CI or shipped artifacts. The constraint exists because
 **the project validates the FIPS-clean and audit-substrate claims
 on one family — the RHEL family — through v1.1**; cross-distro builds
 (Ubuntu Pro ships FIPS-validated modules, for instance) can produce
-conforming substrates on the same Standard requirements, but the
+conforming substrates on the same Specification requirements, but the
 project's reference validation isn't run there. Cross-distro test
 jobs are allowed as **additive signal**, never substitutive for
 the validated family. A customer who insists on a different family
-implements the same numbered Standard requirements on their
+implements the same numbered Specification requirements on their
 substrate and is conformant on the same terms; the conformance
-profile is contract-pluggable per the Standard's substrate-
+profile is contract-pluggable per the Specification's substrate-
 substitutability discipline.
 
 **Distribution shape.** Each pillar publishes as a `pip install`able
@@ -2311,7 +2311,7 @@ The mesh ships **four documentation artifacts, total:**
 
 | Artifact | What it answers | Audience |
 |----------|----------------|----------|
-| **The Standard** (`FIDUCIAL-MESH-SPEC-001`) | "What IS the system?" — formal contract; numbered requirements with Verification lines | Implementers, auditors, alternative-implementations, future agent sessions |
+| **The Specification** (`FIDUCIAL-MESH-SPEC-001`) | "What IS the system?" — formal contract; numbered requirements with Verification lines | Implementers, auditors, alternative-implementations, future agent sessions |
 | **The Handbook** (`FIDUCIAL-MESH-HDBK-001`, *this document*) | "Why is the system shaped this way?" — non-normative rationale, worked examples, design history | Architects, evaluating customers, operators reading STD against context |
 | **The user guide** | "What DOES the system do?" — conceptual operations narrative | Operators, evaluating customers |
 | **The workflow matrix** | "How do I DO things?" — registry-derived executable index | Anyone running a Mesh |
@@ -2393,8 +2393,8 @@ Reference material. Tables and lookup, not narrative.
 > **STD cross-reference.** Acronyms with a numbered-pillar binding
 > (ACT, AIR, AKB, ARCA, BOM, CLCA, CRB, DPG, IAM, IBX, MCC, MCP,
 > PCS, PCT, PGE, etc.) are also defined in SPEC-001 §3.1 — the
-> Standard's definitions are authoritative. This Handbook glossary
-> adds **narrative-only terms** not in the Standard (Cardinal rule,
+> Specification's definitions are authoritative. This Handbook glossary
+> adds **narrative-only terms** not in the Specification (Cardinal rule,
 > DAC, Default manifest, Dogfood, Free target, Plugin-loadout,
 > Role-loadout, Tenant namespace, Tested variation, Workflow as
 > rationale-shape).
@@ -2422,7 +2422,7 @@ Reference material. Tables and lookup, not narrative.
 
 ## Appendix B — Language map
 
-> **STD/HDBK boundary.** The Standard is **language-neutral at
+> **STD/HDBK boundary.** The Specification is **language-neutral at
 > the contract layer** per SPEC-001 §1; pillar requirements shall
 > not mandate an implementation language. This Appendix documents
 > the **project's reference-implementation choice** — what *we*
@@ -2430,7 +2430,7 @@ Reference material. Tables and lookup, not narrative.
 > remains conformant on the same terms (passing the per-pillar
 > Conformance Profile test set per STD §0.4 + §5.x.1). The C#
 > exclusion below is a project-level reference-implementation
-> choice, not a Standard requirement.
+> choice, not a Specification requirement.
 
 Canonical per-pillar language assignment. Python is the default;
 non-Python deviations are argued explicitly. C# is purged from the
@@ -2498,7 +2498,7 @@ canon.
 6. **RHEL-compatible build / runtime substrate** — Rocky 9.7+ /
    Alma 9.7+ / RHEL 9.7+ / UBI 9.7+ only in v1.0–v1.1; no
    `ubuntu-latest`. This is a project-level reference-implementation
-   choice per the STD/HDBK boundary (§1.5); the Standard is
+   choice per the STD/HDBK boundary (§1.5); the Specification is
    substrate-pluggable per STD §1 — a customer's regulated build
    substrate stays substrate-pluggable on the same terms.
 
@@ -2702,7 +2702,7 @@ For the record, the design trajectory included the documents below
 *End of Fiducial Mesh Handbook v1.1.1.*
 
 The Handbook is the rationale / worked-example / narrative
-companion to the normative Standard (`FIDUCIAL-MESH-SPEC-001`).
-The Standard is authoritative; this Handbook is read-against-it.
+companion to the normative Specification (`FIDUCIAL-MESH-SPEC-001`).
+The Specification is authoritative; this Handbook is read-against-it.
 The working notes that produced the spec are preserved in the
 project's git history.

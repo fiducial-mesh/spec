@@ -1,6 +1,6 @@
 ---
-title: "FIDUCIAL-MESH-SPEC-001 — Fiducial Mesh Platform Standard"
-doc_type: standard
+title: "FIDUCIAL-MESH-SPEC-001 — Fiducial Mesh Platform Specification"
+doc_type: specification
 status: draft
 version: v1.1.1
 date: 2026-06-29
@@ -17,11 +17,11 @@ references:
   - https://agentskills.io/specification
 ---
 
-# FIDUCIAL-MESH-SPEC-001 — Fiducial Mesh Platform Standard
+# FIDUCIAL-MESH-SPEC-001 — Fiducial Mesh Platform Specification
 
-## §0 Standard conventions
+## §0 Specification conventions
 
-This Standard defines the normative requirements for the Fiducial Mesh
+This Specification defines the normative requirements for the Fiducial Mesh
 platform. It is the source of truth for what conformant implementations
 **shall** do. Rationale, design history, and operational narrative live
 in the companion handbook [`FIDUCIAL-MESH-HDBK-001`](FIDUCIAL-MESH-HDBK-001.md).
@@ -35,7 +35,7 @@ weight; it is explanatory only.
 
 ### §0.2 Requirement identifiers
 
-Every normative requirement in this Standard is assigned a unique
+Every normative requirement in this Specification is assigned a unique
 identifier of the form `[FM-<area>-NNNN]` (e.g., `[FM-INV-0001]`,
 `[FM-PCS-0042]`). Sub-clauses use decimal extensions (`[FM-INV-0003.2]`).
 
@@ -43,7 +43,7 @@ Requirement identifiers are **immutable and append-only.** Once
 assigned, an identifier **shall not** be renumbered, reused, or
 reassigned to a different requirement. Deprecated requirements
 **shall** be marked `[FM-<area>-NNNN][DEPRECATED]` and **shall** remain
-in the Standard with their deprecation rationale recorded. New
+in the Specification with their deprecation rationale recorded. New
 requirements **shall** be assigned the next unused integer in their
 area's sequence. Identifiers are referenced from the conformance
 harness, conformance profiles, regulatory crosswalks, and customer
@@ -53,23 +53,23 @@ artifacts depend on.
 ### §0.3 Companion handbook discipline
 
 The companion handbook (`FIDUCIAL-MESH-HDBK-001`) explains, illustrates,
-and motivates the requirements in this Standard. The handbook **shall**
-cite Standard requirements by identifier; it **shall not** restate the
+and motivates the requirements in this Specification. The handbook **shall**
+cite Specification requirements by identifier; it **shall not** restate the
 normative text of a requirement. Bi-directional restating produces
-drift; this Standard is the single source of truth for normative
+drift; this Specification is the single source of truth for normative
 content.
 
 ### §0.4 Conformance profiles
 
 Every conformance-profile row defined for a substrate seam **shall**
-bind to one or more requirement identifiers in this Standard. A
+bind to one or more requirement identifiers in this Specification. A
 profile row without a bound identifier is not a conformant artifact;
 the conformance harness rejects it. Substrate matrices declared per
 pillar are conformance profiles in this sense.
 
 ### §0.5 Verification methods
 
-Every numbered requirement in this Standard **shall** carry a
+Every numbered requirement in this Specification **shall** carry a
 `Verification:` annotation specifying how conformance to the
 requirement is verified. The annotation appears as the final line of
 each requirement block.
@@ -86,13 +86,13 @@ Allowed verification methods:
 | **Static-check** | Automated lint, grep, AST analysis, or signature check — verified at build or commit time without running the system. |
 
 A requirement that cannot be assigned a verification method is not
-ready to merge into this Standard — by construction, "a requirement
+ready to merge into this Specification — by construction, "a requirement
 the harness cannot check is not done." The verification method is the
-bridge from this Standard to the conformance harness.
+bridge from this Specification to the conformance harness.
 
-### §0.6 Out of scope for this Standard
+### §0.6 Out of scope for this Specification
 
-This Standard adopts NASA Technical Standard structural conventions
+This Specification adopts NASA Technical Specification structural conventions
 (numbered requirements, RFC 2119 keywords, normative appendices, the
 STD/HDBK companion pattern). It does **not** adopt:
 
@@ -103,7 +103,7 @@ STD/HDBK companion pattern). It does **not** adopt:
 - Cancellation and supersession procedures specific to federal-agency
   standards processes
 
-Changes to this Standard follow the Fiducial Mesh GH-native PR
+Changes to this Specification follow the Fiducial Mesh GH-native PR
 convention: author-review-merge by the project's two-person review
 discipline, with Judge as the merge gate.
 
@@ -111,7 +111,7 @@ discipline, with Judge as the merge gate.
 
 ## §1 Scope
 
-This Standard defines the normative platform-level requirements
+This Specification defines the normative platform-level requirements
 Fiducial Mesh implementations **shall** satisfy. It covers the
 foundational invariants every pillar inherits, the cross-pillar
 contracts (validation harness tiers, registry behavior,
@@ -122,27 +122,27 @@ DPG, CRB in §§5.1–5.7; PCS in §6) plus the **MCC host frame**
 framework, delivery and packaging substrate, AIR/CLCA continuous-
 improvement loop).
 
-This Standard is **substrate-pluggable**: it defines what
+This Specification is **substrate-pluggable**: it defines what
 implementations and deployments **shall** do, not what specific
 backend products **shall** be used. Customer choice across the
 substrate-matrix seams is a first-class property; conformance is
 verified by passing the multi-profile conformance run against the
 declared matrix rows.
 
-This Standard is **language-neutral.** It defines *behavior*, not
+This Specification is **language-neutral.** It defines *behavior*, not
 the language an implementation is written in. A conforming
 implementation **may** be written in any language or framework;
 conformance is established solely by passing the multi-profile
 conformance run, which is blind to implementation language. The
-Standard specifies substrate *capabilities* where they are
+Specification specifies substrate *capabilities* where they are
 contract-relevant (e.g., transactional claim semantics,
 JSONB-equivalent query support, FIPS-validated cryptographic
 modules) and the *workload runtimes* a pillar must accept — but it
 **shall not** mandate the implementation language or framework of
 any pillar. Reference-implementation language choices live in the
-engineering-standards companion document, not in this Standard.
+engineering-standards companion document, not in this Specification.
 
-This Standard is **OSS-first by reference convention.** Products
+This Specification is **OSS-first by reference convention.** Products
 named in any Conformance Profile's *sovereign-reference* or
 *supported-alternatives* column are **illustrative examples**, not
 endorsements; conformance is established by passing the named
@@ -152,11 +152,11 @@ satisfy the same capability and test set, the sovereign-reference
 column **shall** lead with the open-source option, and commercial
 products **shall** be presented as portability examples — proof
 that the seam is product-neutral, not as a recommendation. This
-convention supports the Standard's open-source posture under
+convention supports the Specification's open-source posture under
 CC-BY-4.0 while preserving substrate-pluggability across the full
 named set.
 
-This Standard targets **on-premises sovereign deployment**.
+This Specification targets **on-premises sovereign deployment**.
 Vendor-managed cloud substrate is **not in scope**; the architecture
 is air-gapped-ready and exfiltration-hostile by construction.
 
@@ -164,7 +164,7 @@ is air-gapped-ready and exfiltration-hostile by construction.
 
 ## §2 Applicable Documents
 
-The following documents form a part of this Standard to the extent
+The following documents form a part of this Specification to the extent
 specified herein.
 
 ### §2.1 Government and standards-body documents
@@ -181,7 +181,7 @@ specified herein.
 | Reference | Title |
 |-----------|-------|
 | Model Context Protocol Specification | `modelcontextprotocol.io/specification` |
-| Open Agent Skills Standard | `agentskills.io/specification` |
+| Open Agent Skills Specification | `agentskills.io/specification` |
 | Anthropic Claude Code Plugin Reference | `code.claude.com/docs/en/plugins-reference` |
 | OpenAI Codex Plugin Specification | `developers.openai.com/codex/plugins/build` |
 | Maven Coordinate Conventions | groupId:artifactId:version |
@@ -224,7 +224,7 @@ specified herein.
 | MCP | Model Context Protocol |
 | MFA | Multi-Factor Authentication |
 | MPS | Metal Performance Shaders (Apple GPU computing API) |
-| OCI | Oracle Cloud Infrastructure (used in this Standard exclusively for the Oracle cloud provider; not to be confused with the Open Container Initiative) |
+| OCI | Oracle Cloud Infrastructure (used in this Specification exclusively for the Oracle cloud provider; not to be confused with the Open Container Initiative) |
 | OIDC | OpenID Connect |
 | OTLP | OpenTelemetry Protocol |
 | PCS | Platform Control System (pillar) |
@@ -236,7 +236,7 @@ specified herein.
 | SAML | Security Assertion Markup Language |
 | SCIF | Sensitive Compartmented Information Facility |
 | SHA | Secure Hash Algorithm |
-| STD | Standard (NASA document type) |
+| STD | Specification (NASA document type) |
 | TLS | Transport Layer Security |
 | VMA | Vendor-Mediated Architecture |
 
@@ -384,7 +384,7 @@ surface beyond what has been explicitly provisioned with an argued
 case.
 
 *Verification: Inspection* — each provisioned capability in the
-Standard cites an argued-case section per `[FM-INV-0003.2]`; review
+Specification cites an argued-case section per `[FM-INV-0003.2]`; review
 verifies presence and adequacy.
 
 ##### `[FM-INV-0003.1]` Extensions compose within the provisioned surface
@@ -407,10 +407,10 @@ expansion of what the platform allows — **shall** require an *argued
 case* and **shall** be gated at apply time by the quorum mechanism
 defined in `[FM-INV-0004]`.
 
-An **argued case** for the purposes of this Standard is a written
+An **argued case** for the purposes of this Specification is a written
 rationale satisfying all of the following:
 
-1. It is committed to a designated section of this Standard or to a
+1. It is committed to a designated section of this Specification or to a
    referenced amendment document (default location: Appendix F,
    reserved for argued cases and deviations, to be created in
    subsequent PRs).
@@ -419,10 +419,10 @@ rationale satisfying all of the following:
 3. It specifies the policy gates, identity scopes, audit emissions,
    and (where applicable) quorum-class classification per
    `[FM-INV-0004]` that govern the new capability.
-4. It is signed by an identity authorized to author Standard
+4. It is signed by an identity authorized to author Specification
    amendments (per the IAM publishing-rights model — see §5 IAM
-   requirements when landed).
-5. It is bound to a requirement identifier in this Standard via the
+   requirements).
+5. It is bound to a requirement identifier in this Specification via the
    conformance-profile mechanism per §0.4.
 
 A capability without an argued case satisfying these five criteria is
@@ -478,7 +478,7 @@ be conflated:
   operation only when K signatures are present. Nothing is
   reconstructed from shards at runtime.
 
-The Standard binds both patterns; the *which-applies-when* is
+The Specification binds both patterns; the *which-applies-when* is
 mechanical and depends only on whether the operation is the
 init-time ceremony per `[FM-INV-0004.4]` (Shamir) or a runtime
 catastrophic-class operation (multi-sig attestation).
@@ -581,7 +581,7 @@ prevent the operation regardless of total attestation count.
 **Role specification.** Each catastrophic-class capability's PGE
 policy declaration **shall** identify required roles by name, where a
 "role" is an identity attribute (assigned via the IAM identity-role
-mapping defined in §5 IAM requirements when landed) drawn from the
+mapping defined in §5 IAM requirements) drawn from the
 operator's named role registry. The role registry is operator-defined
 at mesh initialization; common entries include `hipaa-compliance-officer`,
 `fedramp-iso`, `ciso`, `legal-counsel`.
@@ -908,7 +908,7 @@ state-affecting operations with their classification; review confirms
 the registry covers at minimum {catastrophic-class operations per
 `[FM-INV-0004]`, judge-gated operations per `[FM-INV-0005]`, and the
 explicit state-affecting operation list each pillar specification
-declares in its §5 requirements when landed}.
+declares in its §5 requirements}.
 
 ### §4.5 Reasoning-runtime substrate
 
@@ -919,7 +919,7 @@ agents themselves run on — is a deployment-level substrate seam
 parallel to the persistent-store, secret-store, and identity-
 provider seams. Its substitutability is contract-relevant: where
 the reasoning runs determines what content reaches what
-counterparty. The Standard binds this seam at the deployment
+counterparty. The Specification binds this seam at the deployment
 level, not at any individual pillar.
 
 **Why this binds at invariant level** (rather than as a pillar-
@@ -1060,7 +1060,7 @@ leave). The deviation **shall**:
    counterparty, what hardware-trust is delegated to whom, under
    whose identity, with what retention, and what stated data-
    handling commitments apply.
-4. Be reviewed at each major Standard release; deviation expiry
+4. Be reviewed at each major Specification release; deviation expiry
    **shall** be enforced when the sovereign-reference cell is
    declared operational for the affected workload class. Mirror
    of the `[FM-IBX-0010]` / `[FM-IAM-0014]` / `[FM-PGE-0005]`
@@ -1103,8 +1103,8 @@ mesh-level invariants, numbered requirements with `Verification:`
 annotations, and a Conformance Profile binding substrate-matrix rows
 to requirement IDs per §0.4.
 
-Sections §5.2–§5.8 are reserved for future PRs. The IBX requirements
-in §5.1 are the canonical template for the remaining seven pillars.
+The IBX requirements in §5.1 established the canonical template that
+the other seven pillars (§5.2–§5.8 and §6) follow.
 
 ### §5.1 IBX — Inbox Exchange
 
@@ -1117,8 +1117,8 @@ below, lives in IBX rather than in PCS scope because PCT is a
 **Dependencies.**
 
 - `[FM-INV-0001]` (No bypass) and `[FM-INV-0002]` (Fail strict) apply to all IBX operations.
-- IBX consumes verified-principal context from the IAM pillar (§5.2 when landed). Today (pre-IAM-build), the `sender` field is asserted by brief and verified by post-hoc convention; once IAM is operational, the `principal-id` PCT field (`[FM-IBX-0004]`) is the verification seam.
-- IBX emits to ACT (§5.4 when landed) per `[FM-IBX-0012]`.
+- IBX consumes verified-principal context from the IAM pillar (§5.2). Today (pre-IAM-build), the `sender` field is asserted by brief and verified by post-hoc convention; once IAM is operational, the `principal-id` PCT field (`[FM-IBX-0004]`) is the verification seam.
+- IBX emits to ACT (§5.4) per `[FM-IBX-0012]`.
 
 #### `[FM-IBX-0001]` PCT nine-field contract
 
@@ -1207,7 +1207,7 @@ message row **shall not** be the substrate's representation of state.
 
 Rationale (informative): append-only state mutation preserves the
 full audit chain required by `[FM-INV-0001]`-class audit invariants
-and §7 operational requirements when landed; an UPDATE-in-place model
+and §7 operational requirements; an UPDATE-in-place model
 discards the transition history.
 
 *Verification: Static-check* — the substrate DDL is analyzed
@@ -1292,7 +1292,7 @@ poison queue) against each declared supported substrate.
 #### `[FM-IBX-0010]` Identity verification seam
 
 IBX **shall** consume verified-principal context from the IAM pillar
-(§5.2 when landed) at message-submission time. The PCT `principal-id`
+(§5.2) at message-submission time. The PCT `principal-id`
 field **shall** be cryptographically verifiable against the IAM
 Roster's identity records; an unverifiable `principal-id` **shall**
 cause the message to be rejected at submission per `[FM-INV-0002]`
@@ -1300,7 +1300,7 @@ cause the message to be rejected at submission per `[FM-INV-0002]`
 
 **Transitional deviation — sunset on IAM operational availability.**
 A deployment operating prior to the IAM pillar's operational
-availability (per §5.2 when landed) **may** record asserted-but-
+availability (per §5.2) **may** record asserted-but-
 unverified identity in the substrate's audit trail. **This path is a
 recognized deviation, not satisfaction of this requirement.** A
 deployment operating under the transitional deviation **shall not**
@@ -1317,7 +1317,7 @@ The transitional deviation **shall**:
 2. Emit a divergence event to ACT per `[FM-INV-0005.2]` for every
    assertion-only identity claim, with attributes naming the
    deviation and the asserted identity.
-3. Be reviewed at each major Standard release; deviation expiry
+3. Be reviewed at each major Specification release; deviation expiry
    **shall** be enforced when IAM operational state is declared per
    §5.2.
 
@@ -1351,7 +1351,7 @@ log records to a test OTLP sink, with required attributes present.
 #### `[FM-IBX-0012]` Audit emission per state-affecting operation
 
 Every message-status transition `[FM-IBX-0004]` **shall** emit an
-audit-class event to ACT (§5.4 when landed) carrying the transitioning
+audit-class event to ACT (§5.4) carrying the transitioning
 identity, the message identifier, the from-state, the to-state, the
 timestamp, and the trace/span correlation IDs. Audit emission failure
 **shall** be treated as fail-strict per `[FM-INV-0002]` — the
@@ -1420,7 +1420,7 @@ trust chain that includes ARCA's public certificate(s) but does not
 require network access to ARCA itself.
 
 This separation is what permits ARCA to be operated offline. The
-contract this Standard commits is that the runtime cannot reach ARCA
+contract this Specification commits is that the runtime cannot reach ARCA
 during normal operation; ARCA's physical location, custody chain,
 and ceremony for touch-events are deployment items.
 
@@ -1672,7 +1672,7 @@ attempts to mutate principal-type post-issuance and asserts denial.
 IAM **shall** expose an **identity-context** resolution contract to
 PGE (§5.3) and other policy-consuming pillars. **IAM provides
 identity context; IAM does NOT make the allow|deny decision.** The
-decision is PGE's responsibility (per §5.3 when landed); IAM's
+decision is PGE's responsibility (per §5.3); IAM's
 responsibility is to provide PGE with the verified identity and the
 identity-bound claims PGE needs to make the decision.
 
@@ -1730,7 +1730,7 @@ records to a test OTLP sink, with required attributes present.
 
 Every IAM state-affecting operation (issuance, suspend, resume,
 terminate, role change, scope grant, scope revoke) **shall** emit an
-audit-class event to ACT (§5.4 when landed) carrying the acting
+audit-class event to ACT (§5.4) carrying the acting
 identity, target identity, operation, from-state, to-state, deciding
 policy version, timestamp, and trace/span correlation IDs. Audit
 emission failure **shall** be treated as fail-strict per
@@ -1745,7 +1745,7 @@ is denied (fail-strict semantics).
 #### `[FM-IAM-0014]` IAM operational-state declaration
 
 A deployment's IAM pillar is declared **operational** for the purpose
-of this Standard when **all** of the following hold:
+of this Specification when **all** of the following hold:
 
 1. **ARCA is built and signing** intermediate CAs per `[FM-IAM-0001]`
    (issuance-runtime separation operational; offline-root posture in
@@ -1768,7 +1768,7 @@ deviation **shall**:
    sunset condition: "this requirement's four conditions all hold."
 2. Emit divergence events to ACT per `[FM-INV-0005.2]` for every
    identity claim under the deviation.
-3. Be reviewed at each major Standard release; deviation expiry
+3. Be reviewed at each major Specification release; deviation expiry
    **shall** be enforced when the four conditions hold.
 
 This is the requirement that sunsets the `[FM-IBX-0010]` transitional
@@ -2043,8 +2043,8 @@ discipline per `[FM-INV-0004]`.
 - `[FM-INV-0004]` (Quorum authority): PGE is the enforcement point for catastrophic-class quorum gating.
 - `[FM-INV-0005]` (Platform enforcement floor authoritative) — PGE is the consumer that makes the floor binding regardless of plugin self-declaration.
 - `[FM-IAM-0011]` (Identity-context contract) — PGE consumes the six-element identity context from IAM; PGE makes the allow|deny decision, IAM does not.
-- PGE emits to ACT (§5.4 when landed) per `[FM-PGE-0008]`.
-- PGE consumes policy overlays from PCS (§6 when landed) per `[FM-PGE-0012]`.
+- PGE emits to ACT (§5.4) per `[FM-PGE-0008]`.
+- PGE consumes policy overlays from PCS (§6) per `[FM-PGE-0012]`.
 
 #### `[FM-PGE-0001]` Policy decision authority
 
@@ -2113,7 +2113,7 @@ rejection.
 Every rule in the corpus **shall** carry a stable identifier of the
 form `pge-<stratum>-<area>-NNNN` (e.g., `pge-s1-injection-0007`).
 Identifiers are immutable + append-only per the same discipline as
-requirement IDs in this Standard (§0.2): once assigned, never
+requirement IDs in this Specification (§0.2): once assigned, never
 renumbered, never reused; deprecated rules are marked and retained.
 
 Every PGE decision **shall** record the matching rule identifier (or
@@ -2139,7 +2139,7 @@ for a deployment to claim PGE-conformance:
   corpus before the message reaches downstream pillars. Non-compliant
   submissions fail closed at IBX.
 - **Gate 2 — Execution gate** at the DPG ephemeral boundary (§5.6
-  when landed): code emitted by agents is evaluated against the rule
+ ): code emitted by agents is evaluated against the rule
   corpus before execution. Non-compliant code fails closed at DPG;
   it **shall not** touch production state.
 
@@ -2173,7 +2173,7 @@ The transitional Gate-2 deviation **shall**:
    `divergence_type = "gate-2-supplemental-only"` per
    `[FM-PGE-0011]` discriminator (canonical emitter: PGE) for every
    execution-side policy evaluation operating under the deviation.
-3. Be reviewed at each major Standard release; deviation expiry
+3. Be reviewed at each major Specification release; deviation expiry
    **shall** be enforced when `[FM-DPG-0005]` operational state is
    declared in Appendix F.
 
@@ -2231,7 +2231,7 @@ proceeds; non-compliant blocked).
 
 Every PGE decision (every Gate 1 and Gate 2 evaluation, plus every
 supplemental-surface evaluation) **shall** emit an audit-class event
-to ACT (§5.4 when landed) carrying: the deciding rule identifier (per
+to ACT (§5.4) carrying: the deciding rule identifier (per
 `[FM-PGE-0004]`), the decision (`allow | deny`), the policy version
 in force, the identity context fingerprint (per `[FM-IAM-0011]`), the
 action evaluated, the timestamp, and the trace/span correlation IDs.
@@ -2271,7 +2271,7 @@ and a clean rule-corpus state and asserts allow.
 
 PGE **shall** apply the platform enforcement floor per `[FM-INV-0005]`
 regardless of plugin self-declaration. A plugin's PCS-manifest policy
-block (per §6 when landed) is a declaration of intent, not an
+block (per §6) is a declaration of intent, not an
 enforcement contract; PGE **shall not** weaken its floor based on a
 plugin's declared posture.
 
@@ -2295,7 +2295,7 @@ is recorded.
 #### `[FM-PGE-0011]` Divergence-event emission
 
 When PGE detects a divergence between a plugin's declared policy
-block (per §6 when landed) and the platform enforcement floor PGE
+block (per §6) and the platform enforcement floor PGE
 applies, PGE **shall** emit a `pcs.policy.divergence` event to ACT
 per `[FM-INV-0005.2]` with the required attributes (`plugin_id`,
 `operation`, `plugin_declared`, `platform_enforced`,
@@ -2437,7 +2437,7 @@ emitted with the correct discriminator scope.
 #### `[FM-PGE-0012]` Policy overlay consumption
 
 PGE **shall** consume policy overlays distributed via the PCS
-registry (§6 when landed) and apply them additively at Stratum 2
+registry (§6) and apply them additively at Stratum 2
 above the deployment's baseline policy. Overlay application
 **shall**:
 
@@ -2627,7 +2627,7 @@ implementations.
 | Rule corpus storage | `[FM-PGE-0003]`, `[FM-PGE-0004]` | Git-versioned Markdown narrative + per-component executable rule files (one per enforcement surface) | OPA Rego policy bundle, Cedar policy file, database-backed corpus with explicit version table, hybrid (Markdown for Stratum 1 + Rego for Stratum 2) | `pge-corpus-v1` |
 | Policy evaluation engine | `[FM-PGE-0001]`, `[FM-PGE-0002]`, `[FM-PGE-0013]` | Distributed per-surface enforcement composed of: a build-time test-runtime policy suite exercising the rule corpus, a runtime tool-call guard hook on the agent surface, and a CI release gate | OPA (Open Policy Agent) 0.60+ with Rego eval, Cedar runtime with declarative policy engine, per-pillar embedded policy engines, hybrid centralized + per-surface | `pge-engine-v1` |
 | Enforcement surface | `[FM-PGE-0005]`, `[FM-PGE-0007]`, `[FM-PGE-0009]`, `[FM-PGE-0010]` | Distributed multi-surface — PreToolUse hook + IBX submission chokepoint + DPG ephemeral boundary + CI release gate + per-server test suite | OPA-sidecar middleware at IBX/DPG, Cedar runtime sidecar, custom enforcement library per-pillar, hybrid | `pge-enforcement-v1` |
-| Overlay consumption | `[FM-PGE-0012]` | Signed overlay bundles consumed from PCS registry (§6 when landed) | Any signed bundle format declared conformant by PCS (§6 + Appendix B when landed) | `pge-overlay-v1` |
+| Overlay consumption | `[FM-PGE-0012]` | Signed overlay bundles consumed from PCS registry (§6) | Any signed bundle format declared conformant by PCS (§6 + Appendix B) | `pge-overlay-v1` |
 | Quorum verifier | `[FM-PGE-0015]` | Named PGE sub-component running with its own IAM-issued principal-id; structured signed verified-quorum result consumed by `[FM-PGE-0009]`; horizontally scalable with **leader election backed by a distributed-consensus substrate** (Raft / Paxos / equivalent strict-consistency primitive) per operation identifier | Vault Raft storage backend (sovereign reference; in-substrate), etcd 3.5+ (Raft), Apache Zookeeper 3.8+ (ZAB), Consul (Raft), any consensus substrate satisfying the strict-consistency-under-partition contract; ad-hoc leader election without a consensus substrate is **not conformant** | `pge-quorum-verifier-v1` |
 | Telemetry sink | `[FM-PGE-0014]` | OTLP-on-the-wire (any OTLP-compatible backend per ACT §5.4) | Grafana/Prometheus/Tempo, Azure Monitor, Datadog, OCI Monitoring | `pge-telemetry-v1` |
 
@@ -2980,7 +2980,7 @@ ACT's event stream and producing inferences.
 
 **Transitional deviation — sunset on Detect Layer operational
 availability.** A deployment operating without Detect Layer **may**
-satisfy this Standard's other requirements without satisfying
+satisfy this Specification's other requirements without satisfying
 `[FM-ACT-0008]`; the Detect Layer is a future capability whose
 absence is a recognized deviation, **scoped strictly to the
 Compliance/Audit and CLCA consumer classes**. Absence of an
@@ -3003,7 +3003,7 @@ requirements. The deviation **shall**:
    deployment-attestation time and on each operator-configured
    attestation review cycle, recording the deviation's continued
    application.
-3. Be reviewed at each major Standard release; deviation expiry
+3. Be reviewed at each major Specification release; deviation expiry
    **shall** be enforced when the Detect Layer is declared
    operational. Mirror of the `[FM-IBX-0010]` / `[FM-IAM-0014]` /
    `[FM-PGE-0005]` Gate-2 / `[FM-DPG-0013]` / `[FM-CRB-0010]` /
@@ -3591,7 +3591,7 @@ AKB ingest. The ingest pipeline **shall** drop such AIRs and
 **shall** record an audit event documenting the exclusion;
 broadcast-by-design substrates are incompatible with need-to-know
 audiences. The mesh's restricted-audience store for security
-findings is **out of AKB scope and out of this Standard's current
+findings is **out of AKB scope and out of this Specification's current
 pillar set** — it is provisional on the ratification of a
 restricted-audience pillar (e.g., a SEC pillar under
 consideration), and **shall** be specified there when ratified.
@@ -3780,7 +3780,7 @@ DPG-conformant and **shall not** be claimed supported.
    root-level operations inside the boundary **shall not** affect
    anything outside it.
 
-What the boundary does **not** guarantee at this Standard:
+What the boundary does **not** guarantee at this Specification:
 side-channel-attack resistance (timing / cache / Spectre-class)
 is out of scope at the contract layer — deployments handling
 sensitive data **shall** select a Tier-0 substrate per the
@@ -4205,7 +4205,7 @@ deviation **shall**:
    the policy that classifies subagent-worktree usage as
    non-DPG-conformant execution) for every workload using the
    precursor pattern.
-3. Be reviewed at each major Standard release; deviation expiry
+3. Be reviewed at each major Specification release; deviation expiry
    **shall** be enforced when generalized DPG is declared
    operational.
 
@@ -4327,7 +4327,7 @@ fleet's hosts).
 #### `[FM-CRB-0002]` Workload classification taxonomy (bounded)
 
 The mesh-level workload classification taxonomy **shall** be a
-bounded enumeration. The Standard commits at minimum the
+bounded enumeration. The Specification commits at minimum the
 following five classes; extension **shall** require an explicit
 curation event (same discipline as the `[FM-ACT-0004]` event-type
 taxonomy):
@@ -4388,7 +4388,7 @@ eligible_host_list`. The contract:
 The mapping of classes to eligible hosts is **deployment-
 architecture**, not pillar contract; different fleets have
 different policies because they have different inventories. What
-the Standard binds is the function shape and the fallback
+the Specification binds is the function shape and the fallback
 discipline.
 
 *Verification: Conformance-test* — the harness exercises the
@@ -4585,7 +4585,7 @@ decision audit.
 
 #### `[FM-CRB-0010]` Operational-state transitional clause
 
-The CRB broker daemon is **design-stage at this Standard's
+The CRB broker daemon is **design-stage at this Specification's
 publication**. The operational role today is played by operator
 and agent convention recorded in the deployment's standing
 documentation; the daemon is the build target. A deployment
@@ -4606,7 +4606,7 @@ The transitional deviation **shall**:
    policy that classifies convention-period dispatch as non-CRB-
    daemon-conformant) for every dispatch decision made under the
    convention.
-3. Be reviewed at each major Standard release; deviation expiry
+3. Be reviewed at each major Specification release; deviation expiry
    **shall** be enforced when the broker daemon is declared
    operational. Mirror of the `[FM-IBX-0010]` / `[FM-IAM-0014]` /
    `[FM-PGE-0005]` Gate-2 / `[FM-DPG-0013]` transitional pattern.
@@ -5166,7 +5166,7 @@ seams below the pillar contracts.
 The Conformance Profile invariants — every pillar declares a
 substrate matrix; every pillar passes a conformance test set;
 every pillar emits audit and telemetry through the patterns
-specified in this Standard — **shall** be unaffected by the MCC
+specified in this Specification — **shall** be unaffected by the MCC
 host frame's existence; MCC adds a host layer, not a pillar.
 
 *Verification: Inspection* — the mesh's pillar enumeration
@@ -5178,7 +5178,7 @@ unaffected by the MCC frame.
 #### `[FM-MCC-0012]` Operational-state transitional clause
 
 The pluggable host-frame model committed by `[FM-MCC-0001]` is
-**partially operational** at this Standard's publication. The
+**partially operational** at this Specification's publication. The
 current deployed surface satisfies the single-endpoint property
 per `[FM-MCC-0002]`, the IAM auth hook per `[FM-MCC-0003]`, and
 the centralized-substrate-handle property per `[FM-MCC-0004]` for
@@ -5199,7 +5199,7 @@ loaded into MCC. The deviation **shall**:
    `divergence_type = "mcc-partial-load"` per `[FM-PGE-0011]`
    discriminator (canonical emitter: PGE) for every dispatch
    targeting a pillar that is not yet loaded as an MCC plugin.
-3. Be reviewed at each major Standard release; deviation expiry
+3. Be reviewed at each major Specification release; deviation expiry
    **shall** be enforced when all eight pillars are loaded into
    MCC. Mirror of the `[FM-IBX-0010]` / `[FM-IAM-0014]` /
    `[FM-PGE-0005]` Gate-2 / `[FM-DPG-0013]` / `[FM-CRB-0010]`
@@ -5455,7 +5455,7 @@ requirement, with:
   satisfiable again"
 - `divergence_type`: `vendor-spec-conflict` per the `[FM-PGE-0011]`
   discriminator table (PCS as canonical emitter)
-- **Per-release re-attestation**: at every major Standard release
+- **Per-release re-attestation**: at every major Specification release
   + every BOM-bump that includes new vendor-CLI versions, the
   operator **shall** re-attest that the per-vendor-variant set
   for cardinal-rule-arbitration deviations **has not grown**
@@ -5518,7 +5518,7 @@ runs; each **shall** be governed by the PCS contract (contents +
 test + deploy) per this §6. Extension to this enumeration
 requires the argued-case discipline per `[FM-INV-0003.2]`.
 
-The artifact-class enumeration is exhaustive at this Standard's
+The artifact-class enumeration is exhaustive at this Specification's
 publication. **Runbooks, workflows, and skills are PCS-governed
 executables; they are not AKB corpus per the AKB scope boundary**
 — an AIR or design note *about* a runbook is AKB corpus per
@@ -5726,13 +5726,13 @@ while compiling malicious runtime behavior; no purely-software
 analysis of the resulting binary can detect this, because the
 analysis tooling was itself compiled by the same suspect chain.
 
-This Standard explicitly acknowledges Thompson's limit as the
+This Specification explicitly acknowledges Thompson's limit as the
 **irreducible trust-boundary axiom** of the mesh: the formal
-contract this Standard provides terminates at the binary
+contract this Specification provides terminates at the binary
 artifacts delegated to in the BOM. Beyond that boundary the
 trust rests on **physical axioms** (silicon provenance,
 trusted-hardware boot, reproducible builds from audited source
-on bootstrappable compilers) — not on this Standard. The
+on bootstrappable compilers) — not on this Specification. The
 architecture has correctly pushed the boundary as far out as
 software can reach:
 
@@ -5753,8 +5753,8 @@ software can reach:
 Deployments requiring guarantees *beyond* the trust-boundary
 axiom **shall** procure the relevant binaries from
 reproducible-build pipelines bootstrapped on trusted hardware
-and audited source — outside the scope of this Standard. The
-Standard names the boundary so the operator knows where the
+and audited source — outside the scope of this Specification. The
+Specification names the boundary so the operator knows where the
 formal proof ends and physical-axiom trust begins; it does not
 pretend the boundary is closable in software.
 
@@ -6138,7 +6138,7 @@ corresponding `pcs.lost_completion` event emitted.
 
 #### `[FM-PCS-0016]` Operational-state transitional clause
 
-PCS is **design-stage at this Standard's publication** — the
+PCS is **design-stage at this Specification's publication** — the
 Daemon is under construction; the registry contract is partial;
 the harness is the lab's existing CI + the `subagent-guard.sh`
 hook precedent. A deployment **may** operate under the
@@ -6160,7 +6160,7 @@ The transitional deviation **shall**:
    the policy that classifies convention-period operations as
    non-Daemon-conformant) for every promotion / dispatch made
    under the convention.
-3. Be reviewed at each major Standard release; deviation expiry
+3. Be reviewed at each major Specification release; deviation expiry
    **shall** be enforced when PCS-Daemon is declared
    operational. Mirror of the seven prior transitional clauses
    (`[FM-IBX-0010]`, `[FM-IAM-0014]`, `[FM-PGE-0005]` Gate-2,
@@ -6495,7 +6495,7 @@ semantics independent of the package format.
 
 The artifact-signing trust roots of `[FM-PKG-0002]` (the out-of-band upstream
 project root and the deployment artifact-import authority) **shall** have
-normative ceremony paths — HDBK rationale does **not** supply a Standard
+normative ceremony paths — HDBK rationale does **not** supply a Specification
 requirement:
 
 1. **Initial pin** — a conforming installer **shall** validate the initial root
@@ -6605,7 +6605,7 @@ be added in v1.x but field identity **shall not** change.
 
 A future `pct-v2` schema, if introduced, **shall** be a separate
 appendix entry; consumers that build against `pct-v1` (e.g., the
-PCS-Daemon `pct-v1` consumer per §6 when landed) **shall** continue
+PCS-Daemon `pct-v1` consumer per §6) **shall** continue
 to receive `pct-v1` messages.
 
 ## Appendix B — Normative plugin manifest schema
@@ -6645,8 +6645,8 @@ the same pattern. The single source of truth for the active
 
 The registry itself is **per-deployment** — each conforming
 deployment maintains its own Appendix F as part of its conformance
-documentation. This section of the Standard defines the **entry
-schema** that every registry entry **shall** satisfy. The Standard
+documentation. This section of the Specification defines the **entry
+schema** that every registry entry **shall** satisfy. The Specification
 does not enumerate specific deployments' entries; those are runtime
 artifacts of each deployment's operational state.
 
@@ -6660,7 +6660,7 @@ An argued-case entry (per `[FM-INV-0003.2]`) **shall** carry:
 | `entry_date` | UTC timestamp of entry creation |
 | `type` | `argued-case` |
 | `bound_requirements` | One or more `[FM-*-NNNN]` requirement IDs the case extends or argues against |
-| `case_rationale` | Structured argument satisfying `[FM-INV-0003.2]` — what new capability is being requested, why the existing Standard requirement does not cover it, what mitigations apply |
+| `case_rationale` | Structured argument satisfying `[FM-INV-0003.2]` — what new capability is being requested, why the existing Specification requirement does not cover it, what mitigations apply |
 | `quorum_attestation` | If the case is catastrophic-class per `[FM-INV-0004]`: the quorum signatures or references thereto; otherwise the field is `n/a` with explicit justification |
 | `authoring_identity` | The `principal-id` of the case's author |
 | `approval_chain` | Ordered list of `{approver_identity, approval_timestamp, approval_signature}` records |
@@ -6672,7 +6672,7 @@ result for the new substrate as part of `case_rationale`.
 
 ### §F.2 Recognized-deviation entry schema
 
-A recognized-deviation entry (per a Standard transitional clause)
+A recognized-deviation entry (per a Specification transitional clause)
 **shall** carry:
 
 | Field | Required content |
@@ -6703,10 +6703,10 @@ A conforming deployment's Appendix F registry **shall**:
    `[FM-INV-0005.2]` — a deviation entry's `divergence_type`
    **shall** match the ACT-emitted `divergence_type` per the
    `[FM-PGE-0011]` discriminator table;
-4. Be reviewed at each major Standard release per the transitional
-   clauses' Standard-release-review condition; entries whose
+4. Be reviewed at each major Specification release per the transitional
+   clauses' Specification-release-review condition; entries whose
    `bound_requirements` reference a requirement that has been
-   superseded by a Standard revision **shall** have their `status`
+   superseded by a Specification revision **shall** have their `status`
    transitioned accordingly.
 
 *Verification: Inspection of registry + Conformance-test of registry
@@ -6736,19 +6736,21 @@ matching ACT events exist for every deviation entry whose
 
 Review chain (same rigor as v1.0): per-change gate-2 quorum (cold non-author seat + Turing + Hopper) → Patton adversarial holistic pass → Einstein first-principles close.
 
-**v1.1.1 — changes over v1.1** (corrective; **no normative requirement added, changed, or removed** — handbook accuracy + attribution):
+**v1.1.1 — changes over v1.1** (corrective + publication-readiness; **no normative requirement added, changed, or removed**):
 
+- **Document renamed STD → SPEC** — `FIDUCIAL-MESH-STD-001` → `FIDUCIAL-MESH-SPEC-001`, and the descriptive class-word *Standard* → *Specification* throughout. "Specification" is self-certifying (it claims precise specification, not external ratification) — the appropriate, lower-exposure framing for a first public release. The handbook keeps its `HDBK-001` name.
+- **Publication sweep** (per the readiness review) — stripped 20 stale "when landed" cross-references (every referenced section is authored); removed the "§5.2–§5.8 reserved for future PRs" self-contradiction. *(status → released and the Appendix B/C/D resolution are the remaining publication gates.)*
 - **Handbook sync to the v1.1 requirement set** — corrected the IAM §5.2 and PGE §5.3 requirement counts (14 → 15) and added the missing narrative: `[FM-IAM-0015]` Delegation Tokens, `[FM-PGE-0015]` named quorum verifier, the `[FM-MCC-0013]` `mcc.substrate_unavailable` terminal event during the `[FM-MCC-0012]` partial-load window, and tied the reasoning-runtime substrate seam (HDBK §1.5.1) to `[FM-INV-0006]`.
 - **Spec-drafts cleanup folded in** — SPEC-001 + HDBK-001 no longer reference the `devel/spec-drafts/` working folder; the released docs stand on their own (design history preserved in git).
 - **Attribution** — author aligned to *Gregory A. Beam (KI7MT), for the Fiducial Mesh Group* in both documents (copyright + license unchanged: Agentics Labs LLC / CC-BY-4.0).
 
-Review chain: same as v1.1 (per-change gate-2 quorum → Patton adversarial → Einstein close).
+Review chain (publication track): **Watson (author) → Patton (adversarial) → Einstein (first-principles) → Judge (merge)**. Bob, Turing, and Hopper are on the MCC frame code, not the doc iterations.
 
 ---
 
 *End of FIDUCIAL-MESH-SPEC-001 v1.1.1.*
 
-This Standard is the source of truth for the normative requirements
+This Specification is the source of truth for the normative requirements
 Fiducial Mesh implementations satisfy. The companion handbook
 [`FIDUCIAL-MESH-HDBK-001`](FIDUCIAL-MESH-HDBK-001.md) carries the
 rationale, design history, worked examples, and dialectical narrative.
