@@ -1,13 +1,13 @@
 ---
 title: "FIDUCIAL-MESH-HDBK-001 — Fiducial Mesh Handbook"
 doc_type: handbook
-status: released
-version: v1.1
-date: 2026-06-28
+status: draft
+version: v1.1.1
+date: 2026-06-29
 license: CC-BY-4.0
 copyright: "Copyright (c) 2026 Agentics Labs LLC"
 authors:
-  - "Fiducial Mesh Group"
+  - "Gregory A. Beam (KI7MT), for the Fiducial Mesh Group"
 companion_to: FIDUCIAL-MESH-STD-001.md
 references:
   - FIDUCIAL-MESH-STD-001.md
@@ -428,7 +428,11 @@ Language policy (§1.5) covers the substrate the *pillars* are written
 in. There is a separate, equally load-bearing substrate seam: the
 **reasoning-runtime** — the inference engine the agents themselves
 run on. This seam is parallel to the pillar's persistent-store seam
-or secret-store seam, and customers choose it the same way.
+or secret-store seam, and customers choose it the same way. The
+Standard names it the sixth top-level platform invariant,
+`[FM-INV-0006]` (reasoning-runtime substrate seam): where the
+reasoning runs determines what content reaches what counterparty, so
+its substitutability is contract-relevant rather than incidental.
 
 **The honest current state.** The lab and most operational mesh
 sessions today route reasoning through **vendor-hosted models**
@@ -1744,7 +1748,7 @@ reconciliation, 20/20 tests green). ARCA not yet built. Deployment
 operates under the `identity-by-brief` transitional deviation
 per `[FM-IAM-0014]` + `[FM-IBX-0010]` until ARCA + Vault signing
 are operational across the deployment. **Normative spec**: STD-001
-§5.2 (14 requirements + Conformance Profile).
+§5.2 (15 requirements + Conformance Profile).
 
 **Substrate matrix:**
 
@@ -1784,7 +1788,13 @@ revalidation) = `[FM-IAM-0011]`; mesh.iam.* telemetry =
 `[FM-IAM-0012]`; state-affecting-operation audit emission via the
 `[FM-ACT-0009]` ack contract = `[FM-IAM-0013]`; operational-state
 declaration = `[FM-IAM-0014]` (the four-condition gate that
-sunsets the identity-by-brief deviation).
+sunsets the identity-by-brief deviation); and **Delegation Tokens**
+= `[FM-IAM-0015]` — the cryptographic primitive that transfers
+execution authority across asynchronous process boundaries, scoping a
+delegating principal's authorization to a delegated operation held by
+a trusted intermediary that resumes the operation on the principal's
+behalf (the mechanism that keeps a long-running, multi-hop workflow
+bound to its originating principal cradle to grave).
 
 ## 3.5 PGE — Policy Guardrail Engine
 
@@ -1809,7 +1819,7 @@ verdicts halt the workflow step before execution. The
 `subagent-guard.sh` PreToolUse hook in the lab today is the precedent
 implementation pattern.
 
-**Status**: **Normative spec**: STD-001 §5.3 (14 requirements +
+**Status**: **Normative spec**: STD-001 §5.3 (15 requirements +
 Conformance Profile).
 
 **Bound STD requirements.** Deterministic evaluation = `[FM-PGE-0001]`
@@ -1828,7 +1838,15 @@ with 8 active subtypes + canonical-emitter assignment rule +
 fallback-emitter rule for unloaded emitters = `[FM-PGE-0011]`;
 policy overlay consumption = `[FM-PGE-0012]`; per-surface
 enforcement = `[FM-PGE-0013]`; mesh.pge.* telemetry =
-`[FM-PGE-0014]`.
+`[FM-PGE-0014]`; and the **named quorum verifier** — the PGE
+sub-component that, for every catastrophic-class operation per
+`[FM-INV-0004]`, collects attestations from independent identities,
+evaluates each attestation's expiry per `[FM-INV-0004.2]`, validates
+role-coverage per `[FM-INV-0004.3]`, and produces the verified K-of-N
+result the policy decision consumes = `[FM-PGE-0015]`. The verifier is
+named, owned, audited, and instrumented as a PGE sub-component rather
+than left as an implicit check — the `[FM-INV-0004]` quorum authority
+has a concrete home in the contract.
 
 ## 3.6 CRB — Compute Resource Broker
 
@@ -1987,7 +2005,14 @@ UI-second discipline = `[FM-MCC-0008]`; agent-out-of-secret-path
 enforcement at the frame boundary = `[FM-MCC-0009]`; Judge-gate
 hook with uniform typed re-attestation = `[FM-MCC-0010]`;
 eight-pillars-MCC-is-host invariant = `[FM-MCC-0011]`;
-operational-state transitional clause = `[FM-MCC-0012]`; mcc.*
+operational-state transitional clause = `[FM-MCC-0012]` — during the
+partial-load window a dispatch to a not-yet-loaded pillar surfaces
+`mcc.substrate_unavailable` as the call's **single terminal event**
+(frame-attributed when IAM is unloaded, principal-attributed once IAM
+has authenticated), with the `pcs.policy.divergence`
+(`mcc-partial-load`) record as a **non-terminal** companion on the
+divergence stream, emitted by the MCC frame as fallback emitter per
+the `[FM-PGE-0011]` rule; mcc.*
 audit emission via the `[FM-ACT-0009]` ack contract =
 `[FM-MCC-0013]`; mesh.mcc.* operational telemetry (frame's own,
 distinct from per-plugin pass-through) = `[FM-MCC-0014]`.
@@ -2674,7 +2699,7 @@ For the record, the design trajectory included the documents below
 
 ---
 
-*End of Fiducial Mesh Handbook v1.1.*
+*End of Fiducial Mesh Handbook v1.1.1.*
 
 The Handbook is the rationale / worked-example / narrative
 companion to the normative Standard (`FIDUCIAL-MESH-STD-001`).

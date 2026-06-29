@@ -1,13 +1,13 @@
 ---
 title: "FIDUCIAL-MESH-STD-001 — Fiducial Mesh Platform Standard"
 doc_type: standard
-status: released
-version: v1.1
-date: 2026-06-28
+status: draft
+version: v1.1.1
+date: 2026-06-29
 license: CC-BY-4.0
 copyright: "Copyright (c) 2026 Agentics Labs LLC"
 authors:
-  - "Fiducial Mesh Group"
+  - "Gregory A. Beam (KI7MT), for the Fiducial Mesh Group"
 companion_to: FIDUCIAL-MESH-HDBK-001.md
 references:
   - https://datatracker.ietf.org/doc/html/rfc2119
@@ -6724,6 +6724,7 @@ matching ACT events exist for every deviation entry whose
 |---------|------|--------|---------|
 | **v1.0** | 2026-06-10 | released | Initial release — eight-pillar platform standard + handbook; seven-pass review chain (Einstein sign-off). |
 | **v1.1** | 2026-06-28 | released | See v1.1 changes below. |
+| **v1.1.1** | 2026-06-29 | draft | Handbook refresh + attribution; **no normative change**. See v1.1.1 changes below. |
 
 **v1.1 — changes over v1.0** (additive; no v1.0 requirement removed or weakened):
 
@@ -6735,9 +6736,17 @@ matching ACT events exist for every deviation entry whose
 
 Review chain (same rigor as v1.0): per-change gate-2 quorum (cold non-author seat + Turing + Hopper) → Patton adversarial holistic pass → Einstein first-principles close.
 
+**v1.1.1 — changes over v1.1** (corrective; **no normative requirement added, changed, or removed** — handbook accuracy + attribution):
+
+- **Handbook sync to the v1.1 requirement set** — corrected the IAM §5.2 and PGE §5.3 requirement counts (14 → 15) and added the missing narrative: `[FM-IAM-0015]` Delegation Tokens, `[FM-PGE-0015]` named quorum verifier, the `[FM-MCC-0013]` `mcc.substrate_unavailable` terminal event during the `[FM-MCC-0012]` partial-load window, and tied the reasoning-runtime substrate seam (HDBK §1.5.1) to `[FM-INV-0006]`.
+- **Spec-drafts cleanup folded in** — STD-001 + HDBK-001 no longer reference the `devel/spec-drafts/` working folder; the released docs stand on their own (design history preserved in git).
+- **Attribution** — author aligned to *Gregory A. Beam (KI7MT), for the Fiducial Mesh Group* in both documents (copyright + license unchanged: Agentics Labs LLC / CC-BY-4.0).
+
+Review chain: same as v1.1 (per-change gate-2 quorum → Patton adversarial → Einstein close).
+
 ---
 
-*End of FIDUCIAL-MESH-STD-001 v1.1.*
+*End of FIDUCIAL-MESH-STD-001 v1.1.1.*
 
 This Standard is the source of truth for the normative requirements
 Fiducial Mesh implementations satisfy. The companion handbook
