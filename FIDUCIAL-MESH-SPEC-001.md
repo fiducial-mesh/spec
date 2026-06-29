@@ -227,7 +227,7 @@ specified herein.
 | OCI | Oracle Cloud Infrastructure (used in this Specification exclusively for the Oracle cloud provider; not to be confused with the Open Container Initiative) |
 | OIDC | OpenID Connect |
 | OTLP | OpenTelemetry Protocol |
-| PCS | Platform Control System (pillar) |
+| PCS | Plugin Control System (pillar) |
 | PCT | Principal Control Token |
 | PGE | Policy Guardrail Engine (pillar) |
 | PIV-CAC | Personal Identity Verification — Common Access Card |
@@ -396,7 +396,7 @@ a capability that the underlying pillars do not already expose.
 
 *Verification: Conformance-test* — the validation harness rejects any
 plugin whose declared capability surface (`.pcs/plugin.pcs.json`
-policy block, per §6 and Appendix B) references a capability not
+policy block, per §6) references a capability not
 present in the deployment's provisioned-capability registry.
 
 ##### `[FM-INV-0003.2]` Net-new capability requires argued-case plus quorum
@@ -2627,7 +2627,7 @@ implementations.
 | Rule corpus storage | `[FM-PGE-0003]`, `[FM-PGE-0004]` | Git-versioned Markdown narrative + per-component executable rule files (one per enforcement surface) | OPA Rego policy bundle, Cedar policy file, database-backed corpus with explicit version table, hybrid (Markdown for Stratum 1 + Rego for Stratum 2) | `pge-corpus-v1` |
 | Policy evaluation engine | `[FM-PGE-0001]`, `[FM-PGE-0002]`, `[FM-PGE-0013]` | Distributed per-surface enforcement composed of: a build-time test-runtime policy suite exercising the rule corpus, a runtime tool-call guard hook on the agent surface, and a CI release gate | OPA (Open Policy Agent) 0.60+ with Rego eval, Cedar runtime with declarative policy engine, per-pillar embedded policy engines, hybrid centralized + per-surface | `pge-engine-v1` |
 | Enforcement surface | `[FM-PGE-0005]`, `[FM-PGE-0007]`, `[FM-PGE-0009]`, `[FM-PGE-0010]` | Distributed multi-surface — PreToolUse hook + IBX submission chokepoint + DPG ephemeral boundary + CI release gate + per-server test suite | OPA-sidecar middleware at IBX/DPG, Cedar runtime sidecar, custom enforcement library per-pillar, hybrid | `pge-enforcement-v1` |
-| Overlay consumption | `[FM-PGE-0012]` | Signed overlay bundles consumed from PCS registry (§6) | Any signed bundle format declared conformant by PCS (§6 + Appendix B) | `pge-overlay-v1` |
+| Overlay consumption | `[FM-PGE-0012]` | Signed overlay bundles consumed from PCS registry (§6) | Any signed bundle format declared conformant by PCS (§6) | `pge-overlay-v1` |
 | Quorum verifier | `[FM-PGE-0015]` | Named PGE sub-component running with its own IAM-issued principal-id; structured signed verified-quorum result consumed by `[FM-PGE-0009]`; horizontally scalable with **leader election backed by a distributed-consensus substrate** (Raft / Paxos / equivalent strict-consistency primitive) per operation identifier | Vault Raft storage backend (sovereign reference; in-substrate), etcd 3.5+ (Raft), Apache Zookeeper 3.8+ (ZAB), Consul (Raft), any consensus substrate satisfying the strict-consistency-under-partition contract; ad-hoc leader election without a consensus substrate is **not conformant** | `pge-quorum-verifier-v1` |
 | Telemetry sink | `[FM-PGE-0014]` | OTLP-on-the-wire (any OTLP-compatible backend per ACT §5.4) | Grafana/Prometheus/Tempo, Azure Monitor, Datadog, OCI Monitoring | `pge-telemetry-v1` |
 
@@ -5396,7 +5396,7 @@ new substrate passes the MCC test suite for every affected seam.
 
 ---
 
-## §6 PCS — Platform Control System
+## §6 PCS — Plugin Control System
 
 **Scope.** PCS is the mesh's **action layer**: the eighth pillar
 and the operational core that composes the substrate pillars
@@ -6608,21 +6608,31 @@ appendix entry; consumers that build against `pct-v1` (e.g., the
 PCS-Daemon `pct-v1` consumer per §6) **shall** continue
 to receive `pct-v1` messages.
 
-## Appendix B — Normative plugin manifest schema
+## Appendix B — Plugin manifest schema (non-normative)
 
-*Reserved for the PCS plugin manifest JSON schema and the `policy:`
-block schema. Will be landed alongside §6.*
+*The plugin manifest format is defined by the upstream plugin specifications
+that PCS implements and strict-supersets — the Anthropic Claude Code and
+OpenAI Codex plugin specs (see §6). This Specification does not re-specify
+the manifest schema: PCS references the upstream contract rather than owning
+it. The PCS-specific superset — the `policy:` block and the control semantics
+over the plugin lifecycle — is defined normatively in §6. Nothing in this
+Specification depends on a PCS-owned manifest schema.*
 
-## Appendix C — Normative namespace conventions
+## Appendix C — Namespace conventions (non-normative; forthcoming)
 
-*Reserved for the namespace coordinate format, prefix-reservation
-discipline, and tenant-onboarding requirements. Will be landed
-alongside §6.*
+*Forthcoming: the namespace coordinate format, prefix-reservation discipline,
+and tenant-onboarding requirements. The mesh-internal namespaces
+(`fiducial-mesh-*`) are described inline in §6 today; this appendix will
+consolidate the conventions in a later increment. Nothing in this
+Specification currently depends on this appendix.*
 
-## Appendix D — Normative cross-pillar binding matrix
+## Appendix D — Cross-pillar binding matrix (non-normative; forthcoming)
 
-*Reserved for the requirement-by-requirement mapping of how PCS workflow
-execution touches each pillar. Will be landed alongside §5 and §6.*
+*Forthcoming: a requirement-by-requirement mapping of how PCS workflow
+execution touches each pillar — a navigational aid over the per-pillar §5
+requirements, which are themselves the binding source. This appendix will
+assemble that cross-reference in a later increment. Nothing in this
+Specification currently depends on this appendix.*
 
 ## Appendix E — Non-normative regulatory crosswalk
 
@@ -6738,8 +6748,9 @@ Review chain (same rigor as v1.0): per-change gate-2 quorum (cold non-author sea
 
 **v1.1.1 — changes over v1.1** (corrective + publication-readiness; **no normative requirement added, changed, or removed**):
 
-- **Document renamed STD → SPEC** — `FIDUCIAL-MESH-STD-001` → `FIDUCIAL-MESH-SPEC-001`, and the descriptive class-word *Standard* → *Specification* throughout. "Specification" is self-certifying (it claims precise specification, not external ratification) — the appropriate, lower-exposure framing for a first public release. The handbook keeps its `HDBK-001` name.
-- **Publication sweep** (per the readiness review) — stripped 20 stale "when landed" cross-references (every referenced section is authored); removed the "§5.2–§5.8 reserved for future PRs" self-contradiction. *(status → released and the Appendix B/C/D resolution are the remaining publication gates.)*
+- **Document renamed STD → SPEC** — `FIDUCIAL-MESH-STD-001` → `FIDUCIAL-MESH-SPEC-001`, and the descriptive class-word *Standard* → *Specification* throughout. "Specification" is self-certifying (it claims precise specification, not external ratification) — the appropriate, lower-exposure framing for a first public release. The handbook keeps its `HDBK-001` name. (The old `STD-001` identifier was never externally published, so no disclosure chain is broken.)
+- **PCS expansion corrected** — *Platform* Control System → **Plugin Control System**. PCS controls plugins and strict-supersets the upstream plugin specs (Anthropic Claude Code + OpenAI Codex); "Plugin" is the accurate expansion.
+- **Publication sweep** (per the readiness review) — stripped 20 stale "when landed" cross-references (every referenced section is authored); removed the "§5.2–§5.8 reserved for future PRs" self-contradiction; **de-normified Appendices B/C/D** — relabeled non-normative with roadmap forward-references (nothing normative depended on them; the bind-analysis found zero `shall … Appendix`, C/D orphaned, B reachable only via two parentheticals that already cite the authored §6). Appendix B reframed as a pointer to the upstream plugin specs PCS implements, not a PCS-owned schema. *(status → released at the release-gate is the last remaining publication step.)*
 - **Handbook sync to the v1.1 requirement set** — corrected the IAM §5.2 and PGE §5.3 requirement counts (14 → 15) and added the missing narrative: `[FM-IAM-0015]` Delegation Tokens, `[FM-PGE-0015]` named quorum verifier, the `[FM-MCC-0013]` `mcc.substrate_unavailable` terminal event during the `[FM-MCC-0012]` partial-load window, and tied the reasoning-runtime substrate seam (HDBK §1.5.1) to `[FM-INV-0006]`.
 - **Spec-drafts cleanup folded in** — SPEC-001 + HDBK-001 no longer reference the `devel/spec-drafts/` working folder; the released docs stand on their own (design history preserved in git).
 - **Attribution** — author aligned to *Gregory A. Beam (KI7MT), for the Fiducial Mesh Group* in both documents (copyright + license unchanged: Agentics Labs LLC / CC-BY-4.0).

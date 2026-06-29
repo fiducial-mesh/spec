@@ -43,7 +43,7 @@ policy (Python default, Go for CRB and DPG, no C# anywhere), the pillar
 topology (substrate / action / governance), and how to read the rest of
 the spec.
 
-### 2. PCS — Platform Control System
+### 2. PCS — Plugin Control System
 What controls the platform. **PCS manages the other pillars via the
 plugin system** (control flows PCS → pillars; pillars stay zero-coupled).
 Opens with the **plugin-loadout = agent role** framing: the 5
@@ -921,7 +921,7 @@ preserved in the project's git history.
 
 ---
 
-# Part 2 — PCS (Platform Control System)
+# Part 2 — PCS (Plugin Control System)
 
 > **STD status of this Part.** PCS is the **eighth pillar** per
 > `[FM-MCC-0011]` and lives in Specification **§6**, which is **written**:
