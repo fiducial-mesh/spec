@@ -8,11 +8,14 @@ to rebump.)
 **Branch:** `v1.1.1` (off `main`, with `watson/cut-spec-free` folded in —
 this line supersedes PR #119; the spec-drafts cleanup ships inside v1.1.1).
 
-**Process:** spec-PR chain — gate-2 (cold non-author seat + Turing + Hopper)
-→ Patton adversarial → Einstein first-principles → Judge merge → tag v1.1.1.
+**Process (publication/documentation track, Judge 2026-06-29):** these docs
+review through **Watson (author) → Patton (adversarial) → Einstein
+(first-principles) → Judge (merge)** → tag v1.1.1. **Not** the code gate-2
+3-panel — Bob, Turing, and Hopper are on the MCC frame code, not the doc
+iterations.
 
 ## Source of the punch-list
-Sync-gap analysis of HDBK-001 against the released v1.1 STD-001 (2026-06-29).
+Sync-gap analysis of HDBK-001 against the released v1.1 SPEC-001 (2026-06-29).
 Method: grep-grounded term/count/coverage diff, cite-by-grep.
 
 ## Clean — verified, no action

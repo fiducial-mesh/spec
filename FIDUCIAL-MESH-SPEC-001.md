@@ -1,5 +1,5 @@
 ---
-title: "FIDUCIAL-MESH-STD-001 — Fiducial Mesh Platform Standard"
+title: "FIDUCIAL-MESH-SPEC-001 — Fiducial Mesh Platform Standard"
 doc_type: standard
 status: draft
 version: v1.1.1
@@ -17,7 +17,7 @@ references:
   - https://agentskills.io/specification
 ---
 
-# FIDUCIAL-MESH-STD-001 — Fiducial Mesh Platform Standard
+# FIDUCIAL-MESH-SPEC-001 — Fiducial Mesh Platform Standard
 
 ## §0 Standard conventions
 
@@ -6732,21 +6732,21 @@ matching ACT events exist for every deviation entry whose
 - **MCC §5.8 build-out** — `[FM-MCC-0006]` plugin contract (item-1 agent reads + scope-authorized writes; item-2 non-agent boundary + operator-facing reads); `[FM-MCC-0013]` audit emission with the single-terminal-event no-bypass set (incl. `mcc.substrate_unavailable` for the `[FM-MCC-0012]` partial-load interim); `[FM-MCC-0010]`↔`0006` reconciliation; `[FM-MCC-0014]` operational telemetry.
 - **Conformance profiles** — OSS-first by reference convention; substrate-agnostic seams (sovereign-reference OSS + alternatives); RHEL-compliant reference OS gate.
 - **Editorial / consistency** — AIR standardized to *After-Incident Report* (glossary ↔ body); worked-example directory corrected to FreeIPA (HA), Samba retained as an alternative; HDBK §6 "PCS Reserved" drift cleared.
-- **Licensing** — STD-001 + HDBK-001 re-licensed **CC-BY-4.0**, © Agentics Labs LLC (mesh code remains GPL-3.0).
+- **Licensing** — SPEC-001 + HDBK-001 re-licensed **CC-BY-4.0**, © Agentics Labs LLC (mesh code remains GPL-3.0).
 
 Review chain (same rigor as v1.0): per-change gate-2 quorum (cold non-author seat + Turing + Hopper) → Patton adversarial holistic pass → Einstein first-principles close.
 
 **v1.1.1 — changes over v1.1** (corrective; **no normative requirement added, changed, or removed** — handbook accuracy + attribution):
 
 - **Handbook sync to the v1.1 requirement set** — corrected the IAM §5.2 and PGE §5.3 requirement counts (14 → 15) and added the missing narrative: `[FM-IAM-0015]` Delegation Tokens, `[FM-PGE-0015]` named quorum verifier, the `[FM-MCC-0013]` `mcc.substrate_unavailable` terminal event during the `[FM-MCC-0012]` partial-load window, and tied the reasoning-runtime substrate seam (HDBK §1.5.1) to `[FM-INV-0006]`.
-- **Spec-drafts cleanup folded in** — STD-001 + HDBK-001 no longer reference the `devel/spec-drafts/` working folder; the released docs stand on their own (design history preserved in git).
+- **Spec-drafts cleanup folded in** — SPEC-001 + HDBK-001 no longer reference the `devel/spec-drafts/` working folder; the released docs stand on their own (design history preserved in git).
 - **Attribution** — author aligned to *Gregory A. Beam (KI7MT), for the Fiducial Mesh Group* in both documents (copyright + license unchanged: Agentics Labs LLC / CC-BY-4.0).
 
 Review chain: same as v1.1 (per-change gate-2 quorum → Patton adversarial → Einstein close).
 
 ---
 
-*End of FIDUCIAL-MESH-STD-001 v1.1.1.*
+*End of FIDUCIAL-MESH-SPEC-001 v1.1.1.*
 
 This Standard is the source of truth for the normative requirements
 Fiducial Mesh implementations satisfy. The companion handbook
