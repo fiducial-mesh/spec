@@ -44,14 +44,14 @@ The Specification is organized NASA-STD-style:
 | § | Slot | Status |
 |---|------|--------|
 | 5.1 | **IBX** — Inbox Exchange (pillar) | Filled (12 requirements + Conformance Profile) |
-| 5.2 | **IAM** — Identity & Access Management (pillar) | Filled (14 requirements + Conformance Profile) |
-| 5.3 | **PGE** — Policy Guardrail Engine (pillar) | Filled (14 requirements + Conformance Profile) |
+| 5.2 | **IAM** — Identity & Access Management (pillar) | Filled (15 requirements + Conformance Profile) |
+| 5.3 | **PGE** — Policy Guardrail Engine (pillar) | Filled (15 requirements + Conformance Profile) |
 | 5.4 | **ACT** — Agent Cognitive Telemetry (pillar) | Filled (12 requirements + Conformance Profile) |
 | 5.5 | **AKB** — Agent Knowledge Base (pillar) | Filled (14 requirements + Conformance Profile) |
 | 5.6 | **DPG** — Deterministic Proving Ground (pillar) | Filled (14 requirements + Conformance Profile) |
 | 5.7 | **CRB** — Compute Resource Broker (pillar) | Filled (13 requirements + Conformance Profile) |
 | 5.8 | **MCC** — Mesh Control Center (**host frame**, not a pillar; see `[FM-MCC-0011]`) | Filled (14 requirements + Conformance Profile) |
-| 6 | **PCS** — Platform Control System (the eighth pillar) | Filled (18 requirements + Conformance Profile) |
+| 6 | **PCS** — Plugin Control System (the eighth pillar) | Filled (18 requirements + Conformance Profile) |
 
 **Spec is complete.** §5 covers 7 substrate pillars (§§5.1–5.7) + the MCC host frame (§5.8); §6 covers the eighth pillar, **PCS**. Pillar count is 8; MCC is host, not pillar #9. All 8 pillars have numbered requirements + a Conformance Profile.
 
