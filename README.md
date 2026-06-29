@@ -2,7 +2,7 @@
 
 This repository holds the **approved specification documents** and the
 **LaTeX/PDF build** for Fiducial Mesh. It is the canonical home of
-the Standard and Handbook. Working drafts, design notes, and
+the Specification and Handbook. Working drafts, design notes, and
 competitive analyses live elsewhere (see *Where the rest lives*
 below).
 
@@ -13,17 +13,17 @@ Licensed **CC-BY-4.0** (see `LICENSE`). Copyright © 2026 **Agentics Labs LLC**.
 
 | File | What it is |
 |------|------------|
-| `FIDUCIAL-MESH-SPEC-001.md` | **The Standard** — normative requirements (RFC 2119 keywords, numbered `FM-*` IDs). NASA-STD shape. |
-| `FIDUCIAL-MESH-HDBK-001.md` | **The Handbook** — companion narrative. Non-normative rationale, design history, and worked examples. Cites the Standard in reverse. |
+| `FIDUCIAL-MESH-SPEC-001.md` | **The Specification** — normative requirements (RFC 2119 keywords, numbered `FM-*` IDs). NASA-STD shape. |
+| `FIDUCIAL-MESH-HDBK-001.md` | **The Handbook** — companion narrative. Non-normative rationale, design history, and worked examples. Cites the Specification in reverse. |
 | `Makefile` | pandoc + lualatex build for both PDFs. |
 | `LICENSE` | CC-BY-4.0 + copyright notice (Agentics Labs LLC). |
 
 Nothing else lives here on purpose. If it isn't approved spec or the
 build that renders it, it lives in `../devel/`.
 
-## Standard — section map
+## Specification — section map
 
-The Standard is organized NASA-STD-style:
+The Specification is organized NASA-STD-style:
 
 | Section | Contents | State |
 |---------|----------|-------|
@@ -59,21 +59,21 @@ The Standard is organized NASA-STD-style:
 
 | Pass | Doc | Reviewer | PR | Status |
 |------|-----|----------|-----|--------|
-| Pass-1 STD | SPEC-001 (7 substrate pillars + MCC host) | Watson + Bob+panel | #87 | Merged |
-| Pass-2 STD | SPEC-001 | Patton adversarial | #88 | Merged |
+| Pass-1 SPEC | SPEC-001 (7 substrate pillars + MCC host) | Watson + Bob+panel | #87 | Merged |
+| Pass-2 SPEC | SPEC-001 | Patton adversarial | #88 | Merged |
 | Pass-1 HDBK | HDBK-001 (refresh) | Watson + Bob+panel | #89 | Merged |
 | Pass-2 HDBK | HDBK-001 | Patton adversarial | #90 | Merged |
-| STD companion | SPEC-001 (Shamir precision + model-substrate seam) | Watson + Bob+panel | #91 | Merged |
+| SPEC companion | SPEC-001 (Shamir precision + model-substrate seam) | Watson + Bob+panel | #91 | Merged |
 | PR-B-PCS | SPEC-001 §6 PCS (eighth pillar) | Watson + Bob+panel | #92 | Merged |
-| Pass-3 STD | SPEC-001 complete (with §6 PCS) | Patton adversarial | #93 | Merged |
-| Pass-4 STD | SPEC-001 complete + post-Pass-3-fold | Einstein first-principles | #94 | Merged |
-| Pass-5 STD | SPEC-001 post-Pass-4-fold | Einstein second-order first-principles | #95 | Merged |
-| Pass-6 STD | SPEC-001 post-Pass-5-fold | Einstein third-order first-principles | #96 | Merged |
-| Pass-7 STD | SPEC-001 post-Pass-6-fold (Einstein sign-off + Thompson trust-boundary acknowledgment) | Einstein sign-off | #97 | Merged |
+| Pass-3 SPEC | SPEC-001 complete (with §6 PCS) | Patton adversarial | #93 | Merged |
+| Pass-4 SPEC | SPEC-001 complete + post-Pass-3-fold | Einstein first-principles | #94 | Merged |
+| Pass-5 SPEC | SPEC-001 post-Pass-4-fold | Einstein second-order first-principles | #95 | Merged |
+| Pass-6 SPEC | SPEC-001 post-Pass-5-fold | Einstein third-order first-principles | #96 | Merged |
+| Pass-7 SPEC | SPEC-001 post-Pass-6-fold (Einstein sign-off + Thompson trust-boundary acknowledgment) | Einstein sign-off | #97 | Merged |
 
-**Release status:** **v1.0 released 2026-06-10.** Tag: `v1.0`. The seven-pass review chain is closed; Einstein's verbatim sign-off ("The Fiducial Mesh v1.0 Standard is a rigorous, testable, and air-tight contract. The mechanics are proven. You are cleared for Phase 4.0.") is recorded in PR #97. `main` is the release branch — no direct commits. Any subsequent changes land on feature branches and are reviewed before merge.
+**Release status:** **v1.0 released 2026-06-10.** Tag: `v1.0`. The seven-pass review chain is closed; Einstein's verbatim sign-off ("The Fiducial Mesh v1.0 Specification is a rigorous, testable, and air-tight contract. The mechanics are proven. You are cleared for Phase 4.0.") is recorded in PR #97. `main` is the release branch — no direct commits. Any subsequent changes land on feature branches and are reviewed before merge.
 
-The complete SPEC-001 covers 8 pillars + MCC host frame + 6 invariants + 11 active divergence_type subtypes + named quorum verifier. HDBK-001 is the companion. Pass-4 STD is Einstein's first-principles pass on the post-Pass-3 artifact — focused on what only fundamental-limit reading finds (DAG reachability, CAP/FLP, Little's Law, Nyquist, orthogonality, Lamport, cryptographic domain separation, Halting problem). Reviewed via attached-files (no GH access for Einstein).
+The complete SPEC-001 covers 8 pillars + MCC host frame + 6 invariants + 11 active divergence_type subtypes + named quorum verifier. HDBK-001 is the companion. Pass-4 SPEC is Einstein's first-principles pass on the post-Pass-3 artifact — focused on what only fundamental-limit reading finds (DAG reachability, CAP/FLP, Little's Law, Nyquist, orthogonality, Lamport, cryptographic domain separation, Halting problem). Reviewed via attached-files (no GH access for Einstein).
 
 Reserved sections are placeholders with the dependencies that already
 bind them (e.g., the audit-emission requirements every pillar
@@ -85,7 +85,7 @@ test set per substrate seam.
 
 ```bash
 make pdf       # build both
-make std       # Standard only
+make std       # Specification only
 make hdbk      # Handbook only
 make clean     # remove build/
 ```
@@ -96,7 +96,7 @@ font and tooling notes.
 
 ## Reading order
 
-1. **Start with the Standard's §0–§4.** Conventions, scope,
+1. **Start with the Specification's §0–§4.** Conventions, scope,
    invariants. Everything in §5+ binds back to §4.
 2. **Read the pillar §5 sections you care about.** Each pillar is
    self-contained: requirements, then its Conformance Profile.
@@ -104,8 +104,8 @@ font and tooling notes.
    *why* matters — design history, worked example, regulatory
    crosswalk — the Handbook is where that lives.
 
-The Standard is what you build to. The Handbook is what you read to
-understand the Standard.
+The Specification is what you build to. The Handbook is what you read to
+understand the Specification.
 
 ## Where the rest lives
 
@@ -118,8 +118,8 @@ understand the Standard.
 
 ## Contributing
 
-The Fiducial Mesh Group authors and maintains this Standard
-collectively. Changes to the Standard follow the dialectical
+The Fiducial Mesh Group authors and maintains this Specification
+collectively. Changes to the Specification follow the dialectical
 discipline documented in the Handbook (multi-agent review, argued
 cases for substrate-profile extensions per `[FM-INV-0003.2]`,
 quorum for catastrophic-class changes per `[FM-INV-0004]`).

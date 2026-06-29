@@ -92,7 +92,7 @@ bridge from this Specification to the conformance harness.
 
 ### §0.6 Out of scope for this Specification
 
-This Specification adopts NASA Technical Specification structural conventions
+This Specification adopts NASA Technical Standard structural conventions
 (numbered requirements, RFC 2119 keywords, normative appendices, the
 STD/HDBK companion pattern). It does **not** adopt:
 
@@ -181,7 +181,7 @@ specified herein.
 | Reference | Title |
 |-----------|-------|
 | Model Context Protocol Specification | `modelcontextprotocol.io/specification` |
-| Open Agent Skills Specification | `agentskills.io/specification` |
+| Agent Skills Specification | `agentskills.io/specification` |
 | Anthropic Claude Code Plugin Reference | `code.claude.com/docs/en/plugins-reference` |
 | OpenAI Codex Plugin Specification | `developers.openai.com/codex/plugins/build` |
 | Maven Coordinate Conventions | groupId:artifactId:version |
@@ -236,7 +236,7 @@ specified herein.
 | SAML | Security Assertion Markup Language |
 | SCIF | Sensitive Compartmented Information Facility |
 | SHA | Secure Hash Algorithm |
-| STD | Specification (NASA document type) |
+| STD | Standard (NASA document type) |
 | TLS | Transport Layer Security |
 | VMA | Vendor-Mediated Architecture |
 

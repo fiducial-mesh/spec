@@ -20,7 +20,7 @@ references:
 > behind the mesh's normative requirements. **The STD is what gets
 > audited; this handbook is what gets read.**
 >
-> Per the STD/HDBK separation: **this handbook cites STD requirement IDs
+> Per the SPEC/HDBK separation: **this handbook cites STD requirement IDs
 > by number; it never restates them.** Where this handbook discusses
 > `[FM-INV-0001]` (no-bypass), the normative statement lives in
 > SPEC-001 §4.1; this handbook explains the reasoning, the precedent,
@@ -28,7 +28,7 @@ references:
 > that cross-restate drift; one source of truth prevents that.
 >
 > **Migration note:** this document was renamed from `FIDUCIAL-MESH-SPEC.md`
-> on 2026-06-09 as part of the STD/HDBK restructure. Existing chapter
+> on 2026-06-09 as part of the SPEC/HDBK restructure. Existing chapter
 > content remains operative for material not yet migrated into SPEC-001;
 > chapters are being reorganized into proper handbook structure (intro,
 > rationale per invariant, dogfood story, dialectical narrative, worked
@@ -367,7 +367,7 @@ transitional deviation) is `[FM-IAM-0014]`.
 
 Open-source first. Sovereign by construction. Pragmatism over preference.
 
-> **STD/HDBK boundary.** The Specification is **language-neutral at the
+> **SPEC/HDBK boundary.** The Specification is **language-neutral at the
 > contract layer** per `[FM-SPEC §1]` — pillar requirements shall not
 > mandate the implementation language or framework of any pillar; the
 > conformance test sets are language-blind, and a conforming
@@ -492,7 +492,7 @@ language policy: the Specification stays substrate-neutral at the contract
 layer; this Handbook section documents what the project's reference
 implementation runs on and the test it gates against.
 
-> **STD/HDBK boundary.** The Specification does **not** mandate an
+> **SPEC/HDBK boundary.** The Specification does **not** mandate an
 > operating system. The substrate-pluggability invariant per
 > `[FM-SPEC §1]` and `[FM-INV-0005]` means the conformance test set is
 > OS-blind; a conforming implementation may run on any operating system
@@ -2120,7 +2120,7 @@ provisioning.
 
 ## 4.3 Delivery and packaging
 
-> **STD/HDBK boundary reminder (per §1.5).** The Specification is
+> **SPEC/HDBK boundary reminder (per §1.5).** The Specification is
 > language-neutral at the contract layer per `[FM-SPEC §1]`. The
 > language map below is the project's **reference-implementation
 > choice**, not a conformance requirement. A customer choosing
@@ -2422,7 +2422,7 @@ Reference material. Tables and lookup, not narrative.
 
 ## Appendix B — Language map
 
-> **STD/HDBK boundary.** The Specification is **language-neutral at
+> **SPEC/HDBK boundary.** The Specification is **language-neutral at
 > the contract layer** per SPEC-001 §1; pillar requirements shall
 > not mandate an implementation language. This Appendix documents
 > the **project's reference-implementation choice** — what *we*
@@ -2498,7 +2498,7 @@ canon.
 6. **RHEL-compatible build / runtime substrate** — Rocky 9.7+ /
    Alma 9.7+ / RHEL 9.7+ / UBI 9.7+ only in v1.0–v1.1; no
    `ubuntu-latest`. This is a project-level reference-implementation
-   choice per the STD/HDBK boundary (§1.5); the Specification is
+   choice per the SPEC/HDBK boundary (§1.5); the Specification is
    substrate-pluggable per STD §1 — a customer's regulated build
    substrate stays substrate-pluggable on the same terms.
 
