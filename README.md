@@ -1,125 +1,55 @@
-# Fiducial Mesh — Specification Repository
+# Fiducial Mesh — Specification & Handbook
 
-This repository holds the **approved specification documents** and the
-**LaTeX/PDF build** for Fiducial Mesh. It is the canonical home of
-the Specification and Handbook. Working drafts, design notes, and
-competitive analyses live elsewhere (see *Where the rest lives*
-below).
+**Cradle-to-grave traceability for AI-assisted engineering — as a substrate-pluggable, open specification.**
 
-Authored by the **Fiducial Mesh Group**.
-Licensed **CC-BY-4.0** (see `LICENSE`). Copyright © 2026 **Agentics Labs LLC**.
+Autonomous agents are entering regulated engineering environments faster than the trust, audit, and lifecycle disciplines those environments require. Unless a platform binds **every agent action to a verified principal**, **every policy decision to a recorded determination**, **every knowledge citation to its source**, and **every state-affecting operation to an append-only audit ledger**, the output of an agentic system cannot pass the certification gates that FAA-certified avionics, FDA-regulated devices, nuclear control systems, and the EU AI Act impose.
 
-## What's in this repo
+Fiducial Mesh specifies those primitives — and keeps them **portable across the operator's own choice of substrate** (secret store, directory, database, isolation runtime, telemetry backend), so sovereignty is a property of the architecture, not a vendor relationship.
 
-| File | What it is |
-|------|------------|
-| `FIDUCIAL-MESH-SPEC-001.md` | **The Specification** — normative requirements (RFC 2119 keywords, numbered `FM-*` IDs). NASA-STD shape. |
-| `FIDUCIAL-MESH-HDBK-001.md` | **The Handbook** — companion narrative. Non-normative rationale, design history, and worked examples. Cites the Specification in reverse. |
-| `Makefile` | pandoc + lualatex build for both PDFs. |
-| `LICENSE` | CC-BY-4.0 + copyright notice (Agentics Labs LLC). |
+This repository holds the two canonical documents.
 
-Nothing else lives here on purpose. If it isn't approved spec or the
-build that renders it, it lives in `../devel/`.
+| Document | What it is |
+|----------|------------|
+| [**`FIDUCIAL-MESH-SPEC-001`**](FIDUCIAL-MESH-SPEC-001.md) | **The Specification** — normative requirements (RFC 2119 keywords, numbered `FM-*` IDs, per-pillar Conformance Profiles). This is what you build to. |
+| [**`FIDUCIAL-MESH-HDBK-001`**](FIDUCIAL-MESH-HDBK-001.md) | **The Handbook** — the companion narrative: rationale, design history, worked examples. This is what you read to understand the Specification. |
 
-## Specification — section map
+**Current version: v1.2.1** (see [tags](../../tags) and [releases](../../releases)).
 
-The Specification is organized NASA-STD-style:
+## The shape
 
-| Section | Contents | State |
-|---------|----------|-------|
-| §0 | Conventions (RFC 2119, requirement-ID discipline, verification methods) | Complete |
-| §1 | Scope | Complete |
-| §2 | Applicable Documents | Complete |
-| §3 | Acronyms & Definitions | Complete |
-| §4 | Top-Level Invariants (`FM-INV-NNNN`) | Complete |
-| §5 | Pillar requirements — 7 substrate pillars (§§5.1–5.7) + MCC host frame (§5.8) | Filled |
-| §6 | **PCS** — the eighth pillar (plugin & workflow requirements) | Filled |
-| §7 | Operational requirements | Reserved |
-| App. A | PCT Schema (normative) | Complete |
-| App. B–E | Manifest schema, namespace conventions, cross-pillar binding, regulatory crosswalk | Reserved |
-| App. F | Argued cases & deviations registry | Reserved |
+Eight pillar contracts plus a pluggable host frame (MCC). Each pillar specifies *what capability it requires from substrate*, not *which product provides it* — and conformance is mechanically verified against a named profile set.
 
-### §5 + §6 pillar fill state (8 pillars + the host frame)
+| Pillar | | Plane |
+|---|---|---|
+| **IBX** | Inbox Exchange — agent message/work queue | State |
+| **IAM** | Identity & Access Management — sovereign agent identity lifecycle | Issuance + Control |
+| **PGE** | Policy Guardrail Engine — deterministic, owned policy enforcement | Control |
+| **ACT** | Agent Cognitive Telemetry — append-only audit + observability | State |
+| **AKB** | Agent Knowledge Base — grounded, citable knowledge retrieval | State |
+| **PCS** | Plugin Control System — plugin/workflow lifecycle + conformance + registry | Control |
+| **CRB** | Compute Resource Broker — workload dispatch | Control |
+| **DPG** | Deterministic Proving Ground — ephemeral execution isolation | Compute |
+| **MCC** | Mesh Control Center — the host frame that composes the pillars (*not* a pillar) | — |
 
-| § | Slot | Status |
-|---|------|--------|
-| 5.1 | **IBX** — Inbox Exchange (pillar) | Filled (12 requirements + Conformance Profile) |
-| 5.2 | **IAM** — Identity & Access Management (pillar) | Filled (15 requirements + Conformance Profile) |
-| 5.3 | **PGE** — Policy Guardrail Engine (pillar) | Filled (15 requirements + Conformance Profile) |
-| 5.4 | **ACT** — Agent Cognitive Telemetry (pillar) | Filled (12 requirements + Conformance Profile) |
-| 5.5 | **AKB** — Agent Knowledge Base (pillar) | Filled (14 requirements + Conformance Profile) |
-| 5.6 | **DPG** — Deterministic Proving Ground (pillar) | Filled (14 requirements + Conformance Profile) |
-| 5.7 | **CRB** — Compute Resource Broker (pillar) | Filled (13 requirements + Conformance Profile) |
-| 5.8 | **MCC** — Mesh Control Center (**host frame**, not a pillar; see `[FM-MCC-0011]`) | Filled (14 requirements + Conformance Profile) |
-| 6 | **PCS** — Plugin Control System (the eighth pillar) | Filled (18 requirements + Conformance Profile) |
+The load-bearing structural commitment is the **Management + Control dyad**: runtime control (admission, dispatch, isolation, enforcement) is structurally separated from management (identity lifecycle, telemetry/audit, knowledge, conformance) — *exhibited by the contract structure itself*, not maintained by operator discipline.
 
-**Spec is complete.** §5 covers 7 substrate pillars (§§5.1–5.7) + the MCC host frame (§5.8); §6 covers the eighth pillar, **PCS**. Pillar count is 8; MCC is host, not pillar #9. All 8 pillars have numbered requirements + a Conformance Profile.
-
-**Review chain status:**
-
-| Pass | Doc | Reviewer | PR | Status |
-|------|-----|----------|-----|--------|
-| Pass-1 SPEC | SPEC-001 (7 substrate pillars + MCC host) | Watson + Bob+panel | #87 | Merged |
-| Pass-2 SPEC | SPEC-001 | Patton adversarial | #88 | Merged |
-| Pass-1 HDBK | HDBK-001 (refresh) | Watson + Bob+panel | #89 | Merged |
-| Pass-2 HDBK | HDBK-001 | Patton adversarial | #90 | Merged |
-| SPEC companion | SPEC-001 (Shamir precision + model-substrate seam) | Watson + Bob+panel | #91 | Merged |
-| PR-B-PCS | SPEC-001 §6 PCS (eighth pillar) | Watson + Bob+panel | #92 | Merged |
-| Pass-3 SPEC | SPEC-001 complete (with §6 PCS) | Patton adversarial | #93 | Merged |
-| Pass-4 SPEC | SPEC-001 complete + post-Pass-3-fold | Einstein first-principles | #94 | Merged |
-| Pass-5 SPEC | SPEC-001 post-Pass-4-fold | Einstein second-order first-principles | #95 | Merged |
-| Pass-6 SPEC | SPEC-001 post-Pass-5-fold | Einstein third-order first-principles | #96 | Merged |
-| Pass-7 SPEC | SPEC-001 post-Pass-6-fold (Einstein sign-off + Thompson trust-boundary acknowledgment) | Einstein sign-off | #97 | Merged |
-
-**Release status:** **v1.0 released 2026-06-10.** Tag: `v1.0`. The seven-pass review chain is closed; Einstein's verbatim sign-off ("The Fiducial Mesh v1.0 Specification is a rigorous, testable, and air-tight contract. The mechanics are proven. You are cleared for Phase 4.0.") is recorded in PR #97. `main` is the release branch — no direct commits. Any subsequent changes land on feature branches and are reviewed before merge.
-
-The complete SPEC-001 covers 8 pillars + MCC host frame + 7 invariants + 11 active divergence_type subtypes + named quorum verifier. HDBK-001 is the companion. Pass-4 SPEC is Einstein's first-principles pass on the post-Pass-3 artifact — focused on what only fundamental-limit reading finds (DAG reachability, CAP/FLP, Little's Law, Nyquist, orthogonality, Lamport, cryptographic domain separation, Halting problem). Reviewed via attached-files (no GH access for Einstein).
-
-Reserved sections are placeholders with the dependencies that already
-bind them (e.g., the audit-emission requirements every pillar
-inherits). Filled pillars carry numbered requirements + a Conformance
-Profile that lists sovereign reference, supported alternatives, and
-test set per substrate seam.
-
-## Building the PDFs
-
-```bash
-make pdf       # build both
-make std       # Specification only
-make hdbk      # Handbook only
-make clean     # remove build/
-```
-
-Requires `pandoc`, `lualatex` (MacTeX or TeX Live), and STIX Two
-fonts. Built PDFs land in `build/`. See the `Makefile` header for
-font and tooling notes.
+Seven top-level invariants (`[FM-INV-0001]` … `[FM-INV-0007]`) bind every pillar; everything in the pillar requirements binds back to them.
 
 ## Reading order
 
-1. **Start with the Specification's §0–§4.** Conventions, scope,
-   invariants. Everything in §5+ binds back to §4.
-2. **Read the pillar §5 sections you care about.** Each pillar is
-   self-contained: requirements, then its Conformance Profile.
-3. **Pull in the Handbook for rationale.** Whenever a requirement's
-   *why* matters — design history, worked example, regulatory
-   crosswalk — the Handbook is where that lives.
+1. **Specification §0–§4** — conventions, scope, the invariants. Everything below §4 binds back to it.
+2. **The pillar §5 / §6 sections you care about** — each is self-contained: requirements, then a Conformance Profile (sovereign reference + supported alternatives + test set).
+3. **Pull in the Handbook for the *why*** — design history, regulatory crosswalk, worked examples.
 
-The Specification is what you build to. The Handbook is what you read to
-understand the Specification.
+## How it's developed
 
-## Where the rest lives
+In the open, through a **multi-agent dialectical review chain** — author → adversarial review → first-principles review → human integrator. No single reviewer, however expert, reliably sees the blind spot in their own work; the method defeats that across independent vantages. This discipline is itself part of the credited design, and it is documented in the Handbook.
 
-| Concern | Location |
-|---------|----------|
-| Working drafts, pillar source material, design notes | `../devel/spec-drafts/` |
-| Architecture decisions still under dialogue | `../devel/architecture-notes/` |
-| Competitive analysis (Claude Enterprise, Codex, etc.) | `../devel/competitive/` |
-| Implementation (Python monorepo) | `../core/` |
+## License & citation
 
-## Contributing
+- **Specification & Handbook** — **CC-BY-4.0** ([`LICENSE`](LICENSE)).
+- **Mesh software** (separate repositories) — GPL-3.0.
 
-The Fiducial Mesh Group authors and maintains this Specification
-collectively. Changes to the Specification follow the dialectical
-discipline documented in the Handbook (multi-agent review, argued
-cases for substrate-profile extensions per `[FM-INV-0003.2]`,
-quorum for catastrophic-class changes per `[FM-INV-0004]`).
+Copyright © 2026 **Agentics Labs LLC**. Authored by **Gregory A. Beam (KI7MT), for the Fiducial Mesh Group**.
+
+To cite, use the archived release DOI (see [Releases](../../releases) / Zenodo). Contributions follow the discipline in the organization's [`CONTRIBUTING`](https://github.com/fiducial-mesh/.github/blob/main/CONTRIBUTING.md); drift from the Specification is a finding, not a feature.
