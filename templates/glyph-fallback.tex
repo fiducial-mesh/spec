@@ -1,0 +1,12 @@
+% Glyph fallback for prose Unicode symbols absent from STIX Two Text.
+% Maps them to STIX Two Math equivalents via math mode. Verbatim/code
+% blocks change catcodes, so these do NOT fire inside fenced diagrams —
+% those keep rendering literally in the monofont (Menlo). Cosmetic build
+% fix for the "Missing character" warnings; no content change.
+\usepackage{newunicodechar}
+\newunicodechar{→}{\ensuremath{\rightarrow}}
+\newunicodechar{↔}{\ensuremath{\leftrightarrow}}
+\newunicodechar{≥}{\ensuremath{\geq}}
+\newunicodechar{≠}{\ensuremath{\neq}}
+\newunicodechar{⊃}{\ensuremath{\supset}}
+\newunicodechar{∈}{\ensuremath{\in}}

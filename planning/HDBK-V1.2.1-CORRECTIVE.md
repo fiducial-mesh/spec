@@ -1,11 +1,14 @@
 # HDBK-001 v1.2.1 — Corrective increment (punch-list + resolution)
 
-**Version call:** **v1.2.1 (corrective patch)**, not v1.3. The normative
-SPEC is **untouched** (v1.2, tagged). This is **handbook-only accuracy**:
-factual errors, an internal invariant-count contradiction, a security-
-critical lifecycle-state omission, two stale "will-land-in-the-SPEC"
-forward-references that have since landed, and stale cross-references /
-counts. Semver says patch.
+**Version call:** **v1.2.1 (corrective patch)** for both docs. Originally
+scoped HDBK-only; Einstein's first-principles pass surfaced **one
+normative defect in the locked SPEC** (`[FM-PCS-0012]` emergency-source
+completeness), which Judge authorized re-opening v1.2 to fix. So v1.2.1 is
+now a **coordinated SPEC + HDBK increment**: the HDBK carries handbook-
+accuracy fixes (factual errors, an internal invariant-count contradiction,
+a lifecycle-state omission, stale forward-references and cross-refs); the
+SPEC carries **one normative refinement** (`[FM-PCS-0012]`). Semver says
+patch on both. The §1.5.1 / §2.6 SPEC↔HDBK pairing stays in lockstep.
 
 **Branch:** `v1.2.1` (off `main`).
 
@@ -87,6 +90,36 @@ panel-call-by-test) before fixing. Method killed nothing on faith — the
   (Einstein non-blocking; `PCS-COHERENCE-V1.1.2.md` Gap 3).
 - Validator → §5.3 security-floor wiring — `PCS-COHERENCE-V1.1.2.md` Gap 1.
 
+## Einstein first-principles round (post-Patton, Judge-authorized SPEC re-open)
+Patton's adversarial seat cleared `8b5ff87` (every cite re-resolved, both
+counts recounted). Einstein's first-principles pass then returned
+`REQUEST_CHANGES` with two findings (count-closure §1.7 = CLEAN):
+
+- **E1 — §2.6 / `[FM-PCS-0012]` immunity window (NORMATIVE).** The
+  emergency-source enumeration (Draft / Validated / Published / Deprecated
+  / Withdrawn / Archived) omits the non-resolvable pipeline states
+  `Validating` and `Failed` — an arbitrary line (includes Draft, excludes
+  its siblings). **Accepted as a valid completeness finding; severity
+  adjudicated DOWN** — the omitted states are non-resolvable (resolvability
+  table), so no execution-evasion; it is forensic-completeness +
+  enumerate-and-miss fragility, not the live breach Einstein framed.
+  **Fix (coordinated SPEC + HDBK, Judge authorized re-opening v1.2):**
+  restated the source set **by exclusion** — "any non-terminal state
+  (every state except Purged and Quarantined)" — in SPEC `[FM-PCS-0012]`
+  prose + `Verification` (new pipeline-state test) and mirrored in HDBK
+  §2.6. SPEC bumped v1.2 → v1.2.1 (one normative refinement; Revision
+  History + changelog updated).
+- **E2 — §1.5.1 entailment over-claim (HDBK-only).** "the deviation
+  discipline is the operational expression of *that invariant*" is
+  backwards — a deviation *suspends* an invariant. **Accepted outright.**
+  Fixed to: expression of the *transitional clause* `[FM-INV-0006.1]`, the
+  recognized departure from `[FM-INV-0006]`'s baseline; added the explicit
+  "a deviation suspends the invariant; it does not express it" line.
+
+Both turned in one pass. Chain re-runs on the SPEC change: Patton
+structural → Einstein re-confirm of the `[FM-PCS-0012]` refinement → Judge.
+
 ## After tag
 Paper (`ki7mt/research-papers` `drafts/FIDUCIAL-MESH.md`) re-adheres
-against the corrected HDBK before its own team review.
+against the corrected HDBK **and the refined `[FM-PCS-0012]`** before its
+own team review.

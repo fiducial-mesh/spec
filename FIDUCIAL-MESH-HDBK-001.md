@@ -475,10 +475,14 @@ its 2×2 `(data_egress_boundary, hardware_custody)` matrix (SPEC §4.5).
 The divergence_type for vendor-hosted reasoning, `non-sovereign-reasoning`,
 is enumerated in the `[FM-PGE-0011]` discriminator table, and its
 emission discipline is bound by the `[FM-INV-0006.1]` transitional
-clause. The deviation discipline above is the **operational expression**
-of that invariant: it is what a deployment running on a
-non-sovereign-reference cell of the matrix declares until its
-local-inference substrate is operational for the affected workload class.
+clause. The deviation discipline above is the **operational expression of
+that transitional clause `[FM-INV-0006.1]`** — the *recognized departure*
+from `[FM-INV-0006]`'s sovereign-reference baseline that a deployment
+running on a non-sovereign-reference cell of the matrix operates under
+until its local-inference substrate is operational for the affected
+workload class. A deviation suspends the invariant for the affected
+workload class; it does not express it — `[FM-INV-0006.1]` is what governs
+that suspension.
 
 **Why this matters more than language policy.** Language policy is
 implementation choice — the conformance test set is language-blind.
@@ -1215,11 +1219,16 @@ Draft → Validating → Validated → Published → Deprecated → Withdrawn �
 | Purged | No (bytes deleted; audit-log entry remains) |
 
 **Emergency revocation targets Quarantined, not Withdrawn.** Per
-`[FM-PCS-0012]`, an emergency transition from any active state (Draft /
-Validated / Published / Deprecated / Withdrawn / Archived) targets
-**Quarantined** — the *compromised* state, non-resolvable by every
-consumer class, bytes retained for forensics until a forensic-window
-expiry transitions it to Purged. Withdrawn is the *graceful*-retirement
+`[FM-PCS-0012]`, an emergency transition is permitted from **any
+non-terminal state** — every state except the terminal Purged and
+Quarantined itself, the non-resolvable pipeline states Validating and
+Failed included — and targets **Quarantined**, the *compromised* state,
+non-resolvable by every consumer class, bytes retained for forensics
+until a forensic-window expiry transitions it to Purged. Defining the
+source set **by exclusion** (anything not already terminal or
+quarantined) rather than by enumeration is deliberate: it leaves no
+immunity window in which a compromised artifact discovered mid-pipeline
+cannot be locked for forensics. Withdrawn is the *graceful*-retirement
 state (legacy consumers can still resolve); a compromised plugin
 emergency-revoked to Withdrawn would keep executing for any pinned or
 legacy consumer, so the Quarantined state exists to close that path.

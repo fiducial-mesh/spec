@@ -1,8 +1,8 @@
 ---
 title: "FIDUCIAL-MESH-SPEC-001 — Fiducial Mesh Platform Specification"
 doc_type: specification
-status: released
-version: v1.2
+status: draft
+version: v1.2.1
 date: 2026-06-29
 license: CC-BY-4.0
 copyright: "Copyright (c) 2026 Agentics Labs LLC"
@@ -6028,10 +6028,19 @@ Resolvability from the registry per consumer:
 | **Quarantined** | **No (compromised / emergency-revoked; bytes retained for forensics; non-resolvable by every consumer class)** |
 | Purged | No (bytes deleted; ACT audit-log entry remains) |
 
-**Emergency transitions** from any active state (Draft / Validated
-/ Published / Deprecated / Withdrawn / Archived) target
-**Quarantined**, not Withdrawn. Withdrawn is the *graceful*
-retirement state (legacy consumers can still resolve);
+**Emergency transitions** target **Quarantined**, not Withdrawn,
+and **shall** be permitted from **any non-terminal state** — every
+state except the terminal **Purged** and **Quarantined** itself
+(i.e. Draft / Validating / Validated / Failed / Published /
+Deprecated / Withdrawn / Archived). The source set is defined **by
+exclusion** (any state that is not already terminal or quarantined),
+not by positive enumeration, so that no non-terminal state is exempt
+from emergency isolation — including the non-resolvable pipeline
+states **Validating** and **Failed**: a compromised artifact
+discovered mid-pipeline **shall** be lockable for forensics rather
+than left to loop back to Draft or to transition onward. Withdrawn
+is the *graceful* retirement state (legacy consumers can still
+resolve);
 **Quarantined is the *compromised* state — non-resolvable by every
 consumer class**, bytes retained for forensics until an
 operator-configurable forensic-window expires and the artifact
@@ -6050,7 +6059,10 @@ applies if retention policy removes the historical events).
 state transition and asserts the ACT event is recorded; exercises
 an emergency transition and asserts the target is Quarantined (not
 Withdrawn) with the artifact non-resolvable by every consumer
-class; exercises a Quarantined → Purged transition after the
+class; exercises an emergency transition **from a non-resolvable
+pipeline state (Validating or Failed)** and asserts it is permitted
+and targets Quarantined (no immunity window); exercises a
+Quarantined → Purged transition after the
 forensic-window expiry and asserts the bytes are removed AND the
 ACT chain is preserved with the re-anchoring at the boundary.
 
@@ -6775,6 +6787,7 @@ matching ACT events exist for every deviation entry whose
 | **v1.0** | 2026-06-10 | released | Initial release — eight-pillar platform standard + handbook; seven-pass review chain (Einstein sign-off). |
 | **v1.1** | 2026-06-28 | released | See v1.1 changes below. |
 | **v1.2** | 2026-06-30 | released | Publication-readiness sweep + **one normative addition** (`[FM-INV-0007]` Registry sole-source). See v1.2 changes below. |
+| **v1.2.1** | 2026-06-30 | draft | Corrective increment — **one normative refinement** (`[FM-PCS-0012]` emergency-source completeness; close the immunity window) coordinated with the HDBK-001 v1.2.1 accuracy pass. See v1.2.1 changes below. |
 
 **v1.1 — changes over v1.0** (additive; no v1.0 requirement removed or weakened):
 
@@ -6798,6 +6811,13 @@ Review chain (same rigor as v1.0): per-change gate-2 quorum (cold non-author sea
 - **Attribution** — author aligned to *Gregory A. Beam (KI7MT), for the Fiducial Mesh Group* in both documents (copyright + license unchanged: Agentics Labs LLC / CC-BY-4.0).
 
 Review chain (publication track): **Watson (author) → Patton (adversarial) → Einstein (first-principles) → Judge (merge)**. Bob, Turing, and Hopper are on the MCC frame code, not the doc iterations.
+
+**v1.2.1 — changes over v1.2** (corrective; **one normative refinement**):
+
+- **NORMATIVE REFINEMENT — `[FM-PCS-0012]` emergency-source completeness.** The emergency → Quarantined transition previously enumerated its permitted source states (Draft / Validated / Published / Deprecated / Withdrawn / Archived), **omitting the non-resolvable pipeline states `Validating` and `Failed`**. Einstein's first-principles review flagged the omission as an arbitrary **immunity window**: a compromised artifact discovered mid-pipeline could not be locked for forensics, and including `Draft` while excluding its sibling pre-publication states is an arbitrary line. Restated **by exclusion** — emergency transition is permitted from **any non-terminal state** (every state except the terminal `Purged` and `Quarantined` itself) — which closes the window and removes the enumerate-and-miss fragility class. `Verification: Conformance-test` extended to exercise an emergency transition from a pipeline state (`Validating`/`Failed`). **Severity adjudicated as forensic-completeness, not execution-evasion** (the omitted states are non-resolvable per the resolvability table, so nothing in them can execute; `Failed` also loops to the quarantinable `Draft`). This is the only normative change in v1.2.1.
+- **Handbook v1.2.1 corrective sync** — the companion HDBK-001 v1.2.1 increment fixes nine handbook-accuracy defects against the v1.2 spec (incl. the §2.6 lifecycle mirror, updated here to the refined emergency-source set) and corrects the §1.5.1 reasoning-runtime framing to express the transitional clause `[FM-INV-0006.1]`, not the invariant `[FM-INV-0006]` it deviates from. See `planning/HDBK-V1.2.1-CORRECTIVE.md`.
+
+Review chain (v1.2.1): **Watson (author) → Patton (adversarial structural) → Einstein (first-principles re-confirm of the `[FM-PCS-0012]` refinement) → Judge (merge)** → tag v1.2.1.
 
 ---
 
