@@ -1,0 +1,83 @@
+name: Publish release PDFs
+
+# Build the Specification and Handbook PDFs and attach them to the GitHub
+# Release whenever a version tag is pushed (v*), or on manual dispatch for an
+# existing tag. GitHub-hosted runner only — this is a public repo.
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing tag to build and release (e.g. v1.2.1)'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve target tag
+        id: ref
+        run: echo "tag=${{ github.event.inputs.tag || github.ref_name }}" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout the tagged sources
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.ref.outputs.tag }}
+
+      - name: Install pandoc + LaTeX + fonts
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            pandoc \
+            texlive-luatex texlive-latex-recommended texlive-latex-extra \
+            texlive-fonts-recommended texlive-fonts-extra \
+            fonts-dejavu-core lmodern
+
+      - name: Glyph fallback (prose Unicode → math; fenced diagrams keep the monofont)
+        run: |
+          cat > glyph-fallback.tex <<'TEX'
+          \usepackage{newunicodechar}
+          \newunicodechar{→}{\ensuremath{\rightarrow}}
+          \newunicodechar{↔}{\ensuremath{\leftrightarrow}}
+          \newunicodechar{≥}{\ensuremath{\geq}}
+          \newunicodechar{≠}{\ensuremath{\neq}}
+          \newunicodechar{⊃}{\ensuremath{\supset}}
+          \newunicodechar{∈}{\ensuremath{\in}}
+          TEX
+
+      - name: Build SPEC + Handbook PDFs
+        run: |
+          luaotfload-tool --update >/dev/null 2>&1 || true
+          build () {
+            pandoc "$1.md" \
+              --pdf-engine=lualatex --toc --toc-depth=3 --number-sections \
+              -V documentclass=report -V papersize=letter -V geometry:margin=1in \
+              -V mainfont="TeX Gyre Termes" \
+              -V monofont="DejaVu Sans Mono" \
+              -V mathfont="TeX Gyre Termes Math" \
+              -V colorlinks=true -V linkcolor=blue -V urlcolor=blue \
+              --include-in-header=glyph-fallback.tex \
+              -V title="$2" \
+              -V author="Gregory A. Beam (KI7MT), for the Fiducial Mesh Group" \
+              -V date="${{ steps.ref.outputs.tag }}" \
+              -o "$1.pdf"
+          }
+          build FIDUCIAL-MESH-SPEC-001 "FIDUCIAL-MESH-SPEC-001 — Fiducial Mesh Specification"
+          build FIDUCIAL-MESH-HDBK-001 "FIDUCIAL-MESH-HDBK-001 — Fiducial Mesh Handbook"
+          ls -lh *.pdf
+
+      - name: Attach both PDFs to the release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.ref.outputs.tag }}
+          name: Fiducial Mesh ${{ steps.ref.outputs.tag }}
+          generate_release_notes: true
+          files: |
+            FIDUCIAL-MESH-SPEC-001.pdf
+            FIDUCIAL-MESH-HDBK-001.pdf
