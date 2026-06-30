@@ -1,8 +1,8 @@
 ---
 title: "FIDUCIAL-MESH-HDBK-001 — Fiducial Mesh Handbook"
 doc_type: handbook
-status: released
-version: v1.2
+status: draft
+version: v1.2.1
 date: 2026-06-29
 license: CC-BY-4.0
 copyright: "Copyright (c) 2026 Agentics Labs LLC"
@@ -417,7 +417,7 @@ the lab's history.
 
 **The mesh-CLI / installer** is either a Go static binary OR is
 "Claude Code + PCS plugins is the CLI" (per the Mesh-CLI delivery shape
-in §2.13). The earlier .NET AOT mesh-CLI plan is retired with the
+in §2.12). The earlier .NET AOT mesh-CLI plan is retired with the
 C#-spine.
 
 The language map per pillar is enumerated in Appendix B.
@@ -469,13 +469,16 @@ hosted reasoning is **operating under a deviation** that **shall**:
    **shall** be enforced when the local-inference substrate is
    declared operational for the affected workload class.
 
-A Specification-side requirement formalizing the **model substrate seam**
-+ the divergence_type for vendor-hosted reasoning is queued as a
-companion SPEC change (it is not yet in the SPEC; this Handbook
-section is the rationale that the SPEC requirement will codify when
-landed). Until it lands, the deviation discipline above is the
-HDBK-level honest baseline; readers should not infer that the absence
-of a numbered requirement means the seam isn't real.
+The Specification formalizes the **model substrate seam** as
+**`[FM-INV-0006]`** — the reasoning-runtime sovereignty invariant and
+its 2×2 `(data_egress_boundary, hardware_custody)` matrix (SPEC §4.5).
+The divergence_type for vendor-hosted reasoning, `non-sovereign-reasoning`,
+is enumerated in the `[FM-PGE-0011]` discriminator table, and its
+emission discipline is bound by the `[FM-INV-0006.1]` transitional
+clause. The deviation discipline above is the **operational expression**
+of that invariant: it is what a deployment running on a
+non-sovereign-reference cell of the matrix declares until its
+local-inference substrate is operational for the affected workload class.
 
 **Why this matters more than language policy.** Language policy is
 implementation choice — the conformance test set is language-blind.
@@ -635,7 +638,7 @@ requirements independent of MCC composition.
 
 ## 1.7 Foundational invariants
 
-Three invariants govern every pillar and every workflow in the mesh.
+Seven invariants govern every pillar and every workflow in the mesh.
 They are not policy — they are architecture. Policy is the operational
 ratchet within the bounds they define; it never widens them.
 
@@ -881,7 +884,7 @@ is `[FM-INV-0005]` (the floor is authoritative), `[FM-INV-0005.2]`
 `[FM-PGE-0005]` (the double-guardrail — IBX intent gate + DPG
 execution gate), `[FM-PGE-0010]` (PGE applies the floor regardless
 of plugin self-declaration), and `[FM-PGE-0011]` (`divergence_type`
-discriminator + the 8 active subtypes registered in its
+discriminator + the 11 active subtypes registered in its
 canonical-emitter table, including `policy-block-mismatch` which
 covers the divergence-as-signal pattern).
 
@@ -977,8 +980,8 @@ N customer workflows, not N customer forks.
 ## 2.2 Plugin-loadout = agent role
 
 > **The loaded plugin set is what makes a session agent-as-{installer,
-> administrator, operator, diagnostician}.** Same harness, same LLM,
-> different loadout → different role.
+> configurator, operator, administrator, diagnostician}.** Same harness,
+> same LLM, different loadout → different role.
 
 Five mesh-internal namespaces map to five composable role-loadouts:
 
@@ -1196,8 +1199,8 @@ states, each transition a signed event in the audit log:
 
 ```
 Draft → Validating → Validated → Published → Deprecated → Withdrawn → Archived → Purged
-              ↓ (fail)                                ↑ (emergency from any active state)
-            Failed → back to Draft
+              ↓ (fail)                                ↓ (emergency)
+            Failed → back to Draft                  Quarantined → Purged (after forensic-window expiry)
 ```
 
 | State | Resolvable by consumers? |
@@ -1208,7 +1211,18 @@ Draft → Validating → Validated → Published → Deprecated → Withdrawn �
 | Superseded *(relation, not state)* | Yes (with migration hint) |
 | Withdrawn | Yes (legacy resolution only) |
 | Archived | Yes (explicit pinning only) |
+| **Quarantined** | **No (compromised / emergency-revoked; bytes retained for forensics; non-resolvable by every consumer class)** |
 | Purged | No (bytes deleted; audit-log entry remains) |
+
+**Emergency revocation targets Quarantined, not Withdrawn.** Per
+`[FM-PCS-0012]`, an emergency transition from any active state (Draft /
+Validated / Published / Deprecated / Withdrawn / Archived) targets
+**Quarantined** — the *compromised* state, non-resolvable by every
+consumer class, bytes retained for forensics until a forensic-window
+expiry transitions it to Purged. Withdrawn is the *graceful*-retirement
+state (legacy consumers can still resolve); a compromised plugin
+emergency-revoked to Withdrawn would keep executing for any pinned or
+legacy consumer, so the Quarantined state exists to close that path.
 
 **RHEL cadence.** A workflow Deprecated within a BOM release lifetime
 is Withdrawn at the next major BOM version. Same pattern as RHEL 9 →
@@ -1422,9 +1436,10 @@ trust bootstrap above sits *above* the per-deployment registry —
 it's the seam between the project's public artifacts and the
 customer's pinned local trust state. SPEC §6 codifies the
 per-deployment registry contract (`[FM-PCS-0013]`); the project-signing-root
-discipline lives in this Handbook for now and will land in the
-Specification's release-engineering requirements when those are
-authored.
+discipline is codified in the Specification's release-engineering
+requirements at §7.1 as `[FM-PKG-0002]` (the key-purpose-separated
+artifact-signing authority, distinct from the ARCA identity root
+`[FM-IAM-0002]`).
 
 ## 2.9 Substrate matrix × workflow — customization without forking
 
@@ -1804,7 +1819,9 @@ discipline, not a policy overlay — the validated crypto path must be
 the substrate's default from `vault operator init` onward.
 
 **Bound SPEC requirements.** Offline-ARCA separation =
-`[FM-IAM-0001]`; identity issuance + lifecycle =
+`[FM-IAM-0001]`; per-organization ARCA sovereignty (each org's
+identity root self-signed, with no vendor root above it) =
+`[FM-IAM-0002]`; identity issuance + lifecycle =
 `[FM-IAM-0003]` + `[FM-IAM-0003.1]`; suspend / resume (with
 worker-pool claim-draining semantics) = `[FM-IAM-0004]`;
 revocation / termination = `[FM-IAM-0005]`; Vault in-boundary
@@ -1863,7 +1880,7 @@ emission via the `[FM-ACT-0009]` ack contract = `[FM-PGE-0008]`;
 catastrophic-class quorum gating = `[FM-PGE-0009]`; platform
 enforcement floor independent of plugin self-declaration =
 `[FM-PGE-0010]`; the **`divergence_type` discriminator system**
-with 8 active subtypes + canonical-emitter assignment rule +
+with 11 active subtypes + canonical-emitter assignment rule +
 fallback-emitter rule for unloaded emitters = `[FM-PGE-0011]`;
 policy overlay consumption = `[FM-PGE-0012]`; per-surface
 enforcement = `[FM-PGE-0013]`; mesh.pge.* telemetry =
@@ -2677,8 +2694,8 @@ validation harness. Operators and compliance auditors read the
 ## Appendix F — Cross-pillar binding matrix
 
 > **SPEC anchor.** This Handbook appendix is the **narrative
-> companion** to SPEC-001 **Appendix D — Normative cross-pillar
-> binding matrix** (currently Reserved; will be filled alongside the
+> companion** to SPEC-001 **Appendix D — Cross-pillar binding
+> matrix** (non-normative; forthcoming — will be filled alongside the
 > §5 / §6 requirement-by-requirement mapping). Where SPEC Appendix D becomes
 > the requirement-by-requirement mapping, this Handbook table is
 > the workflow-moment view of the same composition. The SPEC
@@ -2728,7 +2745,7 @@ For the record, the design trajectory included the documents below
 
 ---
 
-*End of Fiducial Mesh Handbook v1.2.*
+*End of Fiducial Mesh Handbook v1.2.1.*
 
 The Handbook is the rationale / worked-example / narrative
 companion to the normative Specification (`FIDUCIAL-MESH-SPEC-001`).
