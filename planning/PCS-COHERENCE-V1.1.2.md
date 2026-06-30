@@ -48,6 +48,25 @@ Conformance-test` that includes a *negative* (side-load-rejected) case so the
 boundary is testable as the **absence of a non-Registry path**. Out of this
 increment.
 
+## Gap 3 — Secret Isolation: elevate `[FM-MCC-0009]` to invariant tier (deferred — Einstein non-blocking)
+**Raised by Einstein (v1.2 reconciled review), explicitly `FIX` / non-blocking.**
+Agent-out-of-secret-path **is stated** as `[FM-MCC-0009]` (a MCC pillar
+requirement) — so unlike `[FM-INV-0007]`, this is **not** the enforced-but-unstated
+class. Einstein's point: an absolute zero-trust boundary kept at component tier
+isn't evaluated by top-level conformance suites and could regress in a refactor.
+
+**Why deferred (Einstein's own words: "does not block the current text validation
+if left as a component requirement"):** elevating it is a **7→8 normative addition**
+that re-opens the spec's normative surface for fresh adversarial review — folding it
+into the v1.2 publication gate risks another round, the exact failure we're ending.
+Logged to land deliberately later (with Patton review), **not dropped**.
+
+**Fix (later increment):** add `[FM-INV-0008] Secret Isolation` — the platform
+runtime **shall not** expose underlying data-plane authentication credentials to the
+agent execution space; `Verification: Conformance-test` via a negative
+credential-acquisition attempt. Elevates the core assertion of `[FM-MCC-0009]` to
+invariant tier.
+
 ## Process
 Separate increment through the publication/doc track (Watson → Patton → Einstein →
 Judge). Author deliberately — these are normative additions, not sweeps.
