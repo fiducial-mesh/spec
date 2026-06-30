@@ -1,7 +1,7 @@
 ---
 title: "FIDUCIAL-MESH-SPEC-001 — Fiducial Mesh Platform Specification"
 doc_type: specification
-status: draft
+status: released
 version: v1.2
 date: 2026-06-29
 license: CC-BY-4.0
@@ -6774,7 +6774,7 @@ matching ACT events exist for every deviation entry whose
 |---------|------|--------|---------|
 | **v1.0** | 2026-06-10 | released | Initial release — eight-pillar platform standard + handbook; seven-pass review chain (Einstein sign-off). |
 | **v1.1** | 2026-06-28 | released | See v1.1 changes below. |
-| **v1.2** | 2026-06-29 | draft | Publication-readiness sweep + **one normative addition** (`[FM-INV-0007]` Registry sole-source). See v1.2 changes below. |
+| **v1.2** | 2026-06-30 | released | Publication-readiness sweep + **one normative addition** (`[FM-INV-0007]` Registry sole-source). See v1.2 changes below. |
 
 **v1.1 — changes over v1.0** (additive; no v1.0 requirement removed or weakened):
 

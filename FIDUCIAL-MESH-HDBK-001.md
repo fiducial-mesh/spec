@@ -1,7 +1,7 @@
 ---
 title: "FIDUCIAL-MESH-HDBK-001 — Fiducial Mesh Handbook"
 doc_type: handbook
-status: draft
+status: released
 version: v1.2
 date: 2026-06-29
 license: CC-BY-4.0
