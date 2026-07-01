@@ -58,9 +58,7 @@ jobs:
             pandoc "$1.md" \
               --pdf-engine=lualatex --toc --toc-depth=3 --number-sections \
               -V documentclass=report -V papersize=letter -V geometry:margin=1in \
-              -V mainfont="TeX Gyre Termes" \
               -V monofont="DejaVu Sans Mono" \
-              -V mathfont="TeX Gyre Termes Math" \
               -V colorlinks=true -V linkcolor=blue -V urlcolor=blue \
               --include-in-header=glyph-fallback.tex \
               -V title="$2" \
