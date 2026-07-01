@@ -52,4 +52,9 @@ In the open, through a **multi-agent dialectical review chain** — author → a
 
 Copyright © 2026 **Agentics Labs LLC**. Authored by **Gregory A. Beam (KI7MT), for the Fiducial Mesh Group**.
 
-To cite, use the archived release DOI (see [Releases](../../releases) / Zenodo). Contributions follow the discipline in the organization's [`CONTRIBUTING`](https://github.com/fiducial-mesh/.github/blob/main/CONTRIBUTING.md); drift from the Specification is a finding, not a feature.
+Archived, citable DOIs (CC-BY-4.0):
+
+- **Specification** (SPEC-001 v1.2.1) — [`10.5281/zenodo.21109753`](https://doi.org/10.5281/zenodo.21109753)
+- **Handbook** (HDBK-001 v1.2.1) — [`10.5281/zenodo.21110034`](https://doi.org/10.5281/zenodo.21110034)
+
+Contributions follow the discipline in the organization's [`CONTRIBUTING`](https://github.com/fiducial-mesh/.github/blob/main/CONTRIBUTING.md); drift from the Specification is a finding, not a feature.
