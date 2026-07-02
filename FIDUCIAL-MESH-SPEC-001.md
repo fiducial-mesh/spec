@@ -1,9 +1,9 @@
 ---
 title: "FIDUCIAL-MESH-SPEC-001 — Fiducial Mesh Platform Specification"
 doc_type: specification
-status: released
-version: v1.2.1
-date: 2026-06-30
+status: draft
+version: v1.2.2
+date: 2026-07-02
 license: CC-BY-4.0
 copyright: "Copyright (c) 2026 Agentics Labs LLC"
 authors:
@@ -2781,23 +2781,76 @@ sessions of the same identity continue operating per
 `[FM-IAM-0004]`. Without session granularity, the only response
 unit is "the whole identity."
 
-**Genesis-event carve-out.** Events of the genesis class per
-`[FM-INV-0004.5]` are the sole exception to this attribution
-requirement — by construction they exist to bring the IAM
+**Attributed-origin discriminator.** Every event in ACT **shall**
+carry an `attributed_origin` discriminator drawn from a closed set
+— `principal` | `genesis` | `frame` — naming which attribution
+model the event satisfies. A `principal`-origin event carries the
+full `principal-id` + session-id attribution above. The other two
+values name the two closed carve-outs below; no event may land in
+ACT without satisfying exactly one of the three models.
+
+**Genesis-event carve-out (`attributed_origin = genesis`).** Events
+of the genesis class per `[FM-INV-0004.5]` exist to bring the IAM
 `principal-id` system into existence and therefore cannot reference
-it. Genesis events carry holder-fingerprint attestation per
-`[FM-INV-0004.5]` item 3 in place of the `principal-id` /
-session-id pair. No other class of event **shall** be permitted to
-land in ACT without the full `principal-id` + session-id
-attribution.
+it. They carry holder-fingerprint attestation per `[FM-INV-0004.5]`
+item 3 in place of the `principal-id` / session-id pair.
+
+**Frame-attribution carve-out (`attributed_origin = frame`).** The
+frame-attributed events of `[FM-MCC-0013]` — `mcc.call_received`,
+the pre-authentication `mcc.auth_denied`, and
+`mcc.substrate_unavailable` with `missing_pillar = iam` — are
+emitted **before** a caller principal is verified, or during the
+`[FM-MCC-0012]` IAM-absent partial-load window when no principal is
+verifiable at all; they therefore cannot reference a `principal-id`
+/ session-id, yet `[FM-MCC-0013]` / `[FM-INV-0001]` require each to
+land in ACT (a call's mandatory single terminal event — and
+`mcc.call_received` — **shall not** be dropped for lack of a
+principal). In place of the `principal-id` / session-id pair they
+**shall** carry:
+
+1. a **frame-attestation marker** identifying the emitting MCC
+   frame as the attributed origin — bound to the frame's own
+   service credential and attestable **independently of the IAM
+   pillar**, so it is available during the `[FM-MCC-0012]`
+   IAM-absent window (the structural analogue of the genesis
+   carve-out's pre-IAM position; a deployment realizes it via the
+   frame's service-TLS identity, which is substrate-provisioned and
+   does not depend on IAM being loaded); and
+2. a **call-correlation identifier** — the per-call id binding
+   `mcc.call_received` to the call's single terminal event per
+   `[FM-MCC-0013]` — serving the session-id's per-call-traceability
+   role in the absence of a session.
+
+This carve-out is **bounded** to those enumerated `[FM-MCC-0013]`
+frame-attributed events — the frame's own pre-principal lifecycle
+emissions. It **shall not** admit any handler, resource-level, or
+state-affecting event without a verified `principal-id`; such
+events remain governed by the full-attribution rule, and an
+event's `attributed_origin` **shall not** be set to `frame` to
+evade it. Frame attribution names the events that structurally
+precede or cannot reference a principal — never a substitute for
+one that exists.
+
+No event **shall** be permitted to land in ACT except under one of
+these three attribution models: `principal` (full `principal-id` +
+session-id), `genesis` (holder-fingerprint attestation per
+`[FM-INV-0004.5]`), or `frame` (frame-attestation marker +
+call-correlation per this clause and `[FM-MCC-0013]`).
 
 *Verification: Conformance-test* — the harness invokes operations
 from multiple sessions of the same identity and asserts each event
 in ACT carries distinct session identifiers; asserts session
 identifiers persist with their events through the storage layer;
-asserts every non-genesis event in the store carries a
-`principal-id`; asserts a non-genesis event submitted without
-attribution is rejected.
+asserts every event carries an `attributed_origin` ∈ {`principal`,
+`genesis`, `frame`}; asserts every `principal`-origin event carries
+a `principal-id`; asserts a frame-attributed `[FM-MCC-0013]` event
+(e.g. an IAM-absent-partial-load `mcc.substrate_unavailable`) is
+accepted carrying the frame-attestation marker + call-correlation
+id with `attributed_origin = frame`; asserts a handler /
+resource-level event submitted with `attributed_origin = frame` but
+no verified `principal-id` is **rejected** (the carve-out cannot be
+used to evade attribution); asserts a `principal`-origin event
+submitted without attribution is rejected.
 
 #### `[FM-ACT-0004]` Event-type taxonomy
 
@@ -5262,7 +5315,12 @@ condition; divergence events emitted per item 2 above.
 
 MCC **shall** emit the following `mcc.*` events to ACT via the
 `[FM-ACT-0009]` ack contract, drawn from the `[FM-ACT-0004]`
-event-type taxonomy:
+event-type taxonomy. Events labelled **frame-attributed** below
+land in ACT under the `[FM-ACT-0003]` frame-attribution carve-out
+(`attributed_origin = frame`: a frame-attestation marker +
+call-correlation id in place of a verified principal);
+principal-attributed events carry the full `principal-id` +
+session-id per `[FM-ACT-0003]`. The events:
 
 - `mcc.call_received` — emitted on inbound call before
   authentication; **frame-attributed** per the next paragraph.
@@ -6788,6 +6846,7 @@ matching ACT events exist for every deviation entry whose
 | **v1.1** | 2026-06-28 | released | See v1.1 changes below. |
 | **v1.2** | 2026-06-30 | released | Publication-readiness sweep + **one normative addition** (`[FM-INV-0007]` Registry sole-source). See v1.2 changes below. |
 | **v1.2.1** | 2026-06-30 | released | Corrective increment — **one normative refinement** (`[FM-PCS-0012]` emergency-source completeness; close the immunity window) coordinated with the HDBK-001 v1.2.1 accuracy pass. See v1.2.1 changes below. |
+| **v1.2.2** | 2026-07-02 | draft | Normative gap fix (spec#127) — `[FM-ACT-0003]` frame-attribution carve-out for the `[FM-MCC-0013]` frame-attributed events; surfaced building the MCC ActSink (core #64b). See v1.2.2 changes below. |
 
 **v1.1 — changes over v1.0** (additive; no v1.0 requirement removed or weakened):
 
@@ -6818,6 +6877,12 @@ Review chain (publication track): **Watson (author) → Patton (adversarial) →
 - **Handbook v1.2.1 corrective sync** — the companion HDBK-001 v1.2.1 increment fixes nine handbook-accuracy defects against the v1.2 spec (incl. the §2.6 lifecycle mirror, updated here to the refined emergency-source set) and corrects the §1.5.1 reasoning-runtime framing to express the transitional clause `[FM-INV-0006.1]`, not the invariant `[FM-INV-0006]` it deviates from. See `planning/HDBK-V1.2.1-CORRECTIVE.md`.
 
 Review chain (v1.2.1): **Watson (author) → Patton (adversarial structural) → Einstein (first-principles re-confirm of the `[FM-PCS-0012]` refinement) → Judge (merge)** → tag v1.2.1.
+
+**v1.2.2 — changes over v1.2.1** (one normative gap fix; spec#127):
+
+- **NORMATIVE — `[FM-ACT-0003]` frame-attribution carve-out.** Surfaced building the MCC ActSink (core #64b): `[FM-ACT-0003]` (no event lands in ACT without full `principal-id` + session-id, genesis the *sole* carve-out) collided with `[FM-MCC-0013]`'s **mandatory frame-attributed events** — `mcc.call_received`, the pre-authentication `mcc.auth_denied`, and `mcc.substrate_unavailable` (`missing_pillar = iam`) — which have **no verified principal** and are not genesis, yet must land in ACT (`[FM-INV-0001]`/`[FM-MCC-0013]` require exactly one terminal per call). Resolved with a **second carve-out parallel to genesis**: an `attributed_origin` discriminator (`principal` | `genesis` | `frame`), with frame-attributed events attesting via a **frame-attestation marker** (IAM-independent — service-TLS-realized, so it holds during the `[FM-MCC-0012]` IAM-absent window) + a **call-correlation id** in place of principal-id/session-id. **Bounded**: only the enumerated `[FM-MCC-0013]` frame events qualify — a handler/resource event **cannot** set `attributed_origin = frame` to evade attribution (negative conformance test). `[FM-MCC-0013]` cross-references the carve-out. Chosen option (a) over (b) an MCC service principal-id (collapses into (a) *dishonestly* — no IAM principal is issuable during the IAM-absent window) and (c) a distinct partial-load/pre-auth rule ((a), less unified). **The gap passed two spec-review passes and surfaced only at build — the build-to-prove discipline working as designed.**
+
+Review chain (v1.2.2): **Watson (author) → Patton (adversarial) → Einstein (first-principles) → Judge (merge)** → tag v1.2.2. core #64b (ActSink) waits on merge; core #64a (PgePlugin, #77) is unaffected.
 
 ---
 
