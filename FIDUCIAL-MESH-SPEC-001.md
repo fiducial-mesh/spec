@@ -5361,28 +5361,41 @@ session-id), this satisfies the `[FM-ACT-0003]` session-granular
 attribution requirement in full, without falsely attesting to an
 identity the auth hook has not yet verified.
 
-**Serving precondition (inbound calls only; no bootstrap deadlock).**
-The frame **shall not** accept an **inbound (served) call** until it
-holds its provisioned `mcc-frame` `principal-id` and has established
-its process-instance session; a frame lacking either **fails closed**
-per `[FM-MCC-0005]` rather than emitting an under-attributed terminal.
-This precondition governs **inbound calls only** — it does **not**
-gate the frame's own startup sequence. Per `[FM-MCC-0005]` the frame
-loads the IAM plugin and establishes its identity/session as a
-**bootstrap** step *before* any plugin serves; plugin **load** is an
-internal startup operation, **not** an inbound dispatch, so there is
-**no bootstrap deadlock** (a frame that cannot establish its identity
-fails closed per `[FM-MCC-0005]` — it does not wait on a call it
-cannot accept). The frame's process-instance session is established
-at startup when it provisions its identity; consequently
-`substrate_unavailable[iam]` is reachable only *while the frame is
-already serving* — i.e. after IAM was loaded per `[FM-MCC-0005]` and
-then became unavailable at request-processing time — so the frame
-emitting it always already holds its credential and session. This
-makes "credential + session are held whenever the frame serves" a
-requirement grounded in `[FM-MCC-0005]`, not a deployment convention
-(mesh-init genesis itself is the separate `[FM-INV-0004.5]`
-carve-out).
+**Serving precondition (kernel bootstrap vs transport surface; no
+deadlock by construction).** The frame is a **kernel/frame** per
+`[FM-MCC-0001]`; its **bootstrap** and its **inbound serving surface**
+are distinct paths, and the boundary is what makes recovery
+deadlock-free. At bootstrap the frame **shall**, in order:
+
+1. **Load the IAM plugin** as a loadable module directly from the
+   local registry per `[FM-MCC-0005]` — a **kernel** operation, **not**
+   a transport-received call, so it does not traverse the `[FM-MCC-0003]`
+   auth hook.
+2. **Establish its own identity** — verify its provisioned `mcc-frame`
+   credential and establish its process-instance session against the
+   secret-store / identity substrates it **already holds as
+   `[FM-MCC-0004]` handles**. The frame holds these substrate handles
+   directly; it does **not** require the IAM *plugin* to be loaded to
+   verify its *own* identity (only the Vault/Roster **substrates**,
+   which it reaches via its own handles, and — per `[FM-IAM-0001]` —
+   local to the mesh, without ARCA).
+3. **Only then bind its `[FM-MCC-0001]` item-1 transports** to accept
+   inbound calls.
+
+The frame **shall not** bind its inbound transports — and **shall
+not** accept an inbound call — until it holds its `mcc-frame`
+`principal-id` and process-instance session; a frame that cannot
+**fails closed** per `[FM-MCC-0005]`. Because the inbound network
+surface does **not exist** until bootstrap completes, there is **no
+bootstrap deadlock by construction** — recovering from a crash during
+the `[FM-MCC-0012]` partial-load window re-runs the kernel bootstrap,
+which needs only the frame's own `[FM-MCC-0004]` substrate handles,
+never the network-auth loop. Consequently `substrate_unavailable[iam]`
+is reachable only *while the frame is already serving* — after IAM was
+loaded per `[FM-MCC-0005]` and then became unavailable at
+request-processing time — so the frame emitting it always already
+holds its credential and session. (Mesh-init genesis itself is the
+separate `[FM-INV-0004.5]` carve-out.)
 
 **Audit-amplification DoS defense.** A mandatory durable ACT
 append + synchronous ack for every unauthenticated denial would
@@ -5432,11 +5445,15 @@ submitted **session-less** (no process-instance session-id) is
 **rejected**. Asserts the serving precondition: a frame that has not
 provisioned its `mcc-frame` credential / process-instance session
 **rejects** the inbound call rather than emitting an
-under-attributed terminal; and asserts **no bootstrap deadlock** — a
-frame restarting during the `[FM-MCC-0012]` partial-load window
-loads IAM and establishes its session as a startup step per
-`[FM-MCC-0005]` (not via a served call) and, if it cannot,
-**fails closed** rather than deadlocking or serving session-less.
+under-attributed terminal; and asserts **no bootstrap deadlock by
+construction** — a frame restarting during the `[FM-MCC-0012]`
+partial-load window re-runs its kernel bootstrap (loads IAM per
+`[FM-MCC-0005]`, verifies its own credential and establishes its
+session via its `[FM-MCC-0004]` substrate handles, then binds its
+`[FM-MCC-0001]` transports), with its inbound transport surface
+**unbound** until the process-instance session exists, and
+**fails closed** if identity cannot be established — it does not
+deadlock and does not serve session-less.
 
 #### `[FM-MCC-0014]` MCC telemetry emission
 
@@ -6884,7 +6901,7 @@ Review chain (v1.2.1): **Watson (author) → Patton (adversarial structural) →
 
 **v1.2.2 — changes over v1.2.1** (clarifying; **no new mechanism — one normative precondition made explicit**):
 
-- **CLARIFICATION — `[FM-MCC-0013]` `substrate_unavailable[missing_pillar = iam]` attribution.** The event's attribution read *"frame-attributed (the identity pillar is absent, so there is no verified principal)"* — which invited the reading that the terminal is **principal-less**, colliding with `[FM-ACT-0003]`. Restated to match the pre-auth rule already in force for `mcc.call_received` / `mcc.auth_denied`: the event is **attributed to the MCC frame's own held `mcc-frame` `principal-id`** (the established *"hold its own IAM-issued principal-id per `[FM-IAM-0006]`"* service pattern — CRB brokers, PCS-Daemon, DPG runners), **verifiable locally per `[FM-IAM-0001]`** even while the IAM *pillar* is unloaded. A partial-load window is the IAM pillar absent **as a plugin**, not the identity substrate being down; the frame is never deprived of its own credential (it serves calls only post-mesh-init, and mesh-init genesis is the separate `[FM-INV-0004.5]` carve-out). Only the *caller* is unverifiable — recorded as `claimed_caller_identity`. **`[FM-ACT-0003]` binds two legs — `principal-id` *and* session-id;** the pre-auth attribution rule is extended so frame-attributed events also carry the frame's **process-instance session-id** (the *agent process* sense of `[FM-IBX-0006]`), under which they chain per `[FM-ACT-0005]`. A **serving precondition** makes this hold-by-requirement, not convention: the frame **shall not** accept a call until it holds its provisioned `mcc-frame` credential and process-instance session. `Verification: Conformance-test` extended: assert the `iam`-variant terminal carries **both** legs (principal-id, not principal-less; session-id, not session-less) and the `pge`-variant the verified caller identity — plus negatives (session-less frame terminal rejected; unprovisioned frame rejects the call) — all satisfying `[FM-ACT-0003]` **without a carve-out**. The serving precondition is **scoped to inbound calls** and harmonized with `[FM-MCC-0005]` (IAM-first-or-fail-closed): the frame's own IAM-plugin load + identity establishment is a **startup bootstrap** step, not an inbound dispatch, so there is **no bootstrap deadlock** (a frame that cannot establish identity fails closed per `[FM-MCC-0005]`); `substrate_unavailable[iam]` is reachable only *while already serving* (IAM loaded per `[FM-MCC-0005]`, then unavailable), so the emitting frame always already holds its session. (Session leg + precondition added on Patton's cold-seat BLOCK: `[FM-ACT-0003]` has two legs and the first draft closed only one — #64b would have hit the session wall one field over. Precondition scoped + `[FM-MCC-0005]` harmonization added on Einstein's first-principles pass, which surfaced a re-derivable bootstrap-deadlock reading of the un-scoped precondition.) **This is the only change in v1.2.2.**
+- **CLARIFICATION — `[FM-MCC-0013]` `substrate_unavailable[missing_pillar = iam]` attribution.** The event's attribution read *"frame-attributed (the identity pillar is absent, so there is no verified principal)"* — which invited the reading that the terminal is **principal-less**, colliding with `[FM-ACT-0003]`. Restated to match the pre-auth rule already in force for `mcc.call_received` / `mcc.auth_denied`: the event is **attributed to the MCC frame's own held `mcc-frame` `principal-id`** (the established *"hold its own IAM-issued principal-id per `[FM-IAM-0006]`"* service pattern — CRB brokers, PCS-Daemon, DPG runners), **verifiable locally per `[FM-IAM-0001]`** even while the IAM *pillar* is unloaded. A partial-load window is the IAM pillar absent **as a plugin**, not the identity substrate being down; the frame is never deprived of its own credential (it serves calls only post-mesh-init, and mesh-init genesis is the separate `[FM-INV-0004.5]` carve-out). Only the *caller* is unverifiable — recorded as `claimed_caller_identity`. **`[FM-ACT-0003]` binds two legs — `principal-id` *and* session-id;** the pre-auth attribution rule is extended so frame-attributed events also carry the frame's **process-instance session-id** (the *agent process* sense of `[FM-IBX-0006]`), under which they chain per `[FM-ACT-0005]`. A **serving precondition** makes this hold-by-requirement, not convention: the frame **shall not** accept a call until it holds its provisioned `mcc-frame` credential and process-instance session. `Verification: Conformance-test` extended: assert the `iam`-variant terminal carries **both** legs (principal-id, not principal-less; session-id, not session-less) and the `pge`-variant the verified caller identity — plus negatives (session-less frame terminal rejected; unprovisioned frame rejects the call) — all satisfying `[FM-ACT-0003]` **without a carve-out**. The serving precondition is a **construction-level kernel-bootstrap-vs-transport-surface boundary**: the frame is a `[FM-MCC-0001]` kernel/frame; at bootstrap it (1) loads the IAM plugin per `[FM-MCC-0005]` as a kernel op that never traverses the `[FM-MCC-0003]` auth hook, (2) verifies its own `mcc-frame` credential + establishes its process-instance session against the secret-store / identity substrates it **already holds as `[FM-MCC-0004]` handles** (the frame needs the Vault/Roster *substrates*, never the IAM *plugin*, to verify its *own* identity), and (3) only then binds its `[FM-MCC-0001]` item-1 transports. Because the inbound surface does not **exist** until bootstrap completes, there is **no bootstrap deadlock by construction** (a frame that cannot establish identity fails closed per `[FM-MCC-0005]`); `substrate_unavailable[iam]` is reachable only *while already serving* (IAM loaded per `[FM-MCC-0005]`, then unavailable), so the emitting frame always already holds its session. (Session leg + precondition added on Patton's cold-seat BLOCK: `[FM-ACT-0003]` has two legs and the first draft closed only one — #64b would have hit the session wall one field over. The construction-level bootstrap boundary — `[FM-MCC-0004]` substrate-handle identity + transports-bind-last — is **Einstein's first-principles solution**, adopted: he surfaced a re-derivable bootstrap-deadlock reading of the un-scoped precondition and supplied the spec-native fix that makes no-deadlock structural rather than inferential.) **This is the only change in v1.2.2.**
 - **Provenance — retires spec#127.** spec#127 was filed as an `[FM-ACT-0003]`↔`[FM-MCC-0013]` gap and drafted as a broad `attributed_origin = frame` carve-out (reverted PR #128). Verifying that draft's first-principles review (Einstein) against the *full* `[FM-MCC-0013]` surfaced that two of the three events were never in conflict (L5401 already attributes them to the frame's principal-id) and the third needs only this clarification. Process lesson recorded: four independent review passes pressured the *fix* while sharing an unexamined *premise*. No reverted-carve-out mechanism survives into v1.2.2.
 
 Review chain (v1.2.2): **Watson (author) → Patton (adversarial structural) → Einstein (first-principles: confirm the clarification dissolves the crypto-chain + aggregation findings) → Judge (merge)** → tag v1.2.2.
