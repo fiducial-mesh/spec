@@ -2821,13 +2821,23 @@ principal). In place of the `principal-id` / session-id pair they
    `[FM-MCC-0013]` — serving the session-id's per-call-traceability
    role in the absence of a session.
 
-This carve-out is **bounded** to those enumerated `[FM-MCC-0013]`
-frame-attributed events — the frame's own pre-principal lifecycle
-emissions. It **shall not** admit any handler, resource-level, or
-state-affecting event without a verified `principal-id`; such
-events remain governed by the full-attribution rule, and an
-event's `attributed_origin` **shall not** be set to `frame` to
-evade it. Frame attribution names the events that structurally
+This carve-out is **bounded** two ways. First, it applies only to
+the enumerated `[FM-MCC-0013]` frame-attributed events — the
+frame's own pre-principal lifecycle emissions; it **shall not**
+admit any handler, resource-level, or state-affecting event without
+a verified `principal-id`. Second — and load-bearing for the
+**dual-variant** `mcc.substrate_unavailable` — **where a verified
+principal exists for the call, `attributed_origin = frame` is
+non-conformant**: a **principal-attributed** `[FM-MCC-0013]` event
+**shall not** be recorded as frame-attributed. The
+`missing_pillar = iam` variant is frame-attributed (no principal
+exists); but the `missing_pillar = pge` variant is
+**principal-attributed** (the caller was IAM-verified before PGE's
+absence was discovered), and recording *it* as `frame` would drop
+the verified `principal-id` behind the frame marker — exactly the
+attribution loss this requirement exists to prevent. An event's
+`attributed_origin` **shall not** be set to `frame` to evade
+attribution. Frame attribution names the events that structurally
 precede or cannot reference a principal — never a substitute for
 one that exists.
 
@@ -2848,9 +2858,13 @@ a `principal-id`; asserts a frame-attributed `[FM-MCC-0013]` event
 accepted carrying the frame-attestation marker + call-correlation
 id with `attributed_origin = frame`; asserts a handler /
 resource-level event submitted with `attributed_origin = frame` but
-no verified `principal-id` is **rejected** (the carve-out cannot be
-used to evade attribution); asserts a `principal`-origin event
-submitted without attribution is rejected.
+no verified `principal-id` is **rejected**; asserts a
+**principal-attributed** `[FM-MCC-0013]` event submitted as
+frame-attributed — specifically `mcc.substrate_unavailable` with
+`missing_pillar = pge`, where a verified caller principal exists —
+is **rejected** (the carve-out cannot be used to drop a real
+principal behind the frame marker); asserts a `principal`-origin
+event submitted without attribution is rejected.
 
 #### `[FM-ACT-0004]` Event-type taxonomy
 
@@ -6880,7 +6894,7 @@ Review chain (v1.2.1): **Watson (author) → Patton (adversarial structural) →
 
 **v1.2.2 — changes over v1.2.1** (one normative gap fix; spec#127):
 
-- **NORMATIVE — `[FM-ACT-0003]` frame-attribution carve-out.** Surfaced building the MCC ActSink (core #64b): `[FM-ACT-0003]` (no event lands in ACT without full `principal-id` + session-id, genesis the *sole* carve-out) collided with `[FM-MCC-0013]`'s **mandatory frame-attributed events** — `mcc.call_received`, the pre-authentication `mcc.auth_denied`, and `mcc.substrate_unavailable` (`missing_pillar = iam`) — which have **no verified principal** and are not genesis, yet must land in ACT (`[FM-INV-0001]`/`[FM-MCC-0013]` require exactly one terminal per call). Resolved with a **second carve-out parallel to genesis**: an `attributed_origin` discriminator (`principal` | `genesis` | `frame`), with frame-attributed events attesting via a **frame-attestation marker** (IAM-independent — service-TLS-realized, so it holds during the `[FM-MCC-0012]` IAM-absent window) + a **call-correlation id** in place of principal-id/session-id. **Bounded**: only the enumerated `[FM-MCC-0013]` frame events qualify — a handler/resource event **cannot** set `attributed_origin = frame` to evade attribution (negative conformance test). `[FM-MCC-0013]` cross-references the carve-out. Chosen option (a) over (b) an MCC service principal-id (collapses into (a) *dishonestly* — no IAM principal is issuable during the IAM-absent window) and (c) a distinct partial-load/pre-auth rule ((a), less unified). **The gap passed two spec-review passes and surfaced only at build — the build-to-prove discipline working as designed.**
+- **NORMATIVE — `[FM-ACT-0003]` frame-attribution carve-out.** Surfaced building the MCC ActSink (core #64b): `[FM-ACT-0003]` (no event lands in ACT without full `principal-id` + session-id, genesis the *sole* carve-out) collided with `[FM-MCC-0013]`'s **mandatory frame-attributed events** — `mcc.call_received`, the pre-authentication `mcc.auth_denied`, and `mcc.substrate_unavailable` (`missing_pillar = iam`) — which have **no verified principal** and are not genesis, yet must land in ACT (`[FM-INV-0001]`/`[FM-MCC-0013]` require exactly one terminal per call). Resolved with a **second carve-out parallel to genesis**: an `attributed_origin` discriminator (`principal` | `genesis` | `frame`), with frame-attributed events attesting via a **frame-attestation marker** (IAM-independent — service-TLS-realized, so it holds during the `[FM-MCC-0012]` IAM-absent window) + a **call-correlation id** in place of principal-id/session-id. **Bounded** two ways: only the enumerated `[FM-MCC-0013]` frame events qualify, and — load-bearing for the **dual-variant** `mcc.substrate_unavailable` — a *principal-attributed* event (including `substrate_unavailable[missing_pillar = pge]`, where a real IAM-verified principal exists) **cannot** be recorded as `frame`, nor can a handler/resource event; both negatives are conformance-tested. (The `pge`-variant frame-evasion seam was Patton's adversarial catch — closed-by-inference but not testable-as-negative, the INV-0007/PCS-0012 class.) `[FM-MCC-0013]` cross-references the carve-out. Chosen option (a) over (b) an MCC service principal-id (collapses into (a) *dishonestly* — no IAM principal is issuable during the IAM-absent window) and (c) a distinct partial-load/pre-auth rule ((a), less unified). **The gap passed two spec-review passes and surfaced only at build — the build-to-prove discipline working as designed.**
 
 Review chain (v1.2.2): **Watson (author) → Patton (adversarial) → Einstein (first-principles) → Judge (merge)** → tag v1.2.2. core #64b (ActSink) waits on merge; core #64a (PgePlugin, #77) is unaffected.
 
