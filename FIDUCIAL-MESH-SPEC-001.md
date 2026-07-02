@@ -6900,7 +6900,7 @@ Review chain (v1.2.2): **Watson (author) → Patton (adversarial) → Einstein (
 
 ---
 
-*End of FIDUCIAL-MESH-SPEC-001 v1.2.*
+*End of FIDUCIAL-MESH-SPEC-001 v1.2.2.*
 
 This Specification is the source of truth for the normative requirements
 Fiducial Mesh implementations satisfy. The companion handbook
